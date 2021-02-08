@@ -1,0 +1,5 @@
+# Specify filepatterns you want git to ignore.
+cpab-diffeo-julia
+cpabDiffeo
+dtan
+libcpab
