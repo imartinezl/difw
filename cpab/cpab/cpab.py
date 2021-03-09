@@ -2,8 +2,8 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from core.utility import Parameters
-from core.tesselation import Tessellation
+from .core.utility import Parameters
+from .core.tessellation import Tessellation
 
 
 class Cpab:
@@ -70,7 +70,7 @@ class Cpab:
         self.backend_name = backend
         if self.backend_name == "numpy":
             pass
-            from backend.numpy import functions as backend
+            from .backend.numpy import functions as backend
         elif self.backend_name == "numba":
             pass
             # from .tensorflow import functions as backend
@@ -387,89 +387,3 @@ class Cpab:
             self.backend_name,
         )
         return output
-
-
-import time
-
-tess_size = 100
-backend = "numpy"
-cpab = Cpab(tess_size, backend)
-
-np.random.seed(1)
-
-batch_size = 40
-# theta = cpab.sample_transformation(batch_size, np.random.normal(-1, 1, (99)), np.random.normal(1, 1, (99,99)))
-theta = cpab.sample_transformation(batch_size)
-# theta = np.random.uniform(-3, 3, (batch_size, 99))
-
-outsize = 200
-grid = cpab.uniform_meshgrid(outsize)
-
-timing = []
-for i in range(50):
-    start = time.time()
-    grid_t = cpab.transform_grid(grid, theta)
-    stop = time.time()
-    timing.append(stop - start)
-    break
-
-print("Time: ", np.mean(timing), "+-", np.std(timing))
-print("Grid: ", grid.shape, "->", grid_t.shape)
-
-# plt.figure()
-# plt.hist(timing, bins=20)
-
-cpab.visualize_tesselation()
-cpab.visualize_velocity(theta, n_points=50)
-cpab.visualize_deformgrid(theta, n_points=100)
-
-print("Done")
-# %% PERFORMANCE EXISTING LIBCPAB
-
-import libcpab
-import torch
-import time
-import numpy as np
-
-tess_size = 100
-backend = "pytorch"
-# backend = "numpy"
-T = libcpab.Cpab([tess_size], backend)
-np.random.seed(1)
-
-outsize = 200
-grid = T.uniform_meshgrid([outsize])
-
-batch_size = 40
-theta = T.sample_transformation(batch_size)
-
-timing = []
-for i in range(50):
-    start = time.time()
-    grid_t = T.transform_grid(grid, theta)
-    stop = time.time()
-    timing.append(stop - start)
-    # break
-    
-
-print("Time: ", np.mean(timing), "+-", np.std(timing))
-print("Grid: ", grid.shape, "->", grid_t.shape)
-
-
-# %%
-tess_size = 5
-backend = "numpy"
-T = libcpab.Cpab([tess_size], backend)
-aligner = libcpab.CpabAligner(T)
-
-
-# x1 = np.array([[[1,2,3]]])
-# x2 = np.array([[[1,2,3]]])
-x1 = np.atleast_3d([1,2,3,3,3,4,5])
-x2 = np.atleast_3d([1,2,2,2,3,3,4])
-if backend == "pytorch":
-    x1 = torch.from_numpy(x1.transpose((0,2,1)))
-    x2 = torch.from_numpy(x2.transpose((0,2,1)))
-theta_sampling = aligner.alignment_by_sampling(x1, x2)
-
-
