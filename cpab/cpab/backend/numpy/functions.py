@@ -131,6 +131,7 @@ def get_velocity_works(x, theta, params):
     b = A[r, c, 1]
     return a * x + b
 
+
 def get_affine(x, theta, params):
     if params.precomputed:
         return params.A, params.r
@@ -140,14 +141,16 @@ def get_affine(x, theta, params):
 
         A = params.B.dot(theta.T).T.reshape(n_theta, -1, 2)
         r = np.broadcast_to(np.arange(n_theta), [n_points, n_theta]).T
-        
+
         return A, r
+
 
 def precompute_affine(x, theta, params):
     params.precomputed = False
     params.A, params.r = get_affine(x, theta, params)
     params.precomputed = True
     return params
+
 
 # TODO: theta is not used if precomputed A is used
 def get_velocity(x, theta, params):
@@ -242,10 +245,10 @@ def get_hit_time(x, theta, params):
     return thit
 
 
-
 eps = np.finfo(float).eps
 # eps = 1e-12
 # np.seterr(divide='ignore', invalid='ignore')
+
 
 def right_boundary(c, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
@@ -283,7 +286,6 @@ def integrate_numeric(x, t, theta, params):
         xPrev = np.where(c == cTemp, xTemp, xNum)
         c = get_cell(xPrev, params)
     return xPrev
-
 
 
 def integrate_analytic_works(x, t, theta, params):
@@ -325,7 +327,6 @@ def integrate_analytic_works(x, t, theta, params):
     return None
 
 
-
 def integrate_analytic(x, t, theta, params):
     n_theta, n_points, nc = params.n_theta, params.n_points, params.nc
     cont = 0
@@ -348,7 +349,7 @@ def integrate_analytic(x, t, theta, params):
         valid = np.logical_and(left <= psi, psi <= right)
         if np.alltrue(valid):
             return phi
-        
+
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
         x = np.clip(psi[~valid], left[~valid], right[~valid])
@@ -365,13 +366,14 @@ def integrate_analytic(x, t, theta, params):
 compiled = False
 # TODO: change name with integrate or integration
 def CPAB_transformer(points, theta, params):
+    params = params.copy()
     n_theta = theta.shape[0]
     n_points = points.shape[-1]
     points = np.broadcast_to(points, (n_theta, n_points))
     params.n_theta, params.n_points = n_theta, n_points
 
     params = precompute_affine(points, theta, params)
-    
+
     t = np.ones((n_theta, n_points))
     return integrate_analytic(points, t, theta, params)
 

@@ -117,10 +117,44 @@ class Cpab:
 
         return self.backend.to(samples, device=self.device)
 
+    # TODO: prepare backend functions
     def sample_transformation_with_prior(
         self, n_sample, mean=None, cov=None, length_scale=0.1, output_variance=1
     ):
-        pass
+        """ Function for sampling smooth transformations. The smoothness is determined
+            by the distance between cell centers. The closer the cells are to each other,
+            the more the cell parameters should correlate -> smooth transistion in
+            parameters. The covariance in the D-space is calculated using the
+            squared exponential kernel.
+                
+        Arguments:
+            n_sample: integer, number of transformation to sample
+            mean: [d,] vector, mean of multivariate gaussian
+            length_scale: float>0, determines how fast the covariance declines 
+                between the cells 
+            output_variance: float>0, determines the overall variance from the mean
+        Output:
+            samples: [n_sample, d] matrix. Each row is a independent sample from
+                a multivariate gaussian
+        """
+
+        cov_theta = self.backend.matmul()
+        samples = self.sample_transformation(n_sample, mean=mean, cov=cov_theta)
+
+        # Smoothness priors on CPA
+        s = output_variance  # 0.01
+        l = length_scale  # 0.1
+        kernel = lambda x, y: (s ** 2) * np.exp(-((x - y) ** 2) / (2 * l ** 2))
+
+        D, d = B.shape
+        grid = np.linspace(0, 1, D)
+        X, Y = np.meshgrid(grid, grid)
+        cov_pa = kernel(X, Y)
+
+        cov_cpa = B.T.dot(cov_pa).dot(B)
+
+        theta = sample_transformation(d, mean, cov_cpa)
+        return theta
 
     def identity(self, n_sample=1, epsilon=0):
         """ Method for getting the parameters for the identity 
@@ -350,19 +384,22 @@ backend = "numpy"
 cpab = Cpab(tess_size, backend)
 
 np.random.seed(1)
-# theta = cpab.sample_transformation(40, np.random.normal(-1, 1, (99)), np.random.normal(1, 1, (99,99)))
-# theta = cpab.sample_transformation(40)
-theta = np.random.uniform(-3, 3, (40, 99))
+
+batch_size = 40
+# theta = cpab.sample_transformation(batch_size, np.random.normal(-1, 1, (99)), np.random.normal(1, 1, (99,99)))
+theta = cpab.sample_transformation(batch_size)
+# theta = np.random.uniform(-3, 3, (batch_size, 99))
+
 outsize = 200
 grid = cpab.uniform_meshgrid(outsize)
 
 timing = []
-for i in range(100):
+for i in range(500):
     start = time.time()
     grid_t = cpab.transform_grid(grid, theta)
     stop = time.time()
     timing.append(stop - start)
-    break
+    
 
 print("Time: ", np.mean(timing), "+-", np.std(timing))
 
@@ -374,5 +411,39 @@ plt.plot(grid, grid_t.T, c="blue", alpha=0.1)
 plt.figure()
 plt.hist(timing, bins=20)
 
+# get velocity
+theta = cpab.sample_transformation(1)
+grid = cpab.uniform_meshgrid(20)
+cpab.get_velocity(grid, theta)
+
 print("Done")
-# %%
+# %% PERFORMANCE EXISTING LIBCPAB
+
+import libcpab
+import torch
+import time
+import numpy as np
+
+tess_size = 100
+backend = "pytorch"
+# backend = "numpy"
+T = libcpab.Cpab([tess_size], backend)
+np.random.seed(1)
+
+outsize = 200
+grid = T.uniform_meshgrid([outsize])
+
+batch_size = 40
+theta = T.sample_transformation(batch_size)
+
+timing = []
+for i in range(50):
+    start = time.time()
+    grid_t = T.transform_grid(grid, theta)
+    stop = time.time()
+    timing.append(stop - start)
+    # break
+    
+
+print("Time: ", np.mean(timing), "+-", np.std(timing))
+print("Grid: ", grid.shape, "->", grid_t.shape)
