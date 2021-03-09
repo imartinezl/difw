@@ -4,3 +4,4 @@ cpabDiffeo
 dtan
 libcpab
 __pycache__
+*.egg-info
