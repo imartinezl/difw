@@ -26,14 +26,15 @@ class Cpab:
     Methods:
         @uniform_meshgrid
         @sample_transformation
+        @sample_transformation_with_prior
         @identity
         @transform_grid
         @interpolate
         @transform_data
-        @calc_vectorfield
-        @visualize_vectorfield
-        @visualize_tesselation
+        @get_velocity
+        @visualize_velocity
         @visualize_deformgrid
+        @visualize_tesselation
     """
 
     def __init__(self, tess_size, backend="python", device="cpu", zero_boundary=True):
@@ -251,11 +252,11 @@ class Cpab:
         """ Utility function that helps visualize the vectorfield for a specific
             parametrization vector theta 
         Arguments:    
-            theta: [1, d] single parametrization vector
+            theta: [n_batch, d] single parametrization vector
             n_points: number of points to plot
             fig: matplotlib figure handle
         Output:
-            plot: handle to quiver plot
+            plot: handle to lines plot
         """
         self._check_type(theta)
         if fig is None:
@@ -263,24 +264,23 @@ class Cpab:
 
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid(n_points)
-        v = self.calc_vectorfield(grid, theta)
-        v = self.backend.tonumpy(v)
+        v = self.get_velocity(grid, theta)
+
         grid = self.backend.tonumpy(grid)
+        v = self.backend.tonumpy(v)
 
         # Plot
         ax = fig.add_subplot(111)
-        plot = ax.quiver(
-            grid[0, :], np.zeros_like(grid), v, np.zeros_like(v), units="xy"
-        )
+        # ax.quiver(grid, np.zeros_like(grid), np.zeros_like(v), v)
+        ax.plot(grid, v.T, color="blue", alpha=0.1)
         ax.set_xlim(self.params.xmin, self.params.xmax)
-        plt.axis("equal")
-        plt.title("Velocity field")
-        return plot
+        ax.set_title("Velocity field")
+        return ax
 
     def visualize_deformgrid(self, theta, n_points=100, fig=None):
         """ Utility function that helps visualize a deformation
         Arguments:
-            theta: [1, d] single parametrization vector
+            theta: [n_batch, d] single parametrization vector
             nb_points: int, number of points
             fig: matplotlib figure handle
         Output:
@@ -289,6 +289,19 @@ class Cpab:
         pass
         if fig is None:
             fig = plt.figure()
+
+        # Transform grid and convert to numpy
+        grid = self.uniform_meshgrid(n_points)
+        grid_t = self.transform_grid(grid, theta)
+        grid = self.backend.tonumpy(grid)
+        grid_t = self.backend.tonumpy(grid_t)
+
+        # Plot
+        ax = fig.add_subplot(111)
+        ax.axline((0, 0), (1, 1), color="black", ls="dashed")
+        ax.plot(grid, grid_t.T, c="blue", alpha=0.1)
+        ax.set_title("Grid Deformation")
+        return ax
 
     def visualize_tesselation(self, n_points=50, fig=None):
         """ Utility function that helps visualize the tesselation.
@@ -304,15 +317,14 @@ class Cpab:
         grid = self.uniform_meshgrid(n_points)
 
         # Find cellindex and convert to numpy
-        idx = self.backend.findcellidx(grid, self.params.nc)
+        idx = self.backend.get_cell(grid, self.params)
         idx = self.backend.tonumpy(idx)
         grid = self.backend.tonumpy(grid)
 
         # Plot
         ax = fig.add_subplot(111)
         plot = ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
-        plt.axis("equal")
-        plt.title("Tesselation " + str(self.params.nc))
+        ax.set_title("Tesselation [" + str(self.params.nc) + "]")
         return plot
 
     def _check_input(self, tess_size, backend, device, zero_boundary):
@@ -394,27 +406,22 @@ outsize = 200
 grid = cpab.uniform_meshgrid(outsize)
 
 timing = []
-for i in range(500):
+for i in range(50):
     start = time.time()
     grid_t = cpab.transform_grid(grid, theta)
     stop = time.time()
     timing.append(stop - start)
-    
+    break
 
 print("Time: ", np.mean(timing), "+-", np.std(timing))
-
 print("Grid: ", grid.shape, "->", grid_t.shape)
 
-plt.axline((0, 0), (1, 1), color="black", ls="dashed")
-plt.plot(grid, grid_t.T, c="blue", alpha=0.1)
+# plt.figure()
+# plt.hist(timing, bins=20)
 
-plt.figure()
-plt.hist(timing, bins=20)
-
-# get velocity
-theta = cpab.sample_transformation(1)
-grid = cpab.uniform_meshgrid(20)
-cpab.get_velocity(grid, theta)
+cpab.visualize_tesselation()
+cpab.visualize_velocity(theta, n_points=50)
+cpab.visualize_deformgrid(theta, n_points=100)
 
 print("Done")
 # %% PERFORMANCE EXISTING LIBCPAB
@@ -447,3 +454,22 @@ for i in range(50):
 
 print("Time: ", np.mean(timing), "+-", np.std(timing))
 print("Grid: ", grid.shape, "->", grid_t.shape)
+
+
+# %%
+tess_size = 5
+backend = "numpy"
+T = libcpab.Cpab([tess_size], backend)
+aligner = libcpab.CpabAligner(T)
+
+
+# x1 = np.array([[[1,2,3]]])
+# x2 = np.array([[[1,2,3]]])
+x1 = np.atleast_3d([1,2,3,3,3,4,5])
+x2 = np.atleast_3d([1,2,2,2,3,3,4])
+if backend == "pytorch":
+    x1 = torch.from_numpy(x1.transpose((0,2,1)))
+    x2 = torch.from_numpy(x2.transpose((0,2,1)))
+theta_sampling = aligner.alignment_by_sampling(x1, x2)
+
+
