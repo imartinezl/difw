@@ -118,7 +118,7 @@ class Cpab:
 
         return self.backend.to(samples, device=self.device)
 
-    # TODO: prepare backend functions
+    # TODO: prepare backend functions to sample with prior
     def sample_transformation_with_prior(
         self, n_sample, mean=None, cov=None, length_scale=0.1, output_variance=1
     ):
@@ -200,7 +200,7 @@ class Cpab:
                 used to interpolate the data
             outsize: number of points in the output
         Output:
-            interlated: [n_batch, outsize] tensor with the interpolated data
+            interpolated: [n_batch, outsize, n_channels] tensor with the interpolated data
         """
         self._check_type(data)
         self._check_device(data)
@@ -220,13 +220,17 @@ class Cpab:
                 correspond to a transformation.
             outsize: number of points that is transformed and interpolated
         Output:
-            data_t: [n_batch, outsize] tensor, transformed and interpolated data
+            data_t: [n_batch, outsize, n_channels] tensor, transformed and interpolated data
         """
 
         self._check_type(data)
         self._check_device(data)
         self._check_type(theta)
         self._check_device(theta)
+        # TODO: assert n_batch in data and theta are the same
+        assert (
+            data.shape[0] == theta.shape[0]
+        ), """Batch sizes should be the same on arguments data and theta"""
         grid = self.uniform_meshgrid(outsize)
         grid_t = self.transform_grid(grid, theta)
         data_t = self.interpolate(data, grid_t, outsize)
@@ -270,11 +274,11 @@ class Cpab:
         v = self.backend.tonumpy(v)
 
         # Plot
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot(1, 1, 1)
         # ax.quiver(grid, np.zeros_like(grid), np.zeros_like(v), v)
         ax.plot(grid, v.T, color="blue", alpha=0.1)
         ax.set_xlim(self.params.xmin, self.params.xmax)
-        ax.set_title("Velocity field")
+        ax.set_title("Velocity Field")
         return ax
 
     def visualize_deformgrid(self, theta, n_points=100, fig=None):
@@ -297,7 +301,7 @@ class Cpab:
         grid_t = self.backend.tonumpy(grid_t)
 
         # Plot
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot(1, 1, 1)
         ax.axline((0, 0), (1, 1), color="black", ls="dashed")
         ax.plot(grid, grid_t.T, c="blue", alpha=0.1)
         ax.set_title("Grid Deformation")
@@ -322,10 +326,44 @@ class Cpab:
         grid = self.backend.tonumpy(grid)
 
         # Plot
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot(1, 1, 1)
         plot = ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
         ax.set_title("Tesselation [" + str(self.params.nc) + "]")
         return plot
+
+    def visualize_velocity2deform(self, theta, n_points=100, fig=None):
+        """ Utility function that helps visualize deformation vs velocity
+        Arguments:
+            theta: [n_batch, d] single parametrization vector
+            nb_points: int, number of points
+            fig: matplotlib figure handle
+        Output:
+            plot: handle to lineplot
+        """
+        pass
+        if fig is None:
+            fig = plt.figure()
+
+        # Calculate velocity, transform grid and convert to numpy
+        grid = self.uniform_meshgrid(n_points)
+        grid_t = self.transform_grid(grid, theta)
+        v = self.get_velocity(grid, theta)
+
+        grid = self.backend.tonumpy(grid)
+        grid_t = self.backend.tonumpy(grid_t)
+        v = self.backend.tonumpy(v)
+
+        # Plot
+        ax = fig.add_subplot(2, 1, 1)
+        ax.axhline(color="black", ls="dashed")
+        ax.plot(grid, v.T, color="blue", alpha=0.1)
+        ax.set_title("Velocity Field")
+
+        ax = fig.add_subplot(2, 1, 2)
+        ax.axhline(color="black", ls="dashed")
+        ax.plot(grid, (grid_t-grid).T, c="blue", alpha=0.1)
+        ax.set_title("Grid Deformation")
+        return ax
 
     def _check_input(self, tess_size, backend, device, zero_boundary):
         """ Utility function used to check the input to the class.
