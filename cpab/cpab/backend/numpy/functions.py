@@ -9,15 +9,12 @@ import numpy as np
 # not sure why we need a third one
 
 
-def interpolate(ndim, data, grid, outsize):
+def interpolate(data, grid, outsize):
     # Problem size
-    n_batch = data.shape[0]
-    width = data.shape[1]
-    n_channels = data.shape[2]
-    out_width = outsize[0]
+    n_batch, width, n_channels = data.shape
 
     # Extract points
-    x = grid[:, 0].flatten()
+    x = grid.flatten()
 
     # Scale to domain
     x = x * (width - 1)
@@ -31,22 +28,20 @@ def interpolate(ndim, data, grid, outsize):
     x1 = np.clip(x1, 0, width - 1)
 
     # Batch effect
-    batch_size = out_width
-    batch_idx = np.arange(n_batch).repeat(batch_size)
+    r = np.arange(n_batch).repeat(outsize)
 
     # Index
-    c0 = data[batch_idx, x0, :]
-    c1 = data[batch_idx, x1, :]
+    y0 = data[r, x0, :]
+    y1 = data[r, x1, :]
 
     # Interpolation weights
     xd = (x - x0.astype(np.float32)).reshape((-1, 1))
 
     # Do interpolation
-    c = c0 * (1 - xd) + c1 * xd
-
-    # Reshape
-    new_data = np.reshape(c, (n_batch, out_width, n_channels))
-    return new_data
+    y = y0 * (1 - xd) + y1 * xd
+    
+    newdata = np.reshape(y, (n_batch, outsize, n_channels))
+    return newdata
 
 
 def assert_version():
