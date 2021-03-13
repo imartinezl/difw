@@ -8,20 +8,23 @@ import cpab
 # importlib.reload(cpab)
 
 # %%
-tess_size = 100
+tess_size = 4
 backend = "numpy"
 T = cpab.Cpab(tess_size, backend)
 
 np.random.seed(1)
 
-batch_size = 4
+batch_size = 2
 # theta = cpab.sample_transformation(batch_size, np.random.normal(-1, 1, (99)), np.random.normal(1, 1, (99,99)))
 theta = T.sample_transformation(batch_size)
-# theta = np.random.uniform(-3, 3, (batch_size, 99))
+# theta = np.random.uniform(-3, 3, (batch_size, tess_size-1))
 
-outsize = 120
+outsize = 10
 grid = T.uniform_meshgrid(outsize)
+# T.transform_grid(grid, theta)
+T.test(grid, theta)
 
+# %%
 width = 100
 channels = 2
 

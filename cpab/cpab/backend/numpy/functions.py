@@ -136,6 +136,7 @@ def get_affine(x, theta, params):
 
         A = params.B.dot(theta.T).T.reshape(n_theta, -1, 2)
         r = np.broadcast_to(np.arange(n_theta), [n_points, n_theta]).T
+        # r = np.arange(n_theta).repeat(n_points)
 
         return A, r
 
@@ -235,6 +236,7 @@ def get_hit_time(x, theta, params):
 
     cond = a == 0
     x1 = (xc - x) / b
+    # x1 = np.divide(xc - x, b, where=b!=0)
     x2 = np.log((xc + b / a) / (x + b / a)) / a
     thit = np.where(cond, x1, x2)
     return thit
@@ -242,7 +244,7 @@ def get_hit_time(x, theta, params):
 
 eps = np.finfo(float).eps
 # eps = 1e-12
-# np.seterr(divide='ignore', invalid='ignore')
+np.seterr(divide='ignore', invalid='ignore')
 
 
 def right_boundary(c, params):
@@ -322,15 +324,13 @@ def integrate_analytic_works(x, t, theta, params):
     return None
 
 
-def integrate_analytic(x, t, theta, params):
+def integrate_analytic2(x, t, theta, params):
     n_theta, n_points, nc = params.n_theta, params.n_points, params.nc
     cont = 0
     phi = np.empty((n_theta, n_points))
     done = np.full((n_theta, n_points), False)
 
-    x = x[~done]
-    t = t[~done]
-    params.r = params.r[~done]
+    x, t, params.r = x.flatten(), t.flatten(), params.r.flatten()
 
     # result = [[x, t]]
 
@@ -340,8 +340,9 @@ def integrate_analytic(x, t, theta, params):
         right = right_boundary(c, params)
         psi = get_psi(x, t, theta, params)
 
-        phi[~done] = psi
         valid = np.logical_and(left <= psi, psi <= right)
+        phi[~done] = psi
+        done[~done] = valid
         if np.alltrue(valid):
             return phi
 
@@ -350,13 +351,64 @@ def integrate_analytic(x, t, theta, params):
         x = np.clip(psi[~valid], left[~valid], right[~valid])
 
         # result.append([x, t])
-        done[~done] = valid
 
         cont += 1
         if cont > nc:
             raise BaseException
     return None
 
+def integrate_analytic(x, t, theta, params, derivative=True):
+    n_theta, n_points, nc = params.n_theta, params.n_points, params.nc
+    cont = 0
+    # phi = np.empty((n_theta, n_points))
+    # done = np.full((n_theta, n_points), False)
+    phi = np.empty(n_theta * n_points)
+    done = np.full(n_theta * n_points, False)
+
+    x, t, params.r = x.flatten(), t.flatten(), params.r.flatten()
+
+    if derivative:
+        result = np.vstack([x,t,params.r]).T[np.newaxis]
+        b = np.empty((n_theta * n_points, 3), dtype=object)
+        print(result.shape, b.shape)
+
+    while True:
+        # print("######### NEW POINT")
+        # print(x, t, params.r, done)
+        
+        c = get_cell(x, params)
+        left = left_boundary(c, params)
+        right = right_boundary(c, params)
+        psi = get_psi(x, t, theta, params)
+
+        valid = np.logical_and(left <= psi, psi <= right)
+        phi[~done] = psi
+        done[~done] = valid
+        if np.alltrue(valid):
+            if derivative:
+                return phi, result
+            return phi
+
+        x, t, params.r = x[~valid], t[~valid], params.r[~valid]
+        t -= get_hit_time(x, theta, params)
+        x = np.clip(psi[~valid], left[~valid], right[~valid])
+
+        if derivative:
+            b[~done] = np.vstack([x,t,params.r]).T
+            result = np.append(result, b[np.newaxis], axis=0)
+            # b = np.empty_like(done, dtype=object)
+            b = np.empty((n_theta * n_points, 3), dtype=object)
+
+        cont += 1
+        if cont > nc:
+            raise BaseException
+    return None
+
+
+
+# TODO: move methods to interpolation and transformer
+
+# TODO: include derivative methods? hard to do in numpy
 
 compiled = False
 # TODO: change name with integrate or integration
@@ -370,7 +422,9 @@ def CPAB_transformer(points, theta, params):
     params = precompute_affine(points, theta, params)
 
     t = np.ones((n_theta, n_points))
-    return integrate_analytic(points, t, theta, params)
+    # return integrate_analytic(points, t, theta, params)
+    newpoints = integrate_analytic(points, t, theta, params, derivative=False)
+    return newpoints
 
     t = 1
     return integrate_numeric(points, t, theta, params)
@@ -392,6 +446,85 @@ def CPAB_transformer_fast(points, theta, params):
 
 transformer = CPAB_transformer
 
+def derivative(points, theta, params):
+    params = params.copy()
+    n_theta, n_points = theta.shape[0], points.shape[-1]
+    points = np.broadcast_to(points, (n_theta, n_points))
+    params.n_theta, params.n_points = n_theta, n_points
+
+    params = precompute_affine(points, theta, params)
+
+    t = np.ones((n_theta, n_points))
+    # return integrate_analytic(points, t, theta, params)
+    newpoints, trace = integrate_analytic(points, t, theta, params, derivative=True)
+
+    # for j in range(len(theta))
+    j = 0
+    dthit_dtheta_cum = 0.0
+    for i in range(len(trace)-1):
+        print(i)
+        x = trace[i, :, 0]
+        t = trace[i, :, 1]
+        params.r = trace[i, :, 2].astype(int)
+        print(x, t, params.r)
+        dthit_dtheta = derivative_thit_theta(x, t, theta, j, params)
+        dthit_dtheta_cum -= dthit_dtheta
+
+    x, t, params.r = trace[-1, :, 0], trace[-1, :, 1], trace[-1, :, 2]
+    dpsi_dtheta = derivative_psi_theta(x, t, theta, j, params)
+    dpsi_dtime = derivative_phi_time(x, t, theta, j, params)
+    dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
+    return dphi_dtheta
+
+def derivative_psi_theta(x, t, theta, j, params):
+    A, r = get_affine(x, theta, params)
+    c = get_cell(x, params)
+    a = A[r, c, 0]
+    b = A[r, c, 1]
+
+    ak = params.B[2 * c, j]
+    bk = params.B[2 * c + 1, j]
+
+    cond = a == 0
+    d1 = t * (x * ak + bk)
+    d2 = (
+            ak * t * np.exp(a * t) * (x + b / a)
+            + (np.exp(t * a) - 1) * (bk * a - ak * b) / a ** 2
+        )
+    dpsi_dtheta = np.where(cond, d1, d2)
+    return dpsi_dtheta
+
+def derivative_phi_time(x, t, theta, j, params):
+    A, r = get_affine(x, theta, params)
+    c = get_cell(x, params)
+    a = A[r, c, 0]
+    b = A[r, c, 1]
+
+    cond = a == 0
+    d1 = b
+    d2 = np.exp(t * a) * (a * x + b)
+    dpsi_dtime = np.where(cond, d1, d2)
+    return dpsi_dtime
+
+def derivative_thit_theta(x, t, theta, j, params):
+    A, r = get_affine(x, theta, params)
+    c = get_cell(x, params)
+    a = A[r, c, 0]
+    b = A[r, c, 1]
+
+    ak = params.B[2 * c, j]
+    bk = params.B[2 * c + 1, j]
+
+    v = get_velocity(x, theta, params)
+
+    xc = np.where(v >= 0, right_boundary(c, params), left_boundary(c, params))
+
+    cond = a == 0
+    d1 = (x - xc) * bk / b**2
+    d2 = -ak * np.log((a * xc + b) / (a * x + b)) / a ** 2
+    d3 = (x - xc) * (bk * a - ak * b) / (a * (a * x + b) * (a * xc + b))
+    dthit_dtheta = np.where(cond, d1, d2 + d3)
+    return dthit_dtheta
 
 class Solver:
     def __init__(self, tess):

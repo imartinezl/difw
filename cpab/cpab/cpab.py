@@ -425,3 +425,7 @@ class Cpab:
             self.backend_name,
         )
         return output
+
+
+    def test(self, grid, theta):
+        return self.backend.derivative(grid, theta, self.params)
