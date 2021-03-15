@@ -9,6 +9,12 @@ at::Tensor get_affine(at::Tensor B, at::Tensor theta){
     return at::matmul(B, theta);//.reshape({-1,2});
 }
 
+bool cmpf(float x, float y, float eps = 1e-6f)
+{
+    // return x == y;
+    return std::fabs(x - y) < eps;
+}
+
 int get_cell(float x, const float xmin, const float xmax, const int nc){
     int c = std::floor((x - xmin) / (xmax - xmin) * nc);
     c = std::max(0, std::min(c, nc-1));
@@ -17,11 +23,13 @@ int get_cell(float x, const float xmin, const float xmax, const int nc){
 
 float right_boundary(int c, const float xmin, const float xmax, const int nc){
     float eps = std::numeric_limits<float>::epsilon();
+    // eps = 1e-5f;
     return xmin + (c + 1) * (xmax - xmin) / nc + eps;
 }
 
 float left_boundary(int c, const float xmin, const float xmax, const int nc){
     float eps = std::numeric_limits<float>::epsilon();
+    // eps = 1e-5f;
     return xmin + c * (xmax - xmin) / nc - eps;
 }
 
@@ -37,7 +45,8 @@ float get_psi(float x, float t, const float* A, const float xmin, const float xm
     float a = A[2*c];
     float b = A[2*c+1];
     float psi;
-    if (a == 0.0){
+    // if (a == 0.0){
+    if (cmpf(a, 0.0f)){
         psi = x + t*b;
     }
     else{
@@ -50,7 +59,7 @@ float get_hit_time(float x, const float* A, const float xmin, const float xmax, 
     int c = get_cell(x, xmin, xmax, nc);
     float v = get_velocity(x, A, xmin, xmax, nc);
     float xc;
-    if( v >= 0){
+    if( v >= 0.0f ){
         xc = right_boundary(c, xmin, xmax, nc);
     }
     else{
@@ -59,7 +68,8 @@ float get_hit_time(float x, const float* A, const float xmin, const float xmax, 
     float a = A[2*c];
     float b = A[2*c+1];
     float tcross;
-    if (a == 0.0){
+    // if (a == 0.0){
+    if (cmpf(a, 0.0f)){
         tcross = (xc - x)/b;
     }
     else{
@@ -73,7 +83,6 @@ float get_hit_time(float x, const float* A, const float xmin, const float xmax, 
 
 float integrate_analytical(float x, float t, const float* A, const float xmin, const float xmax, const int nc){
     int cont = 0;
-    // result
 
     int c;
     float left, right, psi, thit;
@@ -98,7 +107,6 @@ float integrate_analytical(float x, float t, const float* A, const float xmin, c
         }
 
         cont++;
-        // break;
         if (cont > nc){
             break;
         }
@@ -143,7 +151,6 @@ float integrate_numerical(float x, float t, const float* A, const float xmin, co
 
 float integrate_analytical_derivative(float x, float t, const float* A, const float xmin, const float xmax, const int nc, std::vector<float> &xr, std::vector<float> &tr){
     int cont = 0;
-    // result
 
     xr.push_back(x);
     tr.push_back(t);
@@ -173,7 +180,40 @@ float integrate_analytical_derivative(float x, float t, const float* A, const fl
         tr.push_back(t);
 
         cont++;
-        // break;
+        if (cont > nc){
+            break;
+        }
+    }
+}
+void integrate_analytical_derivative2(float* result, float x, float t, const float* A, const float xmin, const float xmax, const int nc){
+    int cont = 0;
+
+    int c;
+    float left, right, psi, thit;
+    while (true) {
+        c = get_cell(x, xmin, xmax, nc);
+        left = left_boundary(c, xmin, xmax, nc);
+        right = right_boundary(c, xmin, xmax, nc);
+        psi = get_psi(x, t, A, xmin, xmax, nc);
+
+        if ((left <= psi) && (psi <= right)){
+            result[0] = psi;
+            result[1] = t;
+            result[2] = c;
+            return;
+        }
+        else{
+            thit = get_hit_time(x, A, xmin, xmax, nc);
+            t -= thit;
+        }
+
+        if (psi < left){
+            x = left;
+        }else if (psi > right){
+            x = right;
+        }
+
+        cont++;
         if (cont > nc){
             break;
         }
@@ -190,7 +230,8 @@ float derivative_psi_theta(float x, float t, int k, const float* B, const float*
     float bk = B[2*nc*k + 2*c + 1];
 
     float dpsi_dtheta;
-    if (a == 0.0){
+    // if (a == 0.0){
+    if (cmpf(a, 0.0f)){
         dpsi_dtheta = t*(x*ak + bk);
     }
     else{
@@ -205,7 +246,8 @@ float derivative_phi_time(float x, float t, const float* A, const float xmin, co
     float b = A[2*c + 1];
 
     float dpsi_dtime;
-    if (a == 0.0){
+    // if (a == 0.0){
+    if (cmpf(a, 0.0f)){
         dpsi_dtime = b;
     }
     else{
@@ -232,7 +274,8 @@ float derivative_thit_theta(float x, int k, const float* B, const float* A, cons
     }
 
     float dthit_dtheta;
-    if (a == 0.0){
+    // if (a == 0.0){
+    if (cmpf(a, 0.0f)){
         dthit_dtheta = (x-xc)*bk / std::pow(b, 2.0);
     }
     else{
@@ -243,7 +286,7 @@ float derivative_thit_theta(float x, int k, const float* B, const float* A, cons
     return dthit_dtheta;
 }
 
-float derivative_total(std::vector<float> xr, std::vector<float> tr, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
+float derivative_total(std::vector<float> &xr, std::vector<float> &tr, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
     
     float dthit_dtheta_cum = 0.0;
     int iters = xr.size();
@@ -262,6 +305,37 @@ float derivative_total(std::vector<float> xr, std::vector<float> tr, int k, cons
 }
 
 
+int sign(int r){
+    if (r > 0) return 1;
+    if (r < 0) return -1;
+    return 0;
+}
+
+float derivative_total2(float xini, float tm, int cm, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
+    
+    int cini = get_cell(xini, xmin, xmax, nc);
+    float xm = xini;
+
+    float dthit_dtheta_cum = 0.0;
+    if (cini != cm){
+        int step = sign(cm - cini);
+        for (int c = cini; step*c < cm*step; c += step){
+            dthit_dtheta_cum -= derivative_thit_theta(xm, k, B, A, xmin, xmax, nc);
+            if (step == 1){
+                xm = right_boundary(c, xmin, xmax, nc);
+            }else if (step == -1){
+                xm = left_boundary(c, xmin, xmax, nc);
+            }
+        }
+        
+    }
+
+    float dpsi_dtheta = derivative_psi_theta(xm, tm, k, B, A, xmin, xmax, nc);
+    float dpsi_dtime = derivative_phi_time(xm, tm, A, xmin, xmax, nc);
+    float dphi_dtheta = dpsi_dtheta + dpsi_dtime*dthit_dtheta_cum;    
+
+    return dphi_dtheta;
+}
 
 at::Tensor integrate_1(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
     float t = 1.0;
@@ -274,14 +348,13 @@ at::Tensor integrate_1(at::Tensor points, at::Tensor theta, at::Tensor Bt, float
     auto output = torch::zeros({n_batch, n_points}, at::kCPU);
     auto newpoints = output.data_ptr<float>();
 
-
+    // Convert to pointers
+    float* x = points.data_ptr<float>();
     for(int i = 0; i < n_batch; i++) { // for all batches
 
+        // Precompute affine velocity field
         at::Tensor At = get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
-
-        float* x = points.data_ptr<float>();
-
 
         for(int j = 0; j < n_points; j++) { // for all points
             newpoints[i*n_points + j] = integrate_analytical(x[j], t, A, xmin, xmax, nc);
@@ -301,14 +374,13 @@ at::Tensor integrate_2(at::Tensor points, at::Tensor theta, at::Tensor Bt, float
     auto output = torch::zeros({n_batch, n_points}, at::kCPU);
     auto newpoints = output.data_ptr<float>();
 
-
+    // Convert to pointers
+    float* x = points.data_ptr<float>();
     for(int i = 0; i < n_batch; i++) { // for all batches
-
+        
+        // Precompute affine velocity field
         at::Tensor At = get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
-
-        float* x = points.data_ptr<float>();
-
 
         for(int j = 0; j < n_points; j++) { // for all points
             newpoints[i*n_points + j] = integrate_numerical(x[j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
@@ -317,7 +389,7 @@ at::Tensor integrate_2(at::Tensor points, at::Tensor theta, at::Tensor Bt, float
     return output;
 }
 
-at::Tensor derivative(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+at::Tensor derivative_1(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
     float t = 1.0;
 
     // Problem size
@@ -331,14 +403,15 @@ at::Tensor derivative(at::Tensor points, at::Tensor theta, at::Tensor Bt, float 
     auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
     auto gradpoints = gradient.data_ptr<float>();
 
-
+    // Convert to pointers
+    float* B = Bt.data_ptr<float>();
+    float* x = points.data_ptr<float>();
     for(int i = 0; i < n_batch; i++) { // for all batches
 
+        // Precompute affine velocity field
         at::Tensor At = get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
-        float* B = Bt.data_ptr<float>();
 
-        float* x = points.data_ptr<float>();
 
 
         for(int j = 0; j < n_points; j++) { // for all points
@@ -354,6 +427,47 @@ at::Tensor derivative(at::Tensor points, at::Tensor theta, at::Tensor Bt, float 
     // return output;
 }
 
+at::Tensor derivative_2(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+    float t = 1.0;
+
+    // Problem size
+    const int n_points = points.size(0);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    // Allocate output
+    const int e = 3;
+    auto output = torch::zeros({n_batch, n_points, e}, at::kCPU);
+    auto newpoints = output.data_ptr<float>();
+    auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
+    auto gradpoints = gradient.data_ptr<float>();
+
+    // Convert to pointers
+    float* B = Bt.data_ptr<float>();
+    float* x = points.data_ptr<float>();
+    for(int i = 0; i < n_batch; i++) { // for all batches
+
+        // Precompute affine velocity field
+        at::Tensor At = get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
+        float* A = At.data_ptr<float>();
+
+        for(int j = 0; j < n_points; j++) { // for all points
+            float result[e];
+            integrate_analytical_derivative2(result, x[j], t, A, xmin, xmax, nc);
+            for(int p = 0; p < e; p++){
+                newpoints[i*(n_points + e) + j*e + p] = result[p];
+            }
+            for(int k = 0; k < d; k++){
+                float phi = result[0];
+                float t = result[1];
+                int c = result[2];
+                gradpoints[i*(n_points+d) + j*d + k] = derivative_total2(x[j], t, c, k, B, A, xmin, xmax, nc);
+            }
+        }
+    }
+    return gradient;
+    // return output;
+}
 
 
 
@@ -391,9 +505,10 @@ void cpab_backward(){
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("forward", &cpab_forward, "Cpab transformer forward");
     m.def("backward", &cpab_backward, "Cpab transformer backward");
-    m.def("integrate_1", &integrate_1, "Test method");    
-    m.def("integrate_2", &integrate_2, "Test method");    
-    m.def("derivative", &derivative, "Test method");    
+    m.def("integrate_1", &integrate_1, "Integrate analytic");
+    m.def("integrate_2", &integrate_2, "Integrate numeric");
+    m.def("derivative_1", &derivative_1, "Test method");
+    m.def("derivative_2", &derivative_2, "Test method");
 }
 
 
