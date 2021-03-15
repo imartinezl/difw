@@ -75,8 +75,8 @@ class Tessellation:
             B[k - 1, 2 * k + 1] = (a + k * s) * (a + (k + 1) * s)
 
         # normalize
-        # B = B.T / np.linalg.norm(B, axis=1)
-        return B.T
+        B = B.T / np.linalg.norm(B, axis=1)
+        return B
 
     # without zero boundary
     def basis(self):
