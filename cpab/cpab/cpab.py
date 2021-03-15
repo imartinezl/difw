@@ -69,14 +69,12 @@ class Cpab:
         # Load backend and set device
         self.backend_name = backend
         if self.backend_name == "numpy":
-            pass
             from .backend.numpy import functions as backend
         elif self.backend_name == "numba":
             pass
             # from .tensorflow import functions as backend
         elif self.backend_name == "pytorch":
-            pass
-            # from .pytorch import functions as backend
+            from .backend.pytorch import functions as backend
         self.backend = backend
         self.device = device.lower()
 
@@ -429,3 +427,5 @@ class Cpab:
 
     def test(self, grid, theta):
         return self.backend.derivative(grid, theta, self.params)
+
+# %%
