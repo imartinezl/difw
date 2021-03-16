@@ -234,7 +234,7 @@ class Cpab:
         data_t = self.interpolate(data, grid_t, outsize)
         return data_t
 
-    def get_velocity(self, grid, theta):
+    def calc_velocity(self, grid, theta):
         """ For each point in grid, calculate the velocity of the point based
             on the parametrization in theta
         Arguments:
@@ -247,7 +247,7 @@ class Cpab:
         self._check_device(grid)
         self._check_type(theta)
         self._check_device(theta)
-        v = self.backend.get_velocity(grid, theta, self.params)
+        v = self.backend.calc_velocity(grid, theta, self.params)
         return v
 
     def visualize_velocity(self, theta, n_points=50, fig=None):
@@ -266,7 +266,7 @@ class Cpab:
 
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid(n_points)
-        v = self.get_velocity(grid, theta)
+        v = self.calc_velocity(grid, theta)
 
         grid = self.backend.tonumpy(grid)
         v = self.backend.tonumpy(v)
