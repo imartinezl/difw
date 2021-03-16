@@ -2,7 +2,7 @@
 import numpy as np
 from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
-from .transformer import get_cell, get_velocity
+from .transformer import get_cell, get_velocity, batch_effect
 
 
 def assert_version():
@@ -44,3 +44,8 @@ def identity(d, n_sample=1, epsilon=0, device="cpu"):
 
 def uniform_meshgrid(xmin, xmax, n_points, device="cpu"):
     return np.linspace(xmin, xmax, n_points)
+
+def calc_velocity(grid, theta, params):
+    grid = batch_effect(grid, theta)
+    v = get_velocity(grid, theta, params)
+    return v.reshape(theta.shape[0], -1)
