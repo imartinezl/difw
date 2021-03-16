@@ -38,6 +38,6 @@ def interpolate(data, grid, outsize):
 
     # Do interpolation
     y = y0 * (1 - xd) + y1 * xd
-    
+
     newdata = np.reshape(y, (n_batch, outsize, n_channels))
     return newdata

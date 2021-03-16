@@ -1,5 +1,5 @@
-
 import torch
+
 
 def interpolate(data, grid, outsize):
     # Problem size
@@ -31,6 +31,6 @@ def interpolate(data, grid, outsize):
 
     # Do interpolation
     y = y0 * (1 - xd) + y1 * xd
-    
+
     newdata = torch.reshape(y, (n_batch, outsize, n_channels))
     return newdata

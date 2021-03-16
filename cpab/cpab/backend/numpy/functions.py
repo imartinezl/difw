@@ -4,6 +4,7 @@ from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
 from .transformer import get_cell, get_velocity
 
+
 def assert_version():
     numbers = np.__version__.split(".")
     version = float(numbers[0] + "." + numbers[1])

@@ -1,7 +1,7 @@
-
 import os
 
 # %%
+
 
 class Parameters:
     pass
@@ -18,6 +18,7 @@ class Parameters:
         newone = type(self)()
         newone.__dict__.update(self.__dict__)
         return newone
+
 
 # %%
 def get_dir(file):

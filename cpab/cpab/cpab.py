@@ -359,7 +359,7 @@ class Cpab:
 
         ax = fig.add_subplot(2, 1, 2)
         ax.axhline(color="black", ls="dashed")
-        ax.plot(grid, (grid_t-grid).T, c="blue", alpha=0.1)
+        ax.plot(grid, (grid_t - grid).T, c="blue", alpha=0.1)
         ax.set_title("Grid Deformation")
         return ax
 
@@ -424,8 +424,8 @@ class Cpab:
         )
         return output
 
-
     def test(self, grid, theta):
         return self.backend.derivative(grid, theta, self.params)
+
 
 # %%
