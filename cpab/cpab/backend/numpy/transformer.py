@@ -2,9 +2,14 @@ import numpy as np
 
 
 eps = np.finfo(float).eps
-# eps = 1e-12
+eps = 1e-12
 np.seterr(divide="ignore", invalid="ignore")
 
+def batch_effect(x, theta):
+    n_batch = theta.shape[0]
+    n_points = x.shape[-1]
+    x = np.broadcast_to(x, (n_batch, n_points)).flatten()
+    return x
 
 def get_cell(x, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
@@ -18,17 +23,20 @@ def get_affine(x, theta, params):
     if params.precomputed:
         return params.A, params.r
     else:
-        n_theta = theta.shape[0]
+        n_batch = theta.shape[0]
         n_points = x.shape[-1]
 
-        A = params.B.dot(theta.T).T.reshape(n_theta, -1, 2)
-        r = np.broadcast_to(np.arange(n_theta), [n_points, n_theta]).T
-        # r = np.arange(n_theta).repeat(n_points)
+        # r = np.broadcast_to(np.arange(n_batch), [n_points, n_batch]).T
+        # TODO: here we suppose batch effect has been already executed
+        r = np.arange(n_batch).repeat(n_points / n_batch)
+
+        A = params.B.dot(theta.T).T.reshape(n_batch, -1, 2)
 
         return A, r
 
 
 def precompute_affine(x, theta, params):
+    params = params.copy()
     params.precomputed = False
     params.A, params.r = get_affine(x, theta, params)
     params.precomputed = True
@@ -75,7 +83,6 @@ def get_hit_time(x, theta, params):
 
     cond = a == 0
     x1 = (xc - x) / b
-    # x1 = np.divide(xc - x, b, where=b!=0)
     x2 = np.log((xc + b / a) / (x + b / a)) / a
     thit = np.where(cond, x1, x2)
     return thit
@@ -118,36 +125,35 @@ def integrate_numeric(x, t, theta, params):
         c = get_cell(xPrev, params)
     return xPrev
 
-
-def integrate_analytic2(x, t, theta, params):
-    n_theta = theta.shape[0]
-    n_points = x.shape[-1]
-
+def integrate_closed_form(x, t, theta, params):
+    n_batch = theta.shape[0]
     cont = 0
-    phi = np.empty((n_theta, n_points))
-    done = np.full((n_theta, n_points), False)
 
-    x, t, params.r = x.flatten(), t.flatten(), params.r.flatten()
-
-    # result = [[x, t]]
+    phi = np.empty_like(x)
+    done = np.full_like(x, False, dtype=bool)
+    
+    c = get_cell(x, params)
 
     while True:
-        c = get_cell(x, params)
         left = left_boundary(c, params)
         right = right_boundary(c, params)
+        v = get_velocity(x, theta, params)
         psi = get_psi(x, t, theta, params)
 
-        valid = np.logical_and(left <= psi, psi <= right)
+        cond1 = np.logical_and(left <= psi, psi <= right)
+        cond2 = np.logical_and(v >= 0, c == params.nc-1)
+        cond3 = np.logical_and(v <= 0, c == 0)
+        valid = np.any((cond1, cond2, cond3), axis=0)
+
         phi[~done] = psi
         done[~done] = valid
         if np.alltrue(valid):
-            return phi
+            return phi.reshape((n_batch, -1))
 
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
-        x = np.clip(psi[~valid], left[~valid], right[~valid])
-
-        # result.append([x, t])
+        x = np.clip(psi, left, right)[~valid]
+        c = np.where(v >= 0, c+1, c-1)[~valid]
 
         cont += 1
         if cont > params.nc:
@@ -155,21 +161,22 @@ def integrate_analytic2(x, t, theta, params):
     return None
 
 
-def integrate_analytic(x, t, theta, params, derivative=False):
+
+def integrate_closed_form_ext(x, t, theta, params, derivative=False):
     cont = 0
 
-    n_theta = theta.shape[0]
+    n_batch = theta.shape[0]
     n_points = x.shape[-1]
-    # phi = np.empty((n_theta, n_points))
-    # done = np.full((n_theta, n_points), False)
-    phi = np.empty(n_theta * n_points)
-    done = np.full(n_theta * n_points, False)
+    # phi = np.empty((n_batch, n_points))
+    # done = np.full((n_batch, n_points), False)
+    phi = np.empty(n_batch * n_points)
+    done = np.full(n_batch * n_points, False)
 
     x, t, params.r = x.flatten(), t.flatten(), params.r.flatten()
 
     if derivative:
         result = np.vstack([x, t, params.r]).T[np.newaxis]
-        b = np.empty((n_theta * n_points, 3), dtype=object)
+        b = np.empty((n_batch * n_points, 3), dtype=object)
         print(result.shape, b.shape)
 
     while True:
@@ -185,7 +192,7 @@ def integrate_analytic(x, t, theta, params, derivative=False):
         if np.alltrue(valid):
             if derivative:
                 return phi, result
-            return phi.reshape((n_theta, n_points))
+            return phi.reshape((n_batch, n_points))
 
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
@@ -195,7 +202,7 @@ def integrate_analytic(x, t, theta, params, derivative=False):
             b[~done] = np.vstack([x, t, params.r]).T
             result = np.append(result, b[np.newaxis], axis=0)
             # b = np.empty_like(done, dtype=object)
-            b = np.empty((n_theta * n_points, 3), dtype=object)
+            b = np.empty((n_batch * n_points, 3), dtype=object)
 
         cont += 1
         if cont > params.nc:
@@ -210,19 +217,19 @@ def integrate_analytic(x, t, theta, params, derivative=False):
 compiled = False
 # TODO: change name with integrate or integration
 def CPAB_transformer(points, theta, params):
-    params = params.copy()
-    n_theta = theta.shape[0]
-    n_points = points.shape[-1]
-    points = np.broadcast_to(points, (n_theta, n_points))
-    params = precompute_affine(points, theta, params)
-
-    t = np.ones((n_theta, n_points))
-    return integrate_analytic2(points, t, theta, params)
-    # newpoints = integrate_analytic(points, t, theta, params, derivative=False)
+    # params = params.copy()
+    # n_batch = theta.shape[0]
+    # n_points = points.shape[-1]
+    # x = np.broadcast_to(points, (n_batch, n_points)).flatten()
+    x = batch_effect(points, theta)
+    t = np.ones_like(x)
+    params = precompute_affine(x, theta, params)
+    return integrate_closed_form(x, t, theta, params)
+    # newpoints = integrate_analytic(x, t, theta, params, derivative=False)
     # return newpoints
 
     t = 1
-    return integrate_numeric(points, t, theta, params)
+    return integrate_numeric(x, t, theta, params)
 
     if compiled:
         return CPAB_transformer_fast(points, theta, params)
@@ -241,13 +248,13 @@ def CPAB_transformer_fast(points, theta, params):
 
 def derivative(points, theta, params):
     params = params.copy()
-    n_theta, n_points = theta.shape[0], points.shape[-1]
-    points = np.broadcast_to(points, (n_theta, n_points))
-    params.n_theta, params.n_points = n_theta, n_points
+    n_batch, n_points = theta.shape[0], points.shape[-1]
+    points = np.broadcast_to(points, (n_batch, n_points))
+    params.n_batch, params.n_points = n_batch, n_points
 
     params = precompute_affine(points, theta, params)
 
-    t = np.ones((n_theta, n_points))
+    t = np.ones((n_batch, n_points))
     # return integrate_analytic(points, t, theta, params)
     newpoints, trace = integrate_analytic(points, t, theta, params, derivative=True)
 
