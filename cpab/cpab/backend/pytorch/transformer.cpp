@@ -4,15 +4,14 @@
 
 
 // TODO: replace 2 for params per cell
-
-at::Tensor get_affine(at::Tensor B, at::Tensor theta){
-    return at::matmul(B, theta);//.reshape({-1,2});
-}
-
 bool cmpf(float x, float y, float eps = 1e-6f)
 {
     // return x == y;
     return std::fabs(x - y) < eps;
+}
+
+at::Tensor get_affine(at::Tensor B, at::Tensor theta){
+    return at::matmul(B, theta);//.reshape({-1,2});
 }
 
 int get_cell(float x, const float xmin, const float xmax, const int nc){
@@ -81,36 +80,38 @@ float get_hit_time(float x, const float* A, const float xmin, const float xmax, 
 
 // INTEGRATION
 
-float integrate_analytical(float x, float t, const float* A, const float xmin, const float xmax, const int nc){
-    int cont = 0;
+float integrate_closed_form(float x, float t, const float* A, const float xmin, const float xmax, const int nc){
 
-    int c;
-    float left, right, psi, thit;
+    int c = get_cell(x, xmin, xmax, nc);
+    int cont = 0;
+    int contmax = std::max(c, nc-1-c);
+
+    float left, right, v, psi, thit;
+    bool cond1, cond2, cond3;
     while (true) {
-        c = get_cell(x, xmin, xmax, nc);
         left = left_boundary(c, xmin, xmax, nc);
         right = right_boundary(c, xmin, xmax, nc);
+        v = get_velocity(x, A, xmin, xmax, nc);
         psi = get_psi(x, t, A, xmin, xmax, nc);
 
-        if ((left <= psi) && (psi <= right)){
+        cond1 = (left <= psi) && (psi <= right);
+        cond2 = (v >= 0) && (c == nc-1);
+        cond3 = (v <= 0) && (c == 0);
+
+        if (cond1 || cond2 || cond3){
             return psi;
         }
-        else{
-            thit = get_hit_time(x, A, xmin, xmax, nc);
-            t -= thit;
-        }
-
-        if (psi < left){
-            x = left;
-        }else if (psi > right){
-            x = right;
-        }
+        
+        t -= get_hit_time(x, A, xmin, xmax, nc);        
+        x = (v >= 0) ? right : left;
+        c = (v >= 0) ? c+1 : c-1;
 
         cont++;
-        if (cont > nc){
+        if (cont > contmax){
             break;
         }
     }
+    return psi;
 }
 
 float get_numerical_phi(float x, float t, int nSteps2, const float* A, const float xmin, const float xmax, const int nc){
@@ -149,7 +150,8 @@ float integrate_numerical(float x, float t, const float* A, const float xmin, co
 
 // DERIVATIVE
 
-float integrate_analytical_derivative(float x, float t, const float* A, const float xmin, const float xmax, const int nc, std::vector<float> &xr, std::vector<float> &tr){
+// TODO: remove method
+float integrate_closed_form_ext(float x, float t, const float* A, const float xmin, const float xmax, const int nc, std::vector<float> &xr, std::vector<float> &tr){
     int cont = 0;
 
     xr.push_back(x);
@@ -185,39 +187,40 @@ float integrate_analytical_derivative(float x, float t, const float* A, const fl
         }
     }
 }
-void integrate_analytical_derivative2(float* result, float x, float t, const float* A, const float xmin, const float xmax, const int nc){
+void integrate_closed_form_ext_alt(float* result, float x, float t, const float* A, const float xmin, const float xmax, const int nc){
+    int c = get_cell(x, xmin, xmax, nc);
     int cont = 0;
+    int contmax = std::max(c, nc-1-c);
 
-    int c;
-    float left, right, psi, thit;
+    float left, right, v, psi, thit;
+    bool cond1, cond2, cond3;
     while (true) {
-        c = get_cell(x, xmin, xmax, nc);
         left = left_boundary(c, xmin, xmax, nc);
         right = right_boundary(c, xmin, xmax, nc);
+        v = get_velocity(x, A, xmin, xmax, nc);
         psi = get_psi(x, t, A, xmin, xmax, nc);
 
-        if ((left <= psi) && (psi <= right)){
+        cond1 = (left <= psi) && (psi <= right);
+        cond2 = (v >= 0) && (c == nc-1);
+        cond3 = (v <= 0) && (c == 0);
+
+        if (cond1 || cond2 || cond3){
             result[0] = psi;
             result[1] = t;
             result[2] = c;
             return;
         }
-        else{
-            thit = get_hit_time(x, A, xmin, xmax, nc);
-            t -= thit;
-        }
-
-        if (psi < left){
-            x = left;
-        }else if (psi > right){
-            x = right;
-        }
+        
+        t -= get_hit_time(x, A, xmin, xmax, nc);        
+        x = (v >= 0) ? right : left;
+        c = (v >= 0) ? c+1 : c-1;
 
         cont++;
-        if (cont > nc){
+        if (cont > contmax){
             break;
         }
     }
+    return;
 }
 
 
@@ -286,7 +289,7 @@ float derivative_thit_theta(float x, int k, const float* B, const float* A, cons
     return dthit_dtheta;
 }
 
-float derivative_total(std::vector<float> &xr, std::vector<float> &tr, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
+float derivative_phi_theta(std::vector<float> &xr, std::vector<float> &tr, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
     
     float dthit_dtheta_cum = 0.0;
     int iters = xr.size();
@@ -311,7 +314,7 @@ int sign(int r){
     return 0;
 }
 
-float derivative_total2(float xini, float tm, int cm, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
+float derivative_phi_theta_alt(float xini, float tm, int cm, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
     
     int cini = get_cell(xini, xmin, xmax, nc);
     float xm = xini;
@@ -337,7 +340,7 @@ float derivative_total2(float xini, float tm, int cm, int k, const float* B, con
     return dphi_dtheta;
 }
 
-at::Tensor integrate_1(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
     float t = 1.0;
 
     // Problem size
@@ -357,13 +360,13 @@ at::Tensor integrate_1(at::Tensor points, at::Tensor theta, at::Tensor Bt, float
         float* A = At.data_ptr<float>();
 
         for(int j = 0; j < n_points; j++) { // for all points
-            newpoints[i*n_points + j] = integrate_analytical(x[j], t, A, xmin, xmax, nc);
+            newpoints[i*n_points + j] = integrate_closed_form(x[j], t, A, xmin, xmax, nc);
         }
     }
     return output;
 }
 
-at::Tensor integrate_2(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10){
+at::Tensor torch_integrate_numerical(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10){
     float t = 1.0;
 
     // Problem size
@@ -389,7 +392,8 @@ at::Tensor integrate_2(at::Tensor points, at::Tensor theta, at::Tensor Bt, float
     return output;
 }
 
-at::Tensor derivative_1(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+// TODO: remove method
+at::Tensor torch_derivative(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
     float t = 1.0;
 
     // Problem size
@@ -412,14 +416,12 @@ at::Tensor derivative_1(at::Tensor points, at::Tensor theta, at::Tensor Bt, floa
         at::Tensor At = get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
 
-
-
         for(int j = 0; j < n_points; j++) { // for all points
             std::vector<float> xr, tr;
-            newpoints[i*n_points + j] = integrate_analytical_derivative(x[j], t, A, xmin, xmax, nc, xr, tr);
+            newpoints[i*n_points + j] = integrate_closed_form_ext(x[j], t, A, xmin, xmax, nc, xr, tr);
             // TODO: think how are we going to pass xr and tr from forward to backward functions in pytorch
             for(int k = 0; k < d; k++){
-                gradpoints[i*(n_points+d) + j*d + k] = derivative_total(xr, tr, k, B, A, xmin, xmax, nc);
+                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(xr, tr, k, B, A, xmin, xmax, nc);
             }
         }
     }
@@ -427,7 +429,7 @@ at::Tensor derivative_1(at::Tensor points, at::Tensor theta, at::Tensor Bt, floa
     // return output;
 }
 
-at::Tensor derivative_2(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+at::Tensor torch_derivative_alt(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
     float t = 1.0;
 
     // Problem size
@@ -453,15 +455,15 @@ at::Tensor derivative_2(at::Tensor points, at::Tensor theta, at::Tensor Bt, floa
 
         for(int j = 0; j < n_points; j++) { // for all points
             float result[e];
-            integrate_analytical_derivative2(result, x[j], t, A, xmin, xmax, nc);
+            integrate_closed_form_ext_alt(result, x[j], t, A, xmin, xmax, nc);
             for(int p = 0; p < e; p++){
-                newpoints[i*(n_points + e) + j*e + p] = result[p];
+                newpoints[i*(n_points * e) + j*e + p] = result[p];
             }
             for(int k = 0; k < d; k++){
                 float phi = result[0];
                 float t = result[1];
                 int c = result[2];
-                gradpoints[i*(n_points+d) + j*d + k] = derivative_total2(x[j], t, c, k, B, A, xmin, xmax, nc);
+                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta_alt(x[j], t, c, k, B, A, xmin, xmax, nc);
             }
         }
     }
@@ -470,27 +472,6 @@ at::Tensor derivative_2(at::Tensor points, at::Tensor theta, at::Tensor Bt, floa
 }
 
 
-
-float test(){
-    float x = 0.4;
-    float t = 1.0;
-    float xmin = 0;
-    float xmax = 1;
-    int nc = 3;
-    at::Tensor B = at::ones({2*nc, nc-1});
-    torch::Tensor theta = torch::ones({nc-1, 1});
-    at::Tensor Am = get_affine(B, theta);
-    float* A = Am.data_ptr<float>();
-    float v = get_velocity(x, A, xmin, xmax, nc);
-    float psi = get_psi(x, t, A, xmin, xmax, nc);
-    float thit = get_hit_time(x, A, xmin, xmax, nc);
-    float phi = integrate_analytical(x, t, A, xmin, xmax, nc);
-
-    int c = get_cell(x, xmin, xmax, nc);
-    float xr = right_boundary(c, xmin, xmax, nc);
-    float xl = left_boundary(c, xmin, xmax, nc);
-    return phi;
-}
 
 
 void cpab_forward(){
@@ -505,10 +486,10 @@ void cpab_backward(){
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("forward", &cpab_forward, "Cpab transformer forward");
     m.def("backward", &cpab_backward, "Cpab transformer backward");
-    m.def("integrate_1", &integrate_1, "Integrate analytic");
-    m.def("integrate_2", &integrate_2, "Integrate numeric");
-    m.def("derivative_1", &derivative_1, "Test method");
-    m.def("derivative_2", &derivative_2, "Test method");
+    m.def("integrate_closed_form", &torch_integrate_closed_form, "Integrate analytic");
+    m.def("integrate_numerical", &torch_integrate_numerical, "Integrate numeric");
+    m.def("derivative", &torch_derivative, "Derivative");
+    m.def("derivative_alt", &torch_derivative_alt, "Derivative Alt");
 }
 
 
