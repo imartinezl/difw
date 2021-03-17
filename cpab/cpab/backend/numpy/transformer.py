@@ -160,9 +160,52 @@ def integrate_closed_form(x, t, theta, params):
             raise BaseException
     return None
 
+def integrate_closed_form_ext(x, t, theta, params):
+    n_batch = theta.shape[0]
+    cont = 0
+
+    result = np.empty((*x.shape, 3))
+    # phi = np.empty_like(x)
+    # tm = np.empty_like(x)
+    # cm = np.empty_like(x)
+    done = np.full_like(x, False, dtype=bool)
+    
+    c = get_cell(x, params)
+
+    while True:
+        left = left_boundary(c, params)
+        right = right_boundary(c, params)
+        v = get_velocity(x, theta, params)
+        psi = get_psi(x, t, theta, params)
+
+        cond1 = np.logical_and(left <= psi, psi <= right)
+        cond2 = np.logical_and(v >= 0, c == params.nc-1)
+        cond3 = np.logical_and(v <= 0, c == 0)
+        valid = np.any((cond1, cond2, cond3), axis=0)
+
+        result[~done] = np.array([psi, t, c]).T
+        # phi[~done] = psi
+        # tm[~done] = t
+        # cm[~done] = c
+        done[~done] = valid
+        if np.alltrue(valid):
+            return result.reshape((n_batch, -1, 3))
+            # return phi.reshape((n_batch, -1)), tm.reshape((n_batch, -1)), cm.reshape((n_batch, -1))
+
+        x, t, params.r = x[~valid], t[~valid], params.r[~valid]
+        t -= get_hit_time(x, theta, params)
+        x = np.clip(psi, left, right)[~valid]
+        c = np.where(v >= 0, c+1, c-1)[~valid]
+
+        cont += 1
+        if cont > params.nc:
+            raise BaseException
+    return None
 
 
-def integrate_closed_form_ext(x, t, theta, params, derivative=False):
+
+
+def integrate_closed_form_ext_old(x, t, theta, params, derivative=False):
     cont = 0
 
     n_batch = theta.shape[0]
@@ -210,13 +253,10 @@ def integrate_closed_form_ext(x, t, theta, params, derivative=False):
     return None
 
 
-# TODO: move methods to interpolation and transformer
-
-# TODO: include derivative methods? hard to do in numpy
-
 compiled = False
 # TODO: change name with integrate or integration
 def CPAB_transformer(points, theta, params):
+    return derivative(points, theta, params)
     # params = params.copy()
     # n_batch = theta.shape[0]
     # n_points = points.shape[-1]
@@ -224,9 +264,9 @@ def CPAB_transformer(points, theta, params):
     x = batch_effect(points, theta)
     t = np.ones_like(x)
     params = precompute_affine(x, theta, params)
+    result = integrate_closed_form_ext(x, t, theta, params)
+    return result[:,:,0]
     return integrate_closed_form(x, t, theta, params)
-    # newpoints = integrate_analytic(x, t, theta, params, derivative=False)
-    # return newpoints
 
     t = 1
     return integrate_numeric(x, t, theta, params)
@@ -247,44 +287,51 @@ def CPAB_transformer_fast(points, theta, params):
 
 
 def derivative(points, theta, params):
-    params = params.copy()
-    n_batch, n_points = theta.shape[0], points.shape[-1]
-    points = np.broadcast_to(points, (n_batch, n_points))
-    params.n_batch, params.n_points = n_batch, n_points
+    n_points = points.shape[-1]
+    n_batch = theta.shape[0]
+    d = theta.shape[1]
 
-    params = precompute_affine(points, theta, params)
+    x = batch_effect(points, theta)
+    t = np.ones_like(x)
+    params = precompute_affine(x, theta, params)
+    result = integrate_closed_form_ext(x, t, theta, params)
 
-    t = np.ones((n_batch, n_points))
-    # return integrate_analytic(points, t, theta, params)
-    newpoints, trace = integrate_analytic(points, t, theta, params, derivative=True)
+    tm = result[:,:,1].flatten()
+    cm = result[:,:,2].flatten()
+    params = precompute_affine(x, theta, params)
 
-    # for j in range(len(theta))
-    j = 0
-    dthit_dtheta_cum = 0.0
-    for i in range(len(trace) - 1):
-        print(i)
-        x = trace[i, :, 0]
-        t = trace[i, :, 1]
-        params.r = trace[i, :, 2].astype(int)
-        print(x, t, params.r)
-        dthit_dtheta = derivative_thit_theta(x, t, theta, j, params)
-        dthit_dtheta_cum -= dthit_dtheta
+    der = np.empty((n_batch, n_points, d))
+    for k in range(d):
+        dthit_dtheta_cum = np.zeros_like(x)
 
-    x, t, params.r = trace[-1, :, 0], trace[-1, :, 1], trace[-1, :, 2]
-    dpsi_dtheta = derivative_psi_theta(x, t, theta, j, params)
-    dpsi_dtime = derivative_phi_time(x, t, theta, j, params)
-    dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
-    return dphi_dtheta
+        
+        xm = x.copy()
+        c = get_cell(x, params)
+        while True:
+            valid = c == cm
+            if np.alltrue(valid):
+                break
+            step = np.sign(cm-c)
+            dthit_dtheta_cum[~valid] -= derivative_thit_theta(xm, theta, k, params)[~valid]
+            xm[~valid] = np.where(step == 1, right_boundary(c, params), left_boundary(c, params))[~valid]
+            c = c + step
+
+        dpsi_dtheta = derivative_psi_theta(xm, tm, theta, k, params)
+        dpsi_dtime = derivative_phi_time(xm, tm, theta, k, params)
+        dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
+        der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
+    
+    return der
 
 
-def derivative_psi_theta(x, t, theta, j, params):
+def derivative_psi_theta(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
     a = A[r, c, 0]
     b = A[r, c, 1]
 
-    ak = params.B[2 * c, j]
-    bk = params.B[2 * c + 1, j]
+    ak = params.B[2 * c, k]
+    bk = params.B[2 * c + 1, k]
 
     cond = a == 0
     d1 = t * (x * ak + bk)
@@ -296,7 +343,7 @@ def derivative_psi_theta(x, t, theta, j, params):
     return dpsi_dtheta
 
 
-def derivative_phi_time(x, t, theta, j, params):
+def derivative_phi_time(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
     a = A[r, c, 0]
@@ -309,14 +356,14 @@ def derivative_phi_time(x, t, theta, j, params):
     return dpsi_dtime
 
 
-def derivative_thit_theta(x, t, theta, j, params):
+def derivative_thit_theta(x, theta, k, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
     a = A[r, c, 0]
     b = A[r, c, 1]
 
-    ak = params.B[2 * c, j]
-    bk = params.B[2 * c + 1, j]
+    ak = params.B[2 * c, k]
+    bk = params.B[2 * c + 1, k]
 
     v = get_velocity(x, theta, params)
 
