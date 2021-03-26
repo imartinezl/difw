@@ -157,7 +157,7 @@ float integrate_numeric(float x, float t, const float* A, const float xmin, cons
 // DERIVATIVE
 
 // TODO: remove method
-float integrate_closed_form_ext(float x, float t, const float* A, const float xmin, const float xmax, const int nc, std::vector<float> &xr, std::vector<float> &tr){
+float integrate_closed_form_trace_full(float x, float t, const float* A, const float xmin, const float xmax, const int nc, std::vector<float> &xr, std::vector<float> &tr){
     int cont = 0;
 
     xr.push_back(x);
@@ -194,7 +194,7 @@ float integrate_closed_form_ext(float x, float t, const float* A, const float xm
     }
 }
 
-void integrate_closed_form_ext_alt(float* result, float x, float t, const float* A, const float xmin, const float xmax, const int nc){
+void integrate_closed_form_trace(float* result, float x, float t, const float* A, const float xmin, const float xmax, const int nc){
     int c = get_cell(x, xmin, xmax, nc);
     int cont = 0;
     int contmax = std::max(c, nc-1-c);
@@ -297,7 +297,7 @@ float derivative_thit_theta(float x, int k, const float* B, const float* A, cons
 }
 
 // TODO: remove method
-float derivative_phi_theta(std::vector<float> &xr, std::vector<float> &tr, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
+float derivative_phi_theta_old(std::vector<float> &xr, std::vector<float> &tr, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
     
     float dthit_dtheta_cum = 0.0;
     int iters = xr.size();
@@ -316,7 +316,7 @@ float derivative_phi_theta(std::vector<float> &xr, std::vector<float> &tr, int k
 }
 
 
-float derivative_phi_theta_alt(float xini, float tm, int cm, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
+float derivative_phi_theta(float xini, float tm, int cm, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc){
     
     int cini = get_cell(xini, xmin, xmax, nc);
     float xm = xini;
