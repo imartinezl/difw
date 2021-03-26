@@ -30,7 +30,7 @@ theta = torch.ones(batch_size, tess_size - 1)
 outsize = 100
 grid = T.uniform_meshgrid(outsize)
 grid_t = T.backend.cpab_cpu.integrate_closed_form(grid, theta, B, xmin, xmax, tess_size)
-grid_tp = T.backend.cpab_cpu.integrate_numerical(
+grid_tp = T.backend.cpab_cpu.integrate_numeric(
     grid, theta, B, xmin, xmax, tess_size, 10, 100
 )
 
@@ -49,7 +49,7 @@ timing = timeit.Timer(
 print("Time: ", np.mean(timing), "+-", np.std(timing))
 
 # %%
-derivative = T.backend.cpab_cpu.derivative_alt(grid, theta, B, xmin, xmax, tess_size)
+derivative = T.backend.cpab_cpu.derivative_closed_form(grid, theta, B, xmin, xmax, tess_size)
 
 b = 0
 plt.figure()
@@ -65,7 +65,7 @@ for k in range(theta.shape[1]):
     grid_t1 = T.backend.cpab_cpu.integrate_closed_form(
         grid, theta, B, xmin, xmax, tess_size
     )
-    grid_t1 = T.backend.cpab_cpu.integrate_numerical(
+    grid_t1 = T.backend.cpab_cpu.integrate_numeric(
         grid, theta, B, xmin, xmax, tess_size, 10, 100
     )
     theta_h = theta.clone()
@@ -73,7 +73,7 @@ for k in range(theta.shape[1]):
     grid_t2 = T.backend.cpab_cpu.integrate_closed_form(
         grid, theta_h, B, xmin, xmax, tess_size
     )
-    grid_t2 = T.backend.cpab_cpu.integrate_numerical(
+    grid_t2 = T.backend.cpab_cpu.integrate_numeric(
         grid, theta_h, B, xmin, xmax, tess_size, 10, 100
     )
 
@@ -111,9 +111,9 @@ grid_t = T.transform_grid(grid, theta)
 T.visualize_tesselation()
 T.visualize_velocity(theta)
 T.visualize_deformgrid(theta)
-# T.visualize_deformgrid(theta, mode='numeric')
+T.visualize_deformgrid(theta, mode='numeric')
 # T.visualize_gradient(theta)
-# T.visualize_gradient(theta, mode="numeric")
+T.visualize_gradient(theta, mode="numeric")
 
 # b = 0
 # for k in range(derivative.shape[2]):
@@ -137,7 +137,7 @@ backend = "pytorch"
 T = cpab.Cpab(tess_size, backend, zero_boundary=True)
 
 outsize = 100
-batch_size = 1
+batch_size = 2
 grid = T.uniform_meshgrid(outsize)
 
 # theta_1 = T.identity(batch_size, epsilon=0)
@@ -151,10 +151,10 @@ lr = 1e-1
 optimizer = torch.optim.Adam([theta_2], lr=lr)
 
 loss_values = []
-maxiter = 200
+maxiter = 20
 for i in range(maxiter):
     optimizer.zero_grad()
-    grid_t2 = T.transform_grid(grid, theta_2)
+    grid_t2 = T.transform_grid(grid, theta_2, mode="numeric")
     loss = torch.norm(grid_t2 - grid_t1)
     loss.backward()
     optimizer.step()
@@ -182,19 +182,17 @@ plt.axhline(color="black", ls="dashed")
 np.random.seed(1)
 torch.manual_seed(1)
 
-batch_size = 2
+batch_size = 4
 # theta = cpab.sample_transformation(batch_size, np.random.normal(-1, 1, (99)), np.random.normal(1, 1, (99,99)))
 theta = T.sample_transformation(batch_size)
-print(theta)
 # theta = np.random.uniform(-3, 3, (batch_size, tess_size-1))
 
-outsize = 10
+outsize = 100
 grid = T.uniform_meshgrid(outsize)
 grid_t = T.transform_grid(grid, theta)
-print(grid, grid_t)
 # T.test(grid, theta)
 
-width = 10
+width = 50
 channels = 2
 
 # data = np.random.normal(0, 1, (batch_size, width, channels))
@@ -204,8 +202,7 @@ noise = np.random.normal(0, 0.1, (batch_size, width, channels))
 x = np.linspace(a, b, width, axis=1)
 data = np.sin(x)
 
-data_t = T.transform_data(data, theta, outsize)
-# %%
+data_t = T.transform_data(torch.tensor(data), theta, outsize)
 
 # TODO: define visualize functions on cpab
 # plot data
@@ -219,13 +216,13 @@ for i in range(channels):
 fig, ax = plt.subplots(nrows=channels, ncols=batch_size, sharex=True, squeeze=False)
 for i in range(channels):
     for j in range(batch_size):
-        ax[i, j].plot(data[j, :, i], color="blue")
-        ax[i, j].plot(data_t[j, :, i], color="red")
+        ax[i, j].plot(np.linspace(0,1,width), data[j, :, i], color="blue")
+        ax[i, j].plot(np.linspace(0,1,outsize), data_t[j, :, i], color="red")
 
 fig, ax = plt.subplots(nrows=channels, ncols=1, sharex=True, squeeze=False)
 for i in range(channels):
-    ax[i, 0].plot(data[:, :, i].T, color="blue")
-    ax[i, 0].plot(data_t[:, :, i].T, color="red")
+    ax[i, 0].plot(np.linspace(0,1,width), data[:, :, i].T, color="blue")
+    ax[i, 0].plot(np.linspace(0,1,outsize), data_t[:, :, i].T, color="red")
 
 # %%
 import timeit
