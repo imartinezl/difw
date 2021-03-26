@@ -19,7 +19,7 @@ backend = "pytorch"
 T = cpab.Cpab(tess_size, backend, zero_boundary=True)
 B = torch.tensor(T.params.B, dtype=torch.float32)
 
-batch_size = 4
+batch_size = 2
 seed = np.random.randint(100)
 torch.manual_seed(seed)
 theta = T.sample_transformation(batch_size)
@@ -37,7 +37,7 @@ grid_tp = T.backend.cpab_cpu.integrate_numerical(
 plt.figure()
 plt.title("Deformed grid")
 plt.plot(grid, grid_t.T, color="blue", alpha=0.1)
-plt.plot(grid, grid_tp.T, color="red", alpha=0.1)
+plt.plot(grid, grid_tp.T, color="red", alpha=1)
 plt.axline([0, 0], [1, 1], color="black", ls="dashed")
 
 repetitions = 500
@@ -93,7 +93,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 tess_size = 5
-backend = "numpy"
+backend = "pytorch"
 T = cpab.Cpab(tess_size, backend, zero_boundary=True)
 outsize = 100
 grid = T.uniform_meshgrid(outsize)
@@ -105,12 +105,19 @@ theta = T.sample_transformation(batch_size)
 # theta = np.ones((batch_size, tess_size - 1))
 # theta = np.array([[ 0.8651,  0.0284,  0.5256, -0.3633, -0.4169, -1.2650]])
 grid_t = T.transform_grid(grid, theta)
-derivative = grid_t
-derivative
+# derivative = grid_t
+# derivative
 
-b = 0
-for k in range(derivative.shape[2]):
-    plt.plot(derivative[b,:, k])
+T.visualize_tesselation()
+T.visualize_velocity(theta)
+T.visualize_deformgrid(theta)
+# T.visualize_deformgrid(theta, mode='numeric')
+# T.visualize_gradient(theta)
+# T.visualize_gradient(theta, mode="numeric")
+
+# b = 0
+# for k in range(derivative.shape[2]):
+#     plt.plot(derivative[b,:, k])
 
 # plt.plot(grid, grid_t.T, color="blue", alpha=1)
 # plt.axline([0, 0], [1, 1], color="black", ls="dashed")
@@ -122,6 +129,53 @@ for k in range(derivative.shape[2]):
 #     # setup="gc.enable()"
 # ).repeat(repetitions, n)
 # print("Time: ", np.mean(timing) / n, "+-", np.std(timing) / np.sqrt(n))
+# %%
+import torch
+
+tess_size = 50
+backend = "pytorch"
+T = cpab.Cpab(tess_size, backend, zero_boundary=True)
+
+outsize = 100
+batch_size = 1
+grid = T.uniform_meshgrid(outsize)
+
+# theta_1 = T.identity(batch_size, epsilon=0)
+theta_1 = T.sample_transformation(batch_size)
+grid_t1 = T.transform_grid(grid, theta_1)
+
+theta_2 = T.sample_transformation(batch_size)
+theta_2.requires_grad = True
+
+lr = 1e-1
+optimizer = torch.optim.Adam([theta_2], lr=lr)
+
+loss_values = []
+maxiter = 200
+for i in range(maxiter):
+    optimizer.zero_grad()
+    grid_t2 = T.transform_grid(grid, theta_2)
+    loss = torch.norm(grid_t2 - grid_t1)
+    loss.backward()
+    optimizer.step()
+
+    loss_values.append(loss.item())
+
+
+plt.figure()
+plt.plot(loss_values)
+plt.axhline(color="black", ls="dashed")
+# plt.yscale('log')
+
+plt.figure()
+plt.plot(grid, grid_t1.t())
+plt.plot(grid, grid_t2.detach().t())
+
+plt.figure()
+plt.plot(grid_t1.t() - grid_t2.detach().t())
+plt.axhline(color="black", ls="dashed")
+# theta_1, theta_2
+
 
 
 # %%
@@ -136,8 +190,8 @@ print(theta)
 
 outsize = 10
 grid = T.uniform_meshgrid(outsize)
-print(grid)
-T.transform_grid(grid, theta)
+grid_t = T.transform_grid(grid, theta)
+print(grid, grid_t)
 # T.test(grid, theta)
 
 width = 10
@@ -197,7 +251,6 @@ print("Grid: ", grid.shape, "->", grid_t.shape)
 T.visualize_tesselation()
 T.visualize_velocity(theta, n_points=50)
 T.visualize_deformgrid(theta, n_points=100)
-T.visualize_velocity2deform(theta, n_points=100)
 print("Done")
 
 # %%
