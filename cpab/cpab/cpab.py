@@ -50,7 +50,8 @@ class Cpab:
         self.params.xmax = 1
         self.params.nSteps1 = 10
         self.params.nSteps2 = 10
-        self.params.precomputed = False
+        self.params.precomputed = False # TODO: review if necessary
+        self.params.use_slow = False
 
         # Initialize tesselation
         self.tess = Tessellation(
@@ -76,6 +77,8 @@ class Cpab:
             # from .tensorflow import functions as backend
         elif self.backend_name == "pytorch":
             from .backend.pytorch import functions as backend
+            self.params.B = backend.to(self.params.B)
+            # torch.tensor(params.B, dtype=torch.float32)
         self.backend = backend
         self.device = device.lower()
 
@@ -275,7 +278,7 @@ class Cpab:
         v = self.backend.calc_velocity(grid, theta, self.params)
         return v
 
-    def visualize_velocity(self, theta, n_points=50, fig=None):
+    def visualize_velocity(self, theta, n_points=None, fig=None):
         """ Utility function that helps visualize the vectorfield for a specific
             parametrization vector theta 
         Arguments:    
@@ -289,6 +292,9 @@ class Cpab:
         if fig is None:
             fig = plt.figure()
 
+        if n_points is None:
+            n_points = self.params.nc
+
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid(n_points)
         v = self.calc_velocity(grid, theta)
@@ -299,7 +305,10 @@ class Cpab:
         # Plot
         ax = fig.add_subplot(1, 1, 1)
         # ax.quiver(grid, np.zeros_like(grid), np.zeros_like(v), v)
-        ax.plot(grid, v.T, color="blue", alpha=0.1)
+        ax.axhline(color="black", ls="dashed")
+        alpha = max(0.01, 1/np.sqrt(len(theta)))
+        ax.plot(grid, v.T, color="blue", alpha=alpha)
+        ax.plot(grid, v.T, marker='o', linestyle="None", color="orange", alpha=alpha)
         ax.set_xlim(self.params.xmin, self.params.xmax)
         ax.set_title("Velocity Field " + r'$v(x)$')
         ax.set_xlabel(r'$x$', rotation='horizontal')
@@ -329,10 +338,11 @@ class Cpab:
         # Plot
         ax = fig.add_subplot(1, 1, 1)
         ax.axline((0, 0), (1, 1), color="black", ls="dashed")
-        ax.plot(grid, grid_t.T, c="blue", alpha=max(0.01, 1/np.sqrt(len(theta)) ))
-        ax.set_title("Grid Deformation " + r'$\phi(x)$')
+        alpha = max(0.01, 1/np.sqrt(len(theta))) 
+        ax.plot(grid, grid_t.T, c="blue", alpha=alpha)
+        ax.set_title("Grid Deformation " + r'$\phi(x,t)$')
         ax.set_xlabel(r'$x$', rotation='horizontal')
-        ax.set_ylabel(r'$\phi(x)$', rotation='horizontal')
+        ax.set_ylabel(r'$\phi(x,t)$', rotation='horizontal')
         ax.grid(alpha=0.3)
         
         return ax
@@ -361,6 +371,7 @@ class Cpab:
         plot = ax.scatter(grid.flatten(), idx, c=idx)
         ax.set_title("Tesselation " + r'$N_\mathcal{P}=$' + str(self.params.nc))
         ax.set_xlabel(r'$x$')
+        ax.set_ylabel("Cell Index")
         ax.set_yticks(np.arange(np.max(idx)+1))
         # ax.tick_params(left=False, labelleft=False)
         ax.grid(alpha=0.3)
@@ -400,9 +411,9 @@ class Cpab:
         ax = fig.add_subplot(2, 1, 2)
         ax.axhline(color="black", ls="dashed")
         ax.plot(grid, (grid_t - grid).T, c="blue", alpha=0.1)
-        ax.set_title("Grid Deformation " + r'$\phi(x)$')
+        ax.set_title("Grid Deformation " + r'$\phi(x,t)$')
         ax.set_xlabel(r'$x$', rotation='horizontal')
-        ax.set_ylabel(r'$\phi(x)$', rotation='horizontal')
+        ax.set_ylabel(r'$\phi(x,t)$', rotation='horizontal')
         ax.grid(alpha=0.3)
 
         return ax
@@ -422,31 +433,18 @@ class Cpab:
 
         # Gradient grid and convert to numpy
         grid = self.uniform_meshgrid(n_points)
-        grid_t, grad = self.gradient_grid(grid, theta, mode)
+        grad = self.gradient_grid(grid, theta, mode)
         grid = self.backend.tonumpy(grid)
-        grid_t = self.backend.tonumpy(grid_t)
         grad = self.backend.tonumpy(grad)
-
-        # Plot
-        # ax = fig.add_subplot(2, 1, 1)
-        # ax.axline((0, 0), (1, 1), color="black", ls="dashed")
-        # ax.plot(grid, grid_t.T, c="blue", alpha=max(0.01, 1/np.sqrt(len(theta)) ))
-        # ax.set_title("Grid Deformation")
-
-        # ax = fig.add_subplot(2, 1, 2)
-        # ax.axhline(color="black", ls="dashed")
-        # for g in grad:
-        #     ax.plot(grid, g)
-        # ax.set_title("Grid Deformation")
 
         # Plot only gradient
         ax = fig.add_subplot(1, 1, 1)
         ax.axhline(color="black", ls="dashed")
         for g in grad:
             ax.plot(grid, g)
-        ax.set_title("Gradient " + r'$\partial \phi / \partial \theta$')
+        ax.set_title("Gradient " + r'$\dfrac{\partial \phi(x,t)}{\partial \theta}$')
         ax.set_xlabel(r'$x$', rotation='horizontal')
-        ax.set_ylabel(r'$\partial \phi / \partial \theta$', rotation='horizontal')
+        ax.set_ylabel(r'$\dfrac{\partial \phi(x,t)}{\partial \theta}$', rotation='horizontal', labelpad=10)
         ax.grid(alpha=0.3)
         return ax
 
