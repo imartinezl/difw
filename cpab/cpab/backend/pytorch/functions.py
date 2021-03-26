@@ -1,8 +1,10 @@
 import torch
 from .transformer import cpab_cpu
 
-# from .transformer import CPAB_transformer as transformer
-# from .transformer import get_cell, get_velocity
+from .transformer import CPAB_transformer as transformer
+# from .transformer import transformer, gradient
+from .transformer import gradient
+from .transformer import get_cell, calc_velocity
 
 # %%
 def assert_version():
