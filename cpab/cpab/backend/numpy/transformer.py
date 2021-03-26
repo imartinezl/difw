@@ -11,6 +11,9 @@ def batch_effect(x, theta):
     x = np.broadcast_to(x, (n_batch, n_points)).flatten()
     return x
 
+
+# FUNCTIONS
+
 def get_cell(x, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
 
@@ -111,10 +114,19 @@ def get_phi_numeric(x, t, theta, params):
     return yn
 
 
-def integrate_numeric(x, t, theta, params):
-    nSteps1 = params.nSteps1
+# INTEGRATION
 
+
+def integrate_numeric(x, theta, params):
+    # setup
+    x = batch_effect(x, theta)
+    n_batch = theta.shape[0]
+    t = 1
+    params = precompute_affine(x, theta, params)
+
+    # computation
     xPrev = x
+    nSteps1 = params.nSteps1
     deltaT = t / nSteps1
     c = get_cell(xPrev, params)
     for j in range(nSteps1):
@@ -123,17 +135,21 @@ def integrate_numeric(x, t, theta, params):
         xNum = get_phi_numeric(xPrev, deltaT, theta, params)
         xPrev = np.where(c == cTemp, xTemp, xNum)
         c = get_cell(xPrev, params)
-    return xPrev
+    return xPrev.reshape((n_batch, -1))
 
-def integrate_closed_form(x, t, theta, params):
+def integrate_closed_form(x, theta, params):
+    # setup
+    x = batch_effect(x, theta)
+    t = np.ones_like(x)
+    params = precompute_affine(x, theta, params)
     n_batch = theta.shape[0]
-    cont = 0
 
+    # computation
     phi = np.empty_like(x)
     done = np.full_like(x, False, dtype=bool)
-    
     c = get_cell(x, params)
 
+    cont = 0
     while True:
         left = left_boundary(c, params)
         right = right_boundary(c, params)
@@ -161,8 +177,7 @@ def integrate_closed_form(x, t, theta, params):
     return None
 
 def integrate_closed_form_ext(x, t, theta, params):
-    n_batch = theta.shape[0]
-    cont = 0
+    # n_batch = theta.shape[0]
 
     result = np.empty((*x.shape, 3))
     # phi = np.empty_like(x)
@@ -171,7 +186,7 @@ def integrate_closed_form_ext(x, t, theta, params):
     done = np.full_like(x, False, dtype=bool)
     
     c = get_cell(x, params)
-
+    cont = 0
     while True:
         left = left_boundary(c, params)
         right = right_boundary(c, params)
@@ -189,7 +204,7 @@ def integrate_closed_form_ext(x, t, theta, params):
         # cm[~done] = c
         done[~done] = valid
         if np.alltrue(valid):
-            return result.reshape((n_batch, -1, 3))
+            return result#.reshape((n_batch, -1, 3))
             # return phi.reshape((n_batch, -1)), tm.reshape((n_batch, -1)), cm.reshape((n_batch, -1))
 
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
@@ -204,7 +219,7 @@ def integrate_closed_form_ext(x, t, theta, params):
 
 
 
-
+# TODO: remove method
 def integrate_closed_form_ext_old(x, t, theta, params, derivative=False):
     cont = 0
 
@@ -254,6 +269,7 @@ def integrate_closed_form_ext_old(x, t, theta, params, derivative=False):
 
 
 compiled = False
+# TODO: remove transformer methods
 # TODO: change name with integrate or integration
 def CPAB_transformer(points, theta, params):
     return derivative(points, theta, params)
@@ -285,19 +301,44 @@ def CPAB_transformer_fast(points, theta, params):
     pass
     # TODO: jit compile cpp code into callable python code
 
+# GRADIENT
 
-def derivative(points, theta, params):
-    n_points = points.shape[-1]
+def derivative_numeric(x, theta, params, h=1e-3):
+    # setup
+    n_points = x.shape[-1]
     n_batch = theta.shape[0]
     d = theta.shape[1]
 
-    x = batch_effect(points, theta)
+    # computation
+    der = np.empty((n_batch, n_points, d))
+
+    phi_1 = integrate_numeric(x, theta, params)
+    for k in range(d):
+        theta2 = theta.copy()
+        theta2[:,k] += h
+        phi_2 = integrate_numeric(x, theta2, params)
+
+        der[:,:,k] = (phi_2 - phi_1)/h
+
+    return phi_1, der
+
+    
+
+def derivative_closed_form(x, theta, params):
+    # setup
+    n_points = x.shape[-1]
+    n_batch = theta.shape[0]
+    d = theta.shape[1]
+
+    x = batch_effect(x, theta)
     t = np.ones_like(x)
     params = precompute_affine(x, theta, params)
-    result = integrate_closed_form_ext(x, t, theta, params)
 
-    tm = result[:,:,1].flatten()
-    cm = result[:,:,2].flatten()
+    # computation
+    result = integrate_closed_form_ext(x, t, theta, params)
+    phi = result[:,0].reshape((n_batch, -1))#.flatten()
+    tm = result[:,1]#.flatten()
+    cm = result[:,2]#.flatten()
     params = precompute_affine(x, theta, params)
 
     der = np.empty((n_batch, n_points, d))
@@ -322,6 +363,7 @@ def derivative(points, theta, params):
         der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
     
     return der
+    # return phi, der
 
 
 def derivative_psi_theta(x, t, theta, k, params):
