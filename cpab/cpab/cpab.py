@@ -6,6 +6,7 @@ from .core.utility import Parameters
 from .core.tessellation import Tessellation
 
 
+
 class Cpab:
     """ Core class for this library. This class contains all the information
         about the tesselation, transformation ect. The user is not meant to
@@ -167,7 +168,7 @@ class Cpab:
         """
         return self.backend.identity(self.params.d, n_sample, epsilon, self.device)
 
-    def transform_grid(self, grid, theta):
+    def transform_grid(self, grid, theta, mode=None):
         """ Main method of the class. Integrates the grid using the parametrization
             in theta.
         Arguments:
@@ -175,6 +176,7 @@ class Cpab:
                 either a single grid for all theta values, or a grid for each theta
                 value
             theta: [n_batch, d] matrix,
+            mode: one of {"closed_form", "numeric"}
         Output:
             transformed_grid: [n_batch, n_points] tensor, with the transformed
                 grid. The slice transformed_grid[i] corresponds to the grid being
@@ -184,7 +186,30 @@ class Cpab:
         self._check_device(grid)
         self._check_type(theta)
         self._check_device(theta)
-        transformed_grid = self.backend.transformer(grid, theta, self.params)
+        transformed_grid = self.backend.transformer(grid, theta, self.params, mode)
+        return transformed_grid
+
+    def gradient_grid(self, grid, theta, mode=None):
+        """ Integrates and return the gradient of the transformation
+        using the parametrization in theta.
+        Arguments:
+            grid: [n_points] vector or [n_batch, n_points] tensor i.e.
+                either a single grid for all theta values, or a grid for each theta
+                value
+            theta: [n_batch, d] matrix,
+        Output:
+            transformed_grid: [n_batch, n_points] tensor, with the transformed
+                grid. The slice transformed_grid[i] corresponds to the grid being
+                transformed by theta[i]
+            gradient_grid: [n_batch, n_points, d] tensor, with the gradient grid.
+                The slice gradient_grid[i, :, j] corresponds to the gradient of grid being
+                transformed by theta[i] and with respect to the parameter theta[i,j]
+        """
+        self._check_type(grid)
+        self._check_device(grid)
+        self._check_type(theta)
+        self._check_device(theta)
+        transformed_grid = self.backend.gradient(grid, theta, self.params, mode)
         return transformed_grid
 
     def interpolate(self, data, grid, outsize):
@@ -206,7 +231,7 @@ class Cpab:
         self._check_device(grid)
         return self.backend.interpolate(data, grid, outsize)
 
-    def transform_data(self, data, theta, outsize):
+    def transform_data(self, data, theta, outsize, mode=None):
         """ Combination of the transform_grid and interpolate methods for easy
             transformation of data.
         Arguments:
@@ -230,7 +255,7 @@ class Cpab:
             data.shape[0] == theta.shape[0]
         ), """Batch sizes should be the same on arguments data and theta"""
         grid = self.uniform_meshgrid(outsize)
-        grid_t = self.transform_grid(grid, theta)
+        grid_t = self.transform_grid(grid, theta, mode)
         data_t = self.interpolate(data, grid_t, outsize)
         return data_t
 
@@ -276,14 +301,17 @@ class Cpab:
         # ax.quiver(grid, np.zeros_like(grid), np.zeros_like(v), v)
         ax.plot(grid, v.T, color="blue", alpha=0.1)
         ax.set_xlim(self.params.xmin, self.params.xmax)
-        ax.set_title("Velocity Field")
+        ax.set_title("Velocity Field " + r'$v(x)$')
+        ax.set_xlabel(r'$x$', rotation='horizontal')
+        ax.set_ylabel(r'$v(x)$', rotation='horizontal')
+        ax.grid(alpha=0.3)
         return ax
 
-    def visualize_deformgrid(self, theta, n_points=100, fig=None):
+    def visualize_deformgrid(self, theta, mode=None, n_points=100, fig=None):
         """ Utility function that helps visualize a deformation
         Arguments:
             theta: [n_batch, d] single parametrization vector
-            nb_points: int, number of points
+            n_points: int, number of points
             fig: matplotlib figure handle
         Output:
             plot: handle to lineplot
@@ -294,15 +322,19 @@ class Cpab:
 
         # Transform grid and convert to numpy
         grid = self.uniform_meshgrid(n_points)
-        grid_t = self.transform_grid(grid, theta)
+        grid_t = self.transform_grid(grid, theta, mode)
         grid = self.backend.tonumpy(grid)
         grid_t = self.backend.tonumpy(grid_t)
 
         # Plot
         ax = fig.add_subplot(1, 1, 1)
         ax.axline((0, 0), (1, 1), color="black", ls="dashed")
-        ax.plot(grid, grid_t.T, c="blue", alpha=0.1)
-        ax.set_title("Grid Deformation")
+        ax.plot(grid, grid_t.T, c="blue", alpha=max(0.01, 1/np.sqrt(len(theta)) ))
+        ax.set_title("Grid Deformation " + r'$\phi(x)$')
+        ax.set_xlabel(r'$x$', rotation='horizontal')
+        ax.set_ylabel(r'$\phi(x)$', rotation='horizontal')
+        ax.grid(alpha=0.3)
+        
         return ax
 
     def visualize_tesselation(self, n_points=50, fig=None):
@@ -325,15 +357,20 @@ class Cpab:
 
         # Plot
         ax = fig.add_subplot(1, 1, 1)
-        plot = ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
-        ax.set_title("Tesselation [" + str(self.params.nc) + "]")
+        # plot = ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
+        plot = ax.scatter(grid.flatten(), idx, c=idx)
+        ax.set_title("Tesselation " + r'$N_\mathcal{P}=$' + str(self.params.nc))
+        ax.set_xlabel(r'$x$')
+        ax.set_yticks(np.arange(np.max(idx)+1))
+        # ax.tick_params(left=False, labelleft=False)
+        ax.grid(alpha=0.3)
         return plot
 
-    def visualize_velocity2deform(self, theta, n_points=100, fig=None):
+    def visualize_velocity2deform(self, theta, mode=None, n_points=100, fig=None):
         """ Utility function that helps visualize deformation vs velocity
         Arguments:
             theta: [n_batch, d] single parametrization vector
-            nb_points: int, number of points
+            n_points: int, number of points
             fig: matplotlib figure handle
         Output:
             plot: handle to lineplot
@@ -344,8 +381,8 @@ class Cpab:
 
         # Calculate velocity, transform grid and convert to numpy
         grid = self.uniform_meshgrid(n_points)
-        grid_t = self.transform_grid(grid, theta)
-        v = self.get_velocity(grid, theta)
+        grid_t = self.transform_grid(grid, theta, mode)
+        v = self.calc_velocity(grid, theta)
 
         grid = self.backend.tonumpy(grid)
         grid_t = self.backend.tonumpy(grid_t)
@@ -355,13 +392,64 @@ class Cpab:
         ax = fig.add_subplot(2, 1, 1)
         ax.axhline(color="black", ls="dashed")
         ax.plot(grid, v.T, color="blue", alpha=0.1)
-        ax.set_title("Velocity Field")
+        ax.set_title("Velocity Field " + r'$v(x)$')
+        ax.set_xlabel(r'$x$')
+        ax.set_ylabel(r'$v(x)$')
+        ax.grid(alpha=0.3)
 
         ax = fig.add_subplot(2, 1, 2)
         ax.axhline(color="black", ls="dashed")
         ax.plot(grid, (grid_t - grid).T, c="blue", alpha=0.1)
-        ax.set_title("Grid Deformation")
+        ax.set_title("Grid Deformation " + r'$\phi(x)$')
+        ax.set_xlabel(r'$x$', rotation='horizontal')
+        ax.set_ylabel(r'$\phi(x)$', rotation='horizontal')
+        ax.grid(alpha=0.3)
+
         return ax
+
+    def visualize_gradient(self, theta, mode=None, n_points=100, fig=None):
+        """ Utility function that helps visualize the gradient
+        Arguments:
+            theta: [n_batch, d] single parametrization vector
+            n_points: int, number of points
+            fig: matplotlib figure handle
+        Output:
+            plot: handle to lineplot
+        """
+        pass # TODO: remove pass-es
+        if fig is None:
+            fig = plt.figure()
+
+        # Gradient grid and convert to numpy
+        grid = self.uniform_meshgrid(n_points)
+        grid_t, grad = self.gradient_grid(grid, theta, mode)
+        grid = self.backend.tonumpy(grid)
+        grid_t = self.backend.tonumpy(grid_t)
+        grad = self.backend.tonumpy(grad)
+
+        # Plot
+        # ax = fig.add_subplot(2, 1, 1)
+        # ax.axline((0, 0), (1, 1), color="black", ls="dashed")
+        # ax.plot(grid, grid_t.T, c="blue", alpha=max(0.01, 1/np.sqrt(len(theta)) ))
+        # ax.set_title("Grid Deformation")
+
+        # ax = fig.add_subplot(2, 1, 2)
+        # ax.axhline(color="black", ls="dashed")
+        # for g in grad:
+        #     ax.plot(grid, g)
+        # ax.set_title("Grid Deformation")
+
+        # Plot only gradient
+        ax = fig.add_subplot(1, 1, 1)
+        ax.axhline(color="black", ls="dashed")
+        for g in grad:
+            ax.plot(grid, g)
+        ax.set_title("Gradient " + r'$\partial \phi / \partial \theta$')
+        ax.set_xlabel(r'$x$', rotation='horizontal')
+        ax.set_ylabel(r'$\partial \phi / \partial \theta$', rotation='horizontal')
+        ax.grid(alpha=0.3)
+        return ax
+
 
     def _check_input(self, tess_size, backend, device, zero_boundary):
         """ Utility function used to check the input to the class.
