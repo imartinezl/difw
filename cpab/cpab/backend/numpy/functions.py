@@ -1,7 +1,6 @@
 # %%
 import numpy as np
 from .interpolation import interpolate
-# from .transformer import CPAB_transformer as transformer
 from .transformer import integrate_numeric, integrate_closed_form, derivative_numeric, derivative_closed_form
 from .transformer import get_cell, get_velocity, batch_effect
 
