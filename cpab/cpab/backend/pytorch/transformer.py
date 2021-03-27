@@ -67,7 +67,7 @@ _gpu_success = False
 #         print('Error was: ')
 #         print(e)
 
-# %%
+# %% FAST CPU
 
 def get_cell(grid, params):
     return cpab_cpu.get_cell(grid, params.xmin, params.xmax, params.nc)
@@ -94,7 +94,7 @@ def gradient(grid, theta, params, mode=None):
         h = 1e-3
         return cpab_cpu.derivative_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
 
-# %%
+# %% METHOD ROUTER
 def transformer(grid, theta, params, mode=None):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
@@ -111,12 +111,12 @@ def transformer(grid, theta, params, mode=None):
             if _verbose: print('using slow cpu implementation')
             return transformer_slow(grid, theta, params, mode)
 
-# %%
+# %% SLOW CPU / GPU
 
 def transformer_slow(grid, theta, params, mode=None):
     pass
 
-# %%
+# %% 
 def transformer_fast_cpu(grid, theta, params, mode=None):
     if mode is None:
         mode = "closed_form"
@@ -139,7 +139,6 @@ class _CPABFunction_ClosedForm_CPU(torch.autograd.Function):
     @staticmethod
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad_output): # grad [n_batch, n_points]
-        # Grap input
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
         grad_theta = cpab_cpu.derivative_closed_form_trace(output, grid, theta, params.B, params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
@@ -163,7 +162,6 @@ class _CPABFunction_Numeric_CPU(torch.autograd.Function):
     @staticmethod
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad_output): # grad_output [n_batch, n_points]
-        # Grap input
         params = ctx.params
         grid_t, grid, theta = ctx.saved_tensors
 
@@ -172,31 +170,4 @@ class _CPABFunction_Numeric_CPU(torch.autograd.Function):
         grad_theta = cpab_cpu.derivative_numeric2(grid_t, grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
-
-        gradient = []
-        
-        n_theta, d = theta.shape
-        for k in range(d):
-            # Permute theta
-            thetap = theta.clone()
-            thetap[:,k] += h
-
-            grid_tp = cpab_cpu.integrate_numeric(grid, thetap, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
-
-            diff = (grid_tp - grid_t) / h
-
-            # Do finite gradient
-            gradient.append((grad_output * diff).sum(dim=[1]))
-
-        # Reshaping
-        grad = torch.stack(gradient, dim = 1) # [n_theta, d]
-        return None, grad, None
-        gradient = cpab_cpu.derivative_closed_form_trace(newpoints, grid, theta, params.B, params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
-
-        # print(grad.shape, gradient.shape)
-        # NOTE: we have to permute the gradient in order to do the element-wise product
-        # Then, the gradient must be summarized for all grid points
-        grad_theta = grad_output.mul(gradient.permute(2,0,1)).sum(dim=(2)).t()
-        return None, grad, None # [n_batch, d]
-
 
