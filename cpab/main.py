@@ -151,7 +151,7 @@ lr = 1e-1
 optimizer = torch.optim.Adam([theta_2], lr=lr)
 
 loss_values = []
-maxiter = 20
+maxiter = 50
 for i in range(maxiter):
     optimizer.zero_grad()
     grid_t2 = T.transform_grid(grid, theta_2, mode="numeric")

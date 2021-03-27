@@ -112,6 +112,7 @@ def transformer(grid, theta, params, mode=None):
             return transformer_slow(grid, theta, params, mode)
 
 # %%
+
 def transformer_slow(grid, theta, params, mode=None):
     pass
 
@@ -168,8 +169,7 @@ class _CPABFunction_Numeric_CPU(torch.autograd.Function):
 
         h = 1e-2
 
-        grad_theta = cpab_cpu.derivative_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
-        # grad_theta = cpab_cpu.derivative_numeric2(grid_t, grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        grad_theta = cpab_cpu.derivative_numeric2(grid_t, grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
