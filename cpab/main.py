@@ -16,7 +16,7 @@ tess_size = 5
 xmin = 0.0
 xmax = 1.0
 backend = "pytorch"
-T = cpab.Cpab(tess_size, backend, zero_boundary=True)
+T = cpab.Cpab(tess_size, backend, zero_boundary=True, device="cpu")
 B = torch.tensor(T.params.B, dtype=torch.float32)
 
 batch_size = 2

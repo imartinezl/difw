@@ -51,7 +51,7 @@ class Cpab:
         self.params.nSteps1 = 10
         self.params.nSteps2 = 10
         self.params.precomputed = False # TODO: review if necessary
-        self.params.use_slow = False
+        self.params.use_slow = True
 
         # Initialize tesselation
         self.tess = Tessellation(
