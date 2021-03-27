@@ -17,7 +17,7 @@ class _notcompiled:
 
 #%%
 _dir = get_dir(__file__)
-_verbose = False
+_verbose = True
 
 # Jit compile cpu source
 try:
@@ -113,8 +113,10 @@ def transformer(grid, theta, params, mode=None):
 
 # %% SLOW CPU / GPU
 
+from .transformer_slow import integrate_numeric
 def transformer_slow(grid, theta, params, mode=None):
     pass
+    return integrate_numeric(grid, theta, params)
 
 # %% 
 def transformer_fast_cpu(grid, theta, params, mode=None):
