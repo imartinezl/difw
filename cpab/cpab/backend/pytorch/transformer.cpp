@@ -139,12 +139,61 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
 }
 
 at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10, float h=1e-3){
+    // Problem size
+    const int n_points = points.size(0);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
+
+    at::Tensor phi_1 =  torch_integrate_numeric(points, theta, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, Bt, xmin, xmax, nc);
+    
+    for(int k = 0; k < d; k++){
+        at::Tensor theta2 = theta.clone();
+        at::Tensor row = theta.index({torch::indexing::Slice(), k});
+        theta2.index_put_({torch::indexing::Slice(), k}, row + h);
+        at::Tensor phi_2 =  torch_integrate_numeric(points, theta2, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta2, Bt, xmin, xmax, nc);
+        gradient.index_put_({torch::indexing::Slice(), torch::indexing::Slice(), k}, (phi_2 - phi_1)/h);
+    }
+    return gradient;
+}
+at::Tensor torch_derivative_numeric2(at::Tensor phi_1, at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10, float h=1e-3){
+    // Problem size
+    const int n_points = points.size(0);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
+
+    // at::Tensor phi_1 =  torch_integrate_numeric(points, theta, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, Bt, xmin, xmax, nc);
+    
+    for(int k = 0; k < d; k++){
+        at::Tensor theta2 = theta.clone();
+        at::Tensor row = theta2.index({torch::indexing::Slice(), k});
+        theta2.index_put_({torch::indexing::Slice(), k}, row + h);
+        at::Tensor phi_2 =  torch_integrate_numeric(points, theta2, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta2, Bt, xmin, xmax, nc);
+        gradient.index_put_({torch::indexing::Slice(), torch::indexing::Slice(), k}, (phi_2 - phi_1)/h);
+    }
+    return gradient;
+}
+
+
+
+
+at::Tensor torch_derivative_numeric_old(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10, float h=1e-3){
     float t = 1.0;
 
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
+
+
+
 
     // Allocate output
     const int e = 3;
@@ -182,50 +231,6 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Ten
     }
     return gradient;
 }
-
-at::Tensor torch_derivative_numeric2(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10, float h=1e-3){
-    float t = 1.0;
-
-    // Problem size
-    const int n_points = points.size(0);
-    const int n_batch = theta.size(0);
-    const int d = theta.size(1);
-
-    // Allocate output
-    const int e = 3;
-    // auto output = torch::zeros({n_batch, n_points}, at::kCPU);
-    // auto newpoints = output.data_ptr<float>();
-    auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
-    auto gradpoints = gradient.data_ptr<float>();
-
-
-    // Convert to pointers
-    float* newpoints = output.data_ptr<float>();
-    float* B = Bt.data_ptr<float>();
-    float* x = points.data_ptr<float>();
-    for(int k = 0; k < d; k++){
-        for(int i = 0; i < n_batch; i++) { // for all batches
-            // Precompute affine velocity field
-            auto theta_acc = theta.accessor<float,2>();
-            float current = theta_acc[i][k];
-            theta.index_put_({i, k}, current + h);
-            at::Tensor At = get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
-            float* A = At.data_ptr<float>();
-            theta.index_put_({i, k}, current);
-
-            float phi_1, phi_2;
-            for(int j = 0; j < n_points; j++) { // for all points
-                // phi_1 = integrate_numeric(x[j], t, A1, xmin, xmax, nc, nSteps1, nSteps2);
-                phi_1 = newpoints[i*n_points + j];
-                phi_2 = integrate_numeric(x[j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
-
-                gradpoints[i*(n_points * d) + j*d + k] = (phi_2 - phi_1)/h;
-            }
-        }
-    }
-    return gradient;
-}
-
 
 
 // SEPARATE derivative into two parts
