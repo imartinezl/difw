@@ -304,7 +304,7 @@ def integrate_closed_form_trace(x, theta, params):
     params = precompute_affine(x, theta, params)
 
     # computation
-    result = torch.empty((*x.shape, 3))
+    result = torch.empty((*x.shape, 3), device=x.device)
     done = torch.full_like(x, False, dtype=bool)
     
     c = get_cell(x, params)
