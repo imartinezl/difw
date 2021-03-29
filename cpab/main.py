@@ -10,7 +10,7 @@ import cpab
 # import importlib
 # importlib.reload(cpab)
 
-# %%
+# %% TO REMOVE
 import torch
 tess_size = 5
 xmin = 0.0
@@ -90,29 +90,35 @@ for k in range(theta.shape[1]):
 import cpab
 import timeit
 import numpy as np
+import torch
 import matplotlib.pyplot as plt
 
 tess_size = 5
+backend = "numpy"
 backend = "pytorch"
 T = cpab.Cpab(tess_size, backend, zero_boundary=True)
-outsize = 100
+outsize = 10
 grid = T.uniform_meshgrid(outsize)
 
-batch_size = 2
+batch_size = 1
 # seed = np.random.randint(100)
-# np.random.seed(seed)
+# np.random.seed(0)
+# torch.manual_seed(0)
 theta = T.sample_transformation(batch_size)
 # theta = np.ones((batch_size, tess_size - 1))
+# theta = torch.ones((batch_size, tess_size - 1))
 # theta = np.array([[ 0.8651,  0.0284,  0.5256, -0.3633, -0.4169, -1.2650]])
 grid_t = T.transform_grid(grid, theta)
 # derivative = grid_t
 # derivative
 
+# plt.plot(grid_t.numpy().T)
+# plt.plot(grid_t.T)
 T.visualize_tesselation()
 T.visualize_velocity(theta)
 T.visualize_deformgrid(theta)
 T.visualize_deformgrid(theta, mode='numeric')
-# T.visualize_gradient(theta)
+T.visualize_gradient(theta)
 T.visualize_gradient(theta, mode="numeric")
 
 # b = 0
@@ -154,7 +160,7 @@ loss_values = []
 maxiter = 50
 for i in range(maxiter):
     optimizer.zero_grad()
-    grid_t2 = T.transform_grid(grid, theta_2, mode="numeric")
+    grid_t2 = T.transform_grid(grid, theta_2, mode="closed_form")
     loss = torch.norm(grid_t2 - grid_t1)
     loss.backward()
     optimizer.step()
