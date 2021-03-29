@@ -1,3 +1,0 @@
-# diffeomorphism
-
-![](viz/output.gif)
