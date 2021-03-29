@@ -3,7 +3,7 @@ import numpy as np
 from .interpolation import interpolate
 from .transformer import integrate_numeric, integrate_closed_form, derivative_numeric, derivative_closed_form
 from .transformer import get_cell, get_velocity, batch_effect
-
+from ...core.utility import modes
 
 def assert_version():
     numbers = np.__version__.split(".")
@@ -50,19 +50,27 @@ def calc_velocity(grid, theta, params):
     v = get_velocity(grid, theta, params)
     return v.reshape(theta.shape[0], -1)
 
+
+
+# %%
+
 def transformer(grid, theta, params, mode=None):
-    if mode is None:
-        mode = "closed_form"
-    if mode == "closed_form":
+    modes.check_mode(mode)
+    mode = modes.default(mode)
+    
+    if mode == modes.closed_form:
         return integrate_closed_form(grid, theta, params)
-    elif mode == "numeric":
+    elif mode == modes.numeric:
         return integrate_numeric(grid, theta, params)
 
 def gradient(grid, theta, params, mode=None):
-    if mode is None:
-        mode = "closed_form"
-    if mode == "closed_form":
-        return derivative_closed_form(grid, theta, params)
-    elif mode == "numeric":
+    modes.check_mode(mode)
+    mode = modes.default(mode)
+    
+    if mode == modes.closed_form:
+        phi, der = derivative_closed_form(grid, theta, params)
+        return der
+    elif mode == modes.numeric:
         h = 1e-3
-        return derivative_numeric(grid, theta, params, h)
+        phi, der = derivative_numeric(grid, theta, params, h)
+        return der
