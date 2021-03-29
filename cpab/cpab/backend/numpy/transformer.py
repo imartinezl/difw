@@ -1,9 +1,12 @@
+# %% SETUP
+
 import numpy as np
 
-
-eps = np.finfo(float).eps
-eps = 1e-12
+eps = np.finfo(np.float32).eps
+# eps = 1e-12
 np.seterr(divide="ignore", invalid="ignore")
+
+# %% BATCH EFFECT
 
 def batch_effect(x, theta):
     n_batch = theta.shape[0]
@@ -11,15 +14,7 @@ def batch_effect(x, theta):
     x = np.broadcast_to(x, (n_batch, n_points)).flatten()
     return x
 
-
-# FUNCTIONS
-
-def get_cell(x, params):
-    xmin, xmax, nc = params.xmin, params.xmax, params.nc
-
-    c = np.floor((x - xmin) / (xmax - xmin) * nc)
-    c = np.clip(c, 0, nc - 1).astype(np.int32)
-    return c
+# %% FUNCTIONS
 
 
 def get_affine(x, theta, params):
@@ -37,7 +32,6 @@ def get_affine(x, theta, params):
 
         return A, r
 
-
 def precompute_affine(x, theta, params):
     params = params.copy()
     params.precomputed = False
@@ -45,8 +39,21 @@ def precompute_affine(x, theta, params):
     params.precomputed = True
     return params
 
+def right_boundary(c, params):
+    xmin, xmax, nc = params.xmin, params.xmax, params.nc
+    return xmin + (c + 1) * (xmax - xmin) / nc + eps
 
-# TODO: theta is not used if precomputed A is used
+def left_boundary(c, params):
+    xmin, xmax, nc = params.xmin, params.xmax, params.nc
+    return xmin + c * (xmax - xmin) / nc - eps
+
+def get_cell(x, params):
+    xmin, xmax, nc = params.xmin, params.xmax, params.nc
+
+    c = np.floor((x - xmin) / (xmax - xmin) * nc)
+    c = np.clip(c, 0, nc - 1).astype(np.int32)
+    return c
+
 def get_velocity(x, theta, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
@@ -54,26 +61,18 @@ def get_velocity(x, theta, params):
     b = A[r, c, 1]
     return a * x + b
 
-
-# TODO: theta is not used if precomputed A is used
 def get_psi(x, t, theta, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
     a = A[r, c, 0]
     b = A[r, c, 1]
 
-    # TODO: review np.where
     cond = a == 0
     x1 = x + t * b
     x2 = np.exp(t * a) * (x + (b / a)) - (b / a)
     psi = np.where(cond, x1, x2)
-    # psi[cond] = x[cond] + t * b[cond]
-    # psi[~cond] = np.exp(t * a[~cond]) * (x[~cond] + (b[cond] / a[cond])) - (b[cond] / a[cond])
-    # psi = np.where(a == 0, x + t * b, np.exp(t * a) * (x + (b / a)) - (b / a))
     return psi
 
-
-# TODO: theta is not used if precomputed A is used
 def get_hit_time(x, theta, params):
     A, r = get_affine(x, theta, params)
 
@@ -90,17 +89,6 @@ def get_hit_time(x, theta, params):
     thit = np.where(cond, x1, x2)
     return thit
 
-
-def right_boundary(c, params):
-    xmin, xmax, nc = params.xmin, params.xmax, params.nc
-    return xmin + (c + 1) * (xmax - xmin) / nc + eps
-
-
-def left_boundary(c, params):
-    xmin, xmax, nc = params.xmin, params.xmax, params.nc
-    return xmin + c * (xmax - xmin) / nc - eps
-
-
 def get_phi_numeric(x, t, theta, params):
     nSteps2 = params.nSteps2
 
@@ -114,7 +102,7 @@ def get_phi_numeric(x, t, theta, params):
     return yn
 
 
-# INTEGRATION
+# %% INTEGRATION
 
 
 def integrate_numeric(x, theta, params):
@@ -176,13 +164,8 @@ def integrate_closed_form(x, theta, params):
             raise BaseException
     return None
 
-def integrate_closed_form_ext(x, t, theta, params):
-    # n_batch = theta.shape[0]
-
+def integrate_closed_form_trace(x, t, theta, params):
     result = np.empty((*x.shape, 3))
-    # phi = np.empty_like(x)
-    # tm = np.empty_like(x)
-    # cm = np.empty_like(x)
     done = np.full_like(x, False, dtype=bool)
     
     c = get_cell(x, params)
@@ -199,13 +182,9 @@ def integrate_closed_form_ext(x, t, theta, params):
         valid = np.any((cond1, cond2, cond3), axis=0)
 
         result[~done] = np.array([psi, t, c]).T
-        # phi[~done] = psi
-        # tm[~done] = t
-        # cm[~done] = c
         done[~done] = valid
         if np.alltrue(valid):
             return result#.reshape((n_batch, -1, 3))
-            # return phi.reshape((n_batch, -1)), tm.reshape((n_batch, -1)), cm.reshape((n_batch, -1))
 
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
@@ -220,7 +199,7 @@ def integrate_closed_form_ext(x, t, theta, params):
 
 
 # TODO: remove method
-def integrate_closed_form_ext_old(x, t, theta, params, derivative=False):
+def integrate_closed_form_trace_old(x, t, theta, params, derivative=False):
     cont = 0
 
     n_batch = theta.shape[0]
@@ -280,7 +259,7 @@ def CPAB_transformer(points, theta, params):
     x = batch_effect(points, theta)
     t = np.ones_like(x)
     params = precompute_affine(x, theta, params)
-    result = integrate_closed_form_ext(x, t, theta, params)
+    result = integrate_closed_form_trace(x, t, theta, params)
     return result[:,:,0]
     return integrate_closed_form(x, t, theta, params)
 
@@ -292,16 +271,14 @@ def CPAB_transformer(points, theta, params):
     else:
         return CPAB_transformer_slow(points, theta, params)
 
-
 def CPAB_transformer_slow(points, theta, params):
     pass
-
 
 def CPAB_transformer_fast(points, theta, params):
     pass
     # TODO: jit compile cpp code into callable python code
 
-# GRADIENT
+# %% DERIVATIVE
 
 def derivative_numeric(x, theta, params, h=1e-3):
     # setup
@@ -320,9 +297,8 @@ def derivative_numeric(x, theta, params, h=1e-3):
 
         der[:,:,k] = (phi_2 - phi_1)/h
 
+    # return der # TODO: also return phi just in case
     return phi_1, der
-
-    
 
 def derivative_closed_form(x, theta, params):
     # setup
@@ -335,7 +311,7 @@ def derivative_closed_form(x, theta, params):
     params = precompute_affine(x, theta, params)
 
     # computation
-    result = integrate_closed_form_ext(x, t, theta, params)
+    result = integrate_closed_form_trace(x, t, theta, params)
     phi = result[:,0].reshape((n_batch, -1))#.flatten()
     tm = result[:,1]#.flatten()
     cm = result[:,2]#.flatten()
@@ -362,9 +338,8 @@ def derivative_closed_form(x, theta, params):
         dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
         der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
     
-    return der
-    # return phi, der
-
+    # return der
+    return phi, der  # TODO: also return phi just in case
 
 def derivative_psi_theta(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
@@ -384,7 +359,6 @@ def derivative_psi_theta(x, t, theta, k, params):
     dpsi_dtheta = np.where(cond, d1, d2)
     return dpsi_dtheta
 
-
 def derivative_phi_time(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
@@ -396,7 +370,6 @@ def derivative_phi_time(x, t, theta, k, params):
     d2 = np.exp(t * a) * (a * x + b)
     dpsi_dtime = np.where(cond, d1, d2)
     return dpsi_dtime
-
 
 def derivative_thit_theta(x, theta, k, params):
     A, r = get_affine(x, theta, params)
