@@ -51,7 +51,7 @@ class Cpab:
         self.params.nSteps1 = 10
         self.params.nSteps2 = 10
         self.params.precomputed = False # TODO: review if necessary
-        self.params.use_slow = True
+        self.params.use_slow = False
 
         # Initialize tesselation
         self.tess = Tessellation(
@@ -69,6 +69,7 @@ class Cpab:
         self.backend_name = backend
 
         # Load backend and set device
+        self.device = device.lower()
         self.backend_name = backend
         if self.backend_name == "numpy":
             from .backend.numpy import functions as backend
@@ -77,10 +78,9 @@ class Cpab:
             # from .tensorflow import functions as backend
         elif self.backend_name == "pytorch":
             from .backend.pytorch import functions as backend
-            self.params.B = backend.to(self.params.B)
+            self.params.B = backend.to(self.params.B, device=self.device)
             # torch.tensor(params.B, dtype=torch.float32)
         self.backend = backend
-        self.device = device.lower()
 
         # Assert that we have a recent version of the backend
         self.backend.assert_version()
