@@ -164,11 +164,11 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Ten
     // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, Bt, xmin, xmax, nc);
     
     for(int k = 0; k < d; k++){
-        at::Tensor theta2 = theta.clone();
+        at::Tensor theta_2 = theta.clone();
         at::Tensor row = theta.index({torch::indexing::Slice(), k});
-        theta2.index_put_({torch::indexing::Slice(), k}, row + h);
-        at::Tensor phi_2 =  torch_integrate_numeric(points, theta2, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta2, Bt, xmin, xmax, nc);
+        theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
+        at::Tensor phi_2 =  torch_integrate_numeric(points, theta_2, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta_2, Bt, xmin, xmax, nc);
         gradient.index_put_({torch::indexing::Slice(), torch::indexing::Slice(), k}, (phi_2 - phi_1)/h);
     }
     return gradient;
@@ -339,11 +339,11 @@ at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, a
     // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, Bt, xmin, xmax, nc);
     
     for(int k = 0; k < d; k++){
-        at::Tensor theta2 = theta.clone();
-        at::Tensor row = theta2.index({torch::indexing::Slice(), k});
-        theta2.index_put_({torch::indexing::Slice(), k}, row + h);
-        at::Tensor phi_2 =  torch_integrate_numeric(points, theta2, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta2, Bt, xmin, xmax, nc);
+        at::Tensor theta_2 = theta.clone();
+        at::Tensor row = theta_2.index({torch::indexing::Slice(), k});
+        theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
+        at::Tensor phi_2 =  torch_integrate_numeric(points, theta_2, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta_2, Bt, xmin, xmax, nc);
         gradient.index_put_({torch::indexing::Slice(), torch::indexing::Slice(), k}, (phi_2 - phi_1)/h);
     }
     return gradient;
