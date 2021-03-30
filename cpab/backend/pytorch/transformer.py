@@ -50,26 +50,28 @@ except Exception as e:
 # Jit compile gpu source
 _gpu_success = False
 cpab_gpu = _notcompiled()
-# try:
-#     cpab_gpu = load(name = 'cpab_gpu',
-#                     sources = [_dir + '/transformer_cuda.cpp',
-#                                _dir + '/transformer_cuda.cu',
-#                                _dir + '/../core/cpab_ops.cu'],
-#                     verbose=_verbose,
-#                     with_cuda=True)
-#     _gpu_success = True
-#     if _verbose:
-#         print(70*'=')
-#         print('succesfully compiled gpu source')
-#         print(70*'=')
-# except Exception as e:
-#     cpab_gpu = _notcompiled()
-#     _gpu_success = False
-#     if _verbose:
-#         print(70*'=')
-#         print('Unsuccesfully compiled gpu source')
-#         print('Error was: ')
-#         print(e)
+try:
+    cpab_gpu = load(
+        name = 'cpab_gpu',
+        sources = [_dir + '/transformer_cuda.cpp',
+                _dir + '/transformer_cuda.cu',
+                _dir + '/../../core/cpab_ops.cu'],
+        extra_cflags=["-O0", "-g"],
+        verbose=_verbose,
+        with_cuda=True)
+    _gpu_success = True
+    if _verbose:
+        print(70*'=')
+        print('succesfully compiled gpu source')
+        print(70*'=')
+except Exception as e:
+    cpab_gpu = _notcompiled()
+    _gpu_success = False
+    if _verbose:
+        print(70*'=')
+        print('Unsuccesfully compiled gpu source')
+        print('Error was: ')
+        print(e)
 
 # %% GET CELL
 
