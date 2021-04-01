@@ -13,7 +13,7 @@ at::Tensor torch_get_cell(at::Tensor points, const float xmin, const float xmax,
     float* x = points.data_ptr<float>();
 
     auto output = torch::zeros({n_points}, at::kCPU);
-    auto newpoints = output.data_ptr<float>();
+    auto newpoints = output.data_ptr<int>();
 
     for(int i = 0; i < n_points; i++) {
         newpoints[i] = get_cell(x[i], xmin, xmax, nc);
@@ -21,7 +21,7 @@ at::Tensor torch_get_cell(at::Tensor points, const float xmin, const float xmax,
     return output;
 }
 
-at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -32,6 +32,7 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 
     // Convert to pointers
     float* x = points.data_ptr<float>();
+
     for(int i = 0; i < n_batch; i++) { // for all batches
         
         // Precompute affine velocity field
@@ -47,7 +48,7 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 
 
 // INTEGRATION
-at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10){
+at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10){
     float t = 1.0;
 
     // Problem size
@@ -73,7 +74,7 @@ at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tens
     return output;
 }
 
-at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     float t = 1.0;
 
     // Problem size
@@ -86,6 +87,7 @@ at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::
 
     // Convert to pointers
     float* x = points.data_ptr<float>();
+
     for(int i = 0; i < n_batch; i++) { // for all batches
 
         // Precompute affine velocity field
@@ -103,7 +105,7 @@ at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::
 // DERIVATIVE
 
 // TODO: remove method (two integrations for gradient computation)
-at::Tensor torch_derivative_numeric_old(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10, float h=1e-3){
+at::Tensor torch_derivative_numeric_old(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     float t = 1.0;
 
     // Problem size
@@ -152,7 +154,7 @@ at::Tensor torch_derivative_numeric_old(at::Tensor points, at::Tensor theta, at:
 }
 
 // TODO: remove method? maybe not, it is useful for gradient method
-at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10, float h=1e-3){
+at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -175,7 +177,7 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Ten
 }
 
 // TODO: remove method (has std::vector)
-at::Tensor torch_derivative_old(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+at::Tensor torch_derivative_old(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     float t = 1.0;
 
     // Problem size
@@ -211,7 +213,8 @@ at::Tensor torch_derivative_old(at::Tensor points, at::Tensor theta, at::Tensor 
     // return output;
 }
 
-at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+// TODO: remove method? maybe not, it is useful for gradient method
+at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     float t = 1.0;
 
     // Problem size
@@ -257,7 +260,7 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
 
 
 // TRANSFORMATION
-at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     float t = 1.0;
 
     // Problem size
@@ -290,7 +293,7 @@ at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta
     return output;
 }
 
-at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc){
+at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     float t = 1.0;
 
     // Problem size
@@ -327,7 +330,7 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
     // return output;
 }
 
-at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, at::Tensor theta, at::Tensor Bt, float xmin, float xmax, int nc, int nSteps1=10, int nSteps2=10, float h=1e-3){
+at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
