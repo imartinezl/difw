@@ -12,6 +12,30 @@ import cpab
 import torch.autograd.profiler as profiler
 import torch.utils.benchmark as benchmark
 
+# %%
+
+tess_size = 5
+backend = "numpy"
+# backend = "pytorch"
+T = cpab.Cpab(tess_size, backend, zero_boundary=True, device="cpu")
+T.params.use_slow = True
+outsize = 10
+grid = T.uniform_meshgrid(outsize)
+
+batch_size = 2
+# seed = np.random.randint(100)
+# torch.manual_seed(0)
+theta = T.sample_transformation(batch_size)
+theta = T.identity(batch_size, epsilon=1.0)
+grid_t = T.transform_grid(grid, theta)
+
+T.visualize_tesselation()
+T.visualize_velocity(theta)
+T.visualize_deformgrid(theta)
+T.visualize_deformgrid(theta, mode='numeric')
+T.visualize_gradient(theta)
+T.visualize_gradient(theta, mode="numeric")
+
 # %% TEST GPU
 tess_size = 5
 xmin = 0.0
