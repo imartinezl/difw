@@ -77,7 +77,7 @@ theta = T.identity(batch_size, epsilon=1)
 # grid_t = T.backend.cpab_cpu.integrate_closed_form(grid.contiguous(), theta.contiguous(), T.params.B.contiguous(), xmin, xmax, tess_size)
 
 
-# TODO: what does B.contiguous() do?? it messes everything up
+# TODO: DONE what does B.contiguous() do?? it messes everything up
 
 # T.params.use_slow = True
 grad = T.gradient_grid(grid, theta)
@@ -397,7 +397,7 @@ data = np.sin(x)
 
 data_t = T.transform_data(torch.tensor(data), theta, outsize)
 
-# TODO: define visualize functions on cpab
+# TODO: define data visualize functions on cpab
 # plot data
 batch_size, width, channels = data.shape
 
