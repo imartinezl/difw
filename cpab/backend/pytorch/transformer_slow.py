@@ -206,15 +206,14 @@ def derivative_closed_form(x, theta, params):
     n_batch = theta.shape[0]
     d = theta.shape[1]
 
-    x = batch_effect(x, theta)
-    t = torch.ones_like(x)
-    params = precompute_affine(x, theta, params)
-
     # computation
     result = integrate_closed_form_trace(x, theta, params)
     phi = result[:,0].reshape((n_batch, -1))#.flatten()
     tm = result[:,1]#.flatten()
     cm = result[:,2]#.flatten()
+
+    # setup
+    x = batch_effect(x, theta)
     params = precompute_affine(x, theta, params)
 
     der = torch.empty((n_batch, n_points, d))
@@ -343,15 +342,14 @@ def derivative_closed_form_trace(result, x, theta, params):
     n_batch = theta.shape[0]
     d = theta.shape[1]
 
-    x = batch_effect(x, theta)
-    t = torch.ones_like(x)
-    params = precompute_affine(x, theta, params)
-
     # computation
-    # result = integrate_closed_form_trace(x, t, theta, params)
+    result = integrate_closed_form_trace(x, theta, params)
     phi = result[:,0].reshape((n_batch, -1))#.flatten()
     tm = result[:,1]#.flatten()
     cm = result[:,2]#.flatten()
+
+    # setup
+    x = batch_effect(x, theta)
     params = precompute_affine(x, theta, params)
 
     der = torch.empty((n_batch, n_points, d))
