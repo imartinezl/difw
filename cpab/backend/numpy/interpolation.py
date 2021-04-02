@@ -1,13 +1,6 @@
 import numpy as np
 
 
-# TODO: review channels dimension and overall data dimension
-# for sure, we need two dimensions:
-#   1. One for batch_size
-#   2. Another for time series length
-# not sure why we need a third one
-
-
 def interpolate(data, grid, outsize):
     # Problem size
     n_batch, width, n_channels = data.shape

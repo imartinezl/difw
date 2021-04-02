@@ -16,7 +16,6 @@ def batch_effect(x, theta):
 
 # %% FUNCTIONS
 
-
 def get_affine(x, theta, params):
     if params.precomputed:
         return params.A, params.r

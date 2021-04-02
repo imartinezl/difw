@@ -82,8 +82,7 @@ def get_cell(grid, params):
     if grid.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            raise "NOT IMPLEMENTED" # TODO
-            # return cpab_gpu.get_cell(grid.contiguous(), params.xmin, params.xmax, params.nc)
+            return cpab_gpu.get_cell(grid.contiguous(), params.xmin, params.xmax, params.nc)
         else:
             if _verbose: print('using slow gpu implementation')
             return get_cell_slow(grid, params)
@@ -102,8 +101,7 @@ def calc_velocity(grid, theta, params):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            raise "NOT IMPLEMENTED" # TODO
-            # return cpab_gpu.get_velocity(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
+            return cpab_gpu.get_velocity(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
         else:
             if _verbose: print('using slow gpu implementation')
             return calc_velocity_slow(grid, theta, params)
@@ -123,7 +121,6 @@ def gradient(grid, theta, params, mode=None):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            raise "NOT IMPLEMENTED" # TODO
             return gradient_fast_gpu(grid, theta, params, mode)
         else:
             if _verbose: print('using slow gpu implementation')
@@ -169,11 +166,9 @@ def gradient_fast_gpu(grid, theta, params, mode=None):
     mode = modes.default(mode)
 
     if mode == modes.closed_form:
-        pass # TODO
         return cpab_gpu.derivative_closed_form(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
     elif mode == modes.numeric:
         h = 1e-3
-        pass # TODO
         return cpab_gpu.derivative_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
 
 # %% TRANSFORMER
@@ -182,7 +177,6 @@ def transformer(grid, theta, params, mode=None):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            pass # TODO
             return transformer_fast_gpu(grid, theta, params, mode)
         else:
             if _verbose: print('using slow gpu implementation')
