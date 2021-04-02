@@ -315,13 +315,15 @@ def derivative_closed_form(x, theta, params):
     phi = result[:,0].reshape((n_batch, -1))#.flatten()
     tm = result[:,1]#.flatten()
     cm = result[:,2]#.flatten()
+
+    # setup
+    x = batch_effect(x, theta)
     params = precompute_affine(x, theta, params)
 
     der = np.empty((n_batch, n_points, d))
     for k in range(d):
         dthit_dtheta_cum = np.zeros_like(x)
-
-        
+ 
         xm = x.copy()
         c = get_cell(x, params)
         while True:
