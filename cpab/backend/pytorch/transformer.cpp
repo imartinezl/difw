@@ -319,9 +319,9 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
         for(int j = 0; j < n_points; j++) { // for all points
             for(int k = 0; k < d; k++){ // for all parameters theta
                 float phi = newpoints[i*(n_points * e) + j*e + 0];
-                float t = newpoints[i*(n_points * e) + j*e + 1];
-                int c = newpoints[i*(n_points * e) + j*e + 2];
-                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(x[j], t, c, k, d, B, A, xmin, xmax, nc);
+                float tm = newpoints[i*(n_points * e) + j*e + 1];
+                int cm = newpoints[i*(n_points * e) + j*e + 2];
+                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(x[j], tm, cm, k, d, B, A, xmin, xmax, nc);
             }
         }
     }
@@ -364,9 +364,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("integrate_numeric", &torch_integrate_numeric, "Integrate numeric");
     m.def("derivative_closed_form", &torch_derivative_closed_form, "Derivative closed form");
     m.def("derivative_numeric", &torch_derivative_numeric, "Derivative numeric");
-    m.def("derivative_numeric_trace", &torch_derivative_numeric_trace, "Derivative numeric2");
-    m.def("integrate_closed_form_trace", &torch_integrate_closed_form_trace, "Cpab transformer forward");
-    m.def("derivative_closed_form_trace", &torch_derivative_closed_form_trace, "Cpab transformer backward");
+    m.def("integrate_closed_form_trace", &torch_integrate_closed_form_trace, "Integrate closed form trace");
+    m.def("derivative_closed_form_trace", &torch_derivative_closed_form_trace, "Derivative closed form trace");
+    m.def("derivative_numeric_trace", &torch_derivative_numeric_trace, "Derivative numeric trace");
 }
 
 
