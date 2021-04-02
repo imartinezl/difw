@@ -19,11 +19,11 @@ float integrate_numeric(float x, float t, const float* A, const float xmin, cons
 float integrate_closed_form_trace_full(float x, float t, const float* A, const float xmin, const float xmax, const int nc, std::vector<float> &xr, std::vector<float> &tr);
 void integrate_closed_form_trace(float* result, float x, float t, const float* A, const float xmin, const float xmax, const int nc);
 
-float derivative_psi_theta(float x, float t, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc);
+float derivative_psi_theta(float x, float t, const int k, const int d, const float* B, const float* A, const float xmin, const float xmax, const int nc);
 float derivative_phi_time(float x, float t, const float* A, const float xmin, const float xmax, const int nc);
-float derivative_thit_theta(float x, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc);
-float derivative_phi_theta_old(std::vector<float> &xr, std::vector<float> &tr, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc);
+float derivative_thit_theta(float x, const int k, const int d, const float* B, const float* A, const float xmin, const float xmax, const int nc);
+float derivative_phi_theta_full(std::vector<float> &xr, std::vector<float> &tr, const int k, const int d, const float* B, const float* A, const float xmin, const float xmax, const int nc);
 
-float derivative_phi_theta(float xini, float tm, int cm, int k, const float* B, const float* A, const float xmin, const float xmax, const int nc);
+float derivative_phi_theta(float xini, float tm, int cm, const int k, const int d, const float* B, const float* A, const float xmin, const float xmax, const int nc);
 
 #endif
