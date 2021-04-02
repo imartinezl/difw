@@ -90,7 +90,7 @@ def get_cell(grid, params):
     else:
         if not params.use_slow and _cpu_success:
             if _verbose: print('using fast cpu implementation')
-            return cpab_cpu.get_cell(grid, params.xmin, params.xmax, params.nc)
+            return cpab_cpu.get_cell(grid.contiguous(), params.xmin, params.xmax, params.nc)
         else:
             if _verbose: print('using slow cpu implementation')
             return get_cell_slow(grid, params)
@@ -110,7 +110,7 @@ def calc_velocity(grid, theta, params):
     else:
         if not params.use_slow and _cpu_success:
             if _verbose: print('using fast cpu implementation')
-            return cpab_cpu.get_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+            return cpab_cpu.get_velocity(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
         else:
             if _verbose: print('using slow cpu implementation')
             return calc_velocity_slow(grid, theta, params)
@@ -157,10 +157,10 @@ def gradient_fast_cpu(grid, theta, params, mode=None):
     mode = modes.default(mode)
     
     if mode == modes.closed_form:
-        return cpab_cpu.derivative_closed_form(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+        return cpab_cpu.derivative_closed_form(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
     elif mode == modes.numeric:
         h = 1e-3
-        return cpab_cpu.derivative_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        return cpab_cpu.derivative_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
 
 
 # %% GRADIENT: FAST / GPU
@@ -271,7 +271,7 @@ class Transformer_fast_cpu_closed_form(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
-        output = cpab_cpu.integrate_closed_form_trace(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+        output = cpab_cpu.integrate_closed_form_trace(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
         ctx.save_for_backward(output, grid, theta)
         grid_t = output[:,:,0]
         return grid_t
@@ -281,7 +281,7 @@ class Transformer_fast_cpu_closed_form(torch.autograd.Function):
     def backward(ctx, grad_output): # grad [n_batch, n_points]
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
-        grad_theta = cpab_cpu.derivative_closed_form_trace(output, grid, theta, params.B, params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
+        grad_theta = cpab_cpu.derivative_closed_form_trace(output.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
 
         # print(grad_output.shape, gradient.shape)
         # NOTE: we have to permute the gradient in order to do the element-wise product
@@ -295,7 +295,7 @@ class Transformer_fast_cpu_numeric(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
-        grid_t = cpab_cpu.integrate_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
+        grid_t = cpab_cpu.integrate_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
         ctx.save_for_backward(grid_t, grid, theta)
         return grid_t
 
@@ -307,7 +307,7 @@ class Transformer_fast_cpu_numeric(torch.autograd.Function):
 
         h = 1e-2
 
-        grad_theta = cpab_cpu.derivative_numeric_trace(grid_t, grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        grad_theta = cpab_cpu.derivative_numeric_trace(grid_t.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
