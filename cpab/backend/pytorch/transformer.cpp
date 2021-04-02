@@ -12,7 +12,7 @@ at::Tensor torch_get_cell(at::Tensor points, const float xmin, const float xmax,
     const int n_points = points.size(0);
     float* x = points.data_ptr<float>();
 
-    auto output = torch::zeros({n_points}, at::kCPU);
+    auto output = torch::zeros({n_points}, torch::dtype(torch::kInt32).device(torch::kCPU));
     auto newpoints = output.data_ptr<int>();
 
     for(int i = 0; i < n_points; i++) {
@@ -177,7 +177,7 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Ten
 }
 
 // TODO: remove method (has std::vector)
-at::Tensor torch_derivative_old(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+at::Tensor torch_derivative_full(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     float t = 1.0;
 
     // Problem size
@@ -205,7 +205,7 @@ at::Tensor torch_derivative_old(at::Tensor points, at::Tensor theta, at::Tensor 
             newpoints[i*n_points + j] = integrate_closed_form_trace_full(x[j], t, A, xmin, xmax, nc, xr, tr);
             // TODO: think how are we going to pass xr and tr from forward to backward functions in pytorch
             for(int k = 0; k < d; k++){
-                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta_old(xr, tr, k, B, A, xmin, xmax, nc);
+                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta_full(xr, tr, k, d, B, A, xmin, xmax, nc);
             }
         }
     }
@@ -246,14 +246,13 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
             }
             for(int k = 0; k < d; k++){
                 float phi = result[0];
-                float t = result[1];
-                int c = result[2];
-                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(x[j], t, c, k, B, A, xmin, xmax, nc);
+                float tm = result[1];
+                int cm = result[2];
+                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(x[j], tm, cm, k, d, B, A, xmin, xmax, nc);
             }
         }
     }
     return gradient;
-    // return output;
 }
 
 
@@ -322,7 +321,7 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
                 float phi = newpoints[i*(n_points * e) + j*e + 0];
                 float t = newpoints[i*(n_points * e) + j*e + 1];
                 int c = newpoints[i*(n_points * e) + j*e + 2];
-                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(x[j], t, c, k, B, A, xmin, xmax, nc);
+                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(x[j], t, c, k, d, B, A, xmin, xmax, nc);
             }
         }
     }
@@ -359,15 +358,15 @@ at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, a
 
 // Binding
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("integrate_closed_form_trace", &torch_integrate_closed_form_trace, "Cpab transformer forward");
-    m.def("derivative_closed_form_trace", &torch_derivative_closed_form_trace, "Cpab transformer backward");
+    m.def("get_cell", &torch_get_cell, "Get cell");
+    m.def("get_velocity", &torch_get_velocity, "Get Velocity");
     m.def("integrate_closed_form", &torch_integrate_closed_form, "Integrate closed form");
     m.def("integrate_numeric", &torch_integrate_numeric, "Integrate numeric");
     m.def("derivative_closed_form", &torch_derivative_closed_form, "Derivative closed form");
     m.def("derivative_numeric", &torch_derivative_numeric, "Derivative numeric");
     m.def("derivative_numeric_trace", &torch_derivative_numeric_trace, "Derivative numeric2");
-    m.def("get_cell", &torch_get_cell, "Get cell");
-    m.def("get_velocity", &torch_get_velocity, "Get Velocity");
+    m.def("integrate_closed_form_trace", &torch_integrate_closed_form_trace, "Cpab transformer forward");
+    m.def("derivative_closed_form_trace", &torch_derivative_closed_form_trace, "Cpab transformer backward");
 }
 
 
