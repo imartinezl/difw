@@ -509,6 +509,7 @@ class Cpab:
         )
         return output
 
+    # TODO: remove
     def test(self, grid, theta):
         return self.backend.derivative(grid, theta, self.params)
 
