@@ -29,7 +29,8 @@ try:
         name="cpab_cpu",
         sources=[_dir + "/transformer.cpp",
                 _dir + '/../../core/cpab.cpp'],
-        extra_cflags=["-O0", "-g"], # TODO: change compilation flags to -O3 or -Ofast
+        # extra_cflags=["-O0", "-g"], # TODO: change compilation flags to -O3 or -Ofast
+        extra_cflags=["-Ofast"],
         verbose=_verbose,
     )
     _cpu_success = True
@@ -57,7 +58,8 @@ try:
         sources = [_dir + '/transformer_cuda.cpp',
                 _dir + '/transformer_cuda.cu',
                 _dir + '/../../core/cpab_ops.cu'],
-        extra_cflags=["-O0", "-g"], # TODO: change compilation flags to -O3 or -Ofast
+        # extra_cflags=["-O0", "-g"], # TODO: change compilation flags to -O3 or -Ofast
+        extra_cflags=["-Ofast"],
         verbose=_verbose,
         with_cuda=True)
     _gpu_success = True
