@@ -377,6 +377,7 @@ class Cpab:
         ax.grid(alpha=0.3)
         return plot
 
+    # TODO: remove method
     def visualize_velocity2deform(self, theta, mode=None, n_points=100, fig=None):
         """ Utility function that helps visualize deformation vs velocity
         Arguments:
