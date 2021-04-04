@@ -19,7 +19,7 @@ class _notcompiled:
 
 # TODO: change slow and fast for c++ / python or compiled / not compiled
 _dir = get_dir(__file__)
-_verbose = True
+_verbose = False
 
 # Jit compile cpu source
 _cpu_success = False
