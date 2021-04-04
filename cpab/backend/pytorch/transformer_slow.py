@@ -352,7 +352,7 @@ def derivative_closed_form_trace(result, x, theta, params):
     x = batch_effect(x, theta)
     params = precompute_affine(x, theta, params)
 
-    der = torch.empty((n_batch, n_points, d))
+    der = torch.empty((n_batch, n_points, d), device=x.device)
     for k in range(d):
         dthit_dtheta_cum = torch.zeros_like(x)
 
@@ -383,7 +383,7 @@ def derivative_numeric_trace(phi_1, x, theta, params, h=1e-3):
     d = theta.shape[1]
 
     # computation
-    der = torch.empty((n_batch, n_points, d))
+    der = torch.empty((n_batch, n_points, d), device=x.device)
 
     # phi_1 = integrate_numeric(x, theta, params)
     for k in range(d):
