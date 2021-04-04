@@ -122,13 +122,13 @@ def integrate_numeric(x, theta, params):
     xPrev = x
     nSteps1 = params.nSteps1
     deltaT = t / nSteps1
-    c = get_cell(xPrev, params)
     for j in range(nSteps1):
+        c = get_cell(xPrev, params)
         xTemp = get_psi(xPrev, deltaT, theta, params)
         cTemp = get_cell(xTemp, params)
+
         xNum = get_phi_numeric(xPrev, deltaT, theta, params)
         xPrev = torch.where(c == cTemp, xTemp, xNum)
-        c = get_cell(xPrev, params)
     return xPrev.reshape((n_batch, -1))
 
 
@@ -186,7 +186,7 @@ def derivative_numeric(x, theta, params, h=1e-3):
     d = theta.shape[1]
 
     # computation
-    der = torch.empty((n_batch, n_points, d))
+    der = torch.empty((n_batch, n_points, d)) # TODO: specify tensor device?
 
     phi_1 = integrate_numeric(x, theta, params)
     for k in range(d):
@@ -343,7 +343,7 @@ def derivative_closed_form_trace(result, x, theta, params):
     d = theta.shape[1]
 
     # computation
-    result = integrate_closed_form_trace(x, theta, params)
+    # result = integrate_closed_form_trace(x, theta, params)
     phi = result[:,0].reshape((n_batch, -1))#.flatten()
     tm = result[:,1]#.flatten()
     cm = result[:,2]#.flatten()
@@ -355,7 +355,6 @@ def derivative_closed_form_trace(result, x, theta, params):
     der = torch.empty((n_batch, n_points, d), device=x.device)
     for k in range(d):
         dthit_dtheta_cum = torch.zeros_like(x)
-
         
         xm = x.clone()
         c = get_cell(x, params)

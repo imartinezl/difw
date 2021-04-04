@@ -49,7 +49,7 @@ class Cpab:
         self.params.xmin = 0
         self.params.xmax = 1
         self.params.nSteps1 = 10
-        self.params.nSteps2 = 10
+        self.params.nSteps2 = 5
         self.params.precomputed = False # TODO: review if necessary
         self.params.use_slow = False
 

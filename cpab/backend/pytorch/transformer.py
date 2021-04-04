@@ -19,7 +19,7 @@ class _notcompiled:
 
 # TODO: change slow and fast for c++ / python or compiled / not compiled
 _dir = get_dir(__file__)
-_verbose = False
+_verbose = True
 
 # Jit compile cpu source
 _cpu_success = False
@@ -76,6 +76,8 @@ except Exception as e:
         print('Error was: ')
         print(e)
 
+
+_verbose = False
 # %% GET CELL
 
 from .transformer_slow import get_cell as get_cell_slow
@@ -192,14 +194,17 @@ def transformer(grid, theta, params, mode=None):
             return transformer_slow(grid, theta, params, mode)
 
 # %% TRANSFORMER: SLOW / CPU + GPU
-
+from .transformer_slow import integrate_closed_form
 def transformer_slow(grid, theta, params, mode=None):
     modes.check_mode(mode)
     mode = modes.default(mode)
 
+    # TODO: testing benchmark
     if mode == modes.closed_form:
+        # return integrate_closed_form(grid, theta, params)
         return Transformer_slow_closed_form.apply(grid, theta, params)
     elif mode == modes.numeric:
+        return integrate_numeric(grid, theta, params)
         return Transformer_slow_numeric.apply(grid, theta, params)
 
 #%% TRANSFORMER: SLOW / CPU + GPU / CLOSED-FORM 
@@ -211,9 +216,9 @@ class Transformer_slow_closed_form(torch.autograd.Function):
     def forward(ctx, grid, theta, params):
         ctx.params = params
         output = integrate_closed_form_trace(grid, theta, params)
-        ctx.save_for_backward(output, grid, theta)
         n_batch = theta.shape[0]
         grid_t = output[:,0].reshape((n_batch, -1))
+        ctx.save_for_backward(output, grid, theta)
         return grid_t
 
     @staticmethod
