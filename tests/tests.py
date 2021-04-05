@@ -13,10 +13,10 @@ from tqdm import tqdm
 # %% TEST 
 
 tess_size = 5
-backend = "numpy" # ["pytorch", "numpy"]
+backend = "pytorch" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
-use_slow = False
+use_slow = True
 outsize = 10
 batch_size = 2
 
@@ -37,13 +37,13 @@ T.visualize_gradient(theta, mode="numeric")
 
 # %% OPTIMIZATION BY GRADIENT
 
-tess_size = 5
+tess_size = 50
 backend = "pytorch" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
 use_slow = False
 outsize = 100
-batch_size = 2
+batch_size = 20
 
 T = cpab.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
@@ -58,20 +58,22 @@ theta_2 = torch.autograd.Variable(T.sample_transformation(batch_size), requires_
 lr = 1e-1
 optimizer = torch.optim.Adam([theta_2], lr=lr)
 
+# torch.set_num_threads(1)
 loss_values = []
-maxiter = 50
-pb = tqdm(desc='Alignment of samples', unit='iters', total=maxiter)
-for i in range(maxiter):
-    optimizer.zero_grad()
-    grid_t2 = T.transform_grid(grid, theta_2, mode="closed_form")
-    loss = torch.norm(grid_t2 - grid_t1)
-    loss.backward()
-    optimizer.step()
+maxiter = 500
+with tqdm(desc='Alignment of samples', unit='iters', total=maxiter,  position=0, leave=True) as pb:
+    for i in range(maxiter):
+        optimizer.zero_grad()
+        grid_t2 = T.transform_grid(grid, theta_2, mode="closed_form")
+        # grid_t2 = T.gradient_grid(grid, theta_2, mode="numeric")
+        loss = torch.norm(grid_t2 - grid_t1)
+        loss.backward()
+        optimizer.step()
 
-    loss_values.append(loss.item())
-    pb.update()
-    pb.set_postfix({'loss': loss.item()})
-pb.close()
+        loss_values.append(loss.item())
+        pb.update()
+        pb.set_postfix({'loss': loss.item()})
+    pb.close()
 
 plt.figure()
 plt.plot(loss_values)
