@@ -283,7 +283,7 @@ at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta
 
         for(int j = 0; j < n_points; j++) { // for all points
             float result[e];
-            integrate_closed_form_trace(result, x[j], t, A, xmin, xmax, nc);
+            integrate_closed_form_trace_optimized(result, x[j], t, A, xmin, xmax, nc);
             for(int p = 0; p < e; p++){
                 newpoints[i*(n_points * e) + j*e + p] = result[p];
             }
@@ -317,12 +317,18 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
         float* A = At.data_ptr<float>();
 
         for(int j = 0; j < n_points; j++) { // for all points
+            float phi = newpoints[i*(n_points * e) + j*e + 0];
+            float tm = newpoints[i*(n_points * e) + j*e + 1];
+            int cm = newpoints[i*(n_points * e) + j*e + 2];
+            // NEW METHOD
+            float result[d];
+            derivative_phi_theta_optimized_alt(result, x[j], tm, cm, d, B, A, xmin, xmax, nc);
             for(int k = 0; k < d; k++){ // for all parameters theta
-                float phi = newpoints[i*(n_points * e) + j*e + 0];
-                float tm = newpoints[i*(n_points * e) + j*e + 1];
-                int cm = newpoints[i*(n_points * e) + j*e + 2];
-                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(x[j], tm, cm, k, d, B, A, xmin, xmax, nc);
+                gradpoints[i*(n_points * d) + j*d + k] = result[k];
             }
+            // for(int k = 0; k < d; k++){ // for all parameters theta
+            //     gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta_optimized(x[j], tm, cm, k, d, B, A, xmin, xmax, nc);
+            // }
         }
     }
     return gradient;
