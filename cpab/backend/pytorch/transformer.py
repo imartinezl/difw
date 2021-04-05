@@ -30,7 +30,7 @@ try:
         sources=[_dir + "/transformer.cpp",
                 _dir + '/../../core/cpab.cpp'],
         # extra_cflags=["-O0", "-g"], # TODO: change compilation flags to -O3 or -Ofast
-        extra_cflags=["-Ofast"],
+        extra_cflags=["-Ofast", "-ffast-math", "-funsafe-math-optimizations", "-msse4.2"],
         verbose=_verbose,
     )
     _cpu_success = True
@@ -272,9 +272,10 @@ class Transformer_fast_cpu_closed_form(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
-        output = cpab_cpu.integrate_closed_form_trace(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
-        ctx.save_for_backward(output, grid, theta)
+        # output = cpab_cpu.integrate_closed_form_trace(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
+        output = cpab_cpu.integrate_closed_form_trace(grid, theta, params.B, params.xmin, params.xmax, params.nc)
         grid_t = output[:,:,0]
+        ctx.save_for_backward(output, grid, theta)
         return grid_t
 
     @staticmethod
@@ -282,7 +283,8 @@ class Transformer_fast_cpu_closed_form(torch.autograd.Function):
     def backward(ctx, grad_output): # grad [n_batch, n_points]
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
-        grad_theta = cpab_cpu.derivative_closed_form_trace(output.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
+        # grad_theta = cpab_cpu.derivative_closed_form_trace(output.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
+        grad_theta = cpab_cpu.derivative_closed_form_trace(output, grid, theta, params.B, params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
 
         # print(grad_output.shape, gradient.shape)
         # NOTE: we have to permute the gradient in order to do the element-wise product
