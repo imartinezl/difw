@@ -298,7 +298,8 @@ class Transformer_fast_cpu_numeric(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
-        grid_t = cpab_cpu.integrate_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
+        # grid_t = cpab_cpu.integrate_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
+        grid_t = cpab_cpu.integrate_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
         ctx.save_for_backward(grid_t, grid, theta)
         return grid_t
 
@@ -310,7 +311,8 @@ class Transformer_fast_cpu_numeric(torch.autograd.Function):
 
         h = 1e-2
 
-        grad_theta = cpab_cpu.derivative_numeric_trace(grid_t.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        # grad_theta = cpab_cpu.derivative_numeric_trace(grid_t.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        grad_theta = cpab_cpu.derivative_numeric_trace(grid_t, grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
