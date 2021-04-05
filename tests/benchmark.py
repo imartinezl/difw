@@ -14,19 +14,36 @@ import torch.autograd.profiler as profiler
 import torch.utils.benchmark as benchmark
 
 # %% SETUP
-tess_size = 5
-backend = "numpy" # ["pytorch", "numpy"]
+tess_size = 50
+backend = "pytorch" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
 use_slow = False
-outsize = 10
-batch_size = 2
+outsize = 100
+batch_size = 20
 
 T = cpab.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
 theta = T.sample_transformation(batch_size)
+theta = T.identity(batch_size, epsilon=1.0)
+grid_t = T.transform_grid(grid, theta)
+
+plt.plot(grid_t.T)
+print(1)
+# %%
+import yep
+torch.set_num_threads(1)
+
+theta_grad = torch.autograd.Variable(theta, requires_grad=True)
+yep.start("profile.prof")
+for i in range(100):
+    grid_t = T.transform_grid(grid, theta_grad, "closed_form")
+    loss = torch.norm(grid_t)
+    # loss.backward()
+
+yep.stop()
 
 # %%
 
