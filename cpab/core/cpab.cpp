@@ -25,12 +25,12 @@ bool cmpf0(const float& x, float eps = 1e-6f)
 }
 
 float eps = std::numeric_limits<float>::epsilon();
+
 float right_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
     // eps = 1e-5f;
     return xmin + (c + 1) * (xmax - xmin) / nc + eps;
 }
 
-// float eps = std::numeric_limits<float>::epsilon();
 float left_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
     // eps = 1e-5f;
     return xmin + c * (xmax - xmin) / nc - eps;
@@ -54,7 +54,6 @@ float get_psi(const float& x, const float& t, const float* A, const float& xmin,
     const float a = A[2*c];
     const float b = A[2*c+1];
     float psi;
-    // if (a == 0.0){
     if (cmpf0(a)){
         psi = x + t*b;
     }
@@ -77,7 +76,6 @@ float get_hit_time(const float& x, const float* A, const float& xmin, const floa
     const float a = A[2*c];
     const float b = A[2*c+1];
     float tcross;
-    // if (a == 0.0){
     if (cmpf0(a)){
         tcross = (xc - x)/b;
     }
@@ -165,20 +163,16 @@ float derivative_psi_theta(const float& x, const float& t, const int& k, const i
     const float a = A[2*c];
     const float b = A[2*c + 1];
 
-    // float ak = B[2*nc*k + 2*c];
-    // float bk = B[2*nc*k + 2*c + 1];
     const float ak = B[(2*c)*d + k];
     const float bk = B[(2*c+1)*d + k];
 
     float dpsi_dtheta;
-    // if (a == 0.0){
     if (cmpf0(a)){
         dpsi_dtheta = t*(x*ak + bk);
     }
     else{
         float tmp = std::exp(t*a);
         dpsi_dtheta = ak * t * tmp * (x + b/a) + (tmp-1)*(bk*a - ak*b)/std::pow(a, 2.0);
-        // dpsi_dtheta = ak * t * std::exp(t*a) * (x + b/a) + (std::exp(t*a)-1)*(bk*a - ak*b)/std::pow(a, 2.0);
     }
     return dpsi_dtheta;
 }
@@ -189,7 +183,6 @@ float derivative_phi_time(const float& x, const float& t, const float* A, const 
     const float b = A[2*c + 1];
 
     float dpsi_dtime;
-    // if (a == 0.0){
     if (cmpf0(a)){
         dpsi_dtime = b;
     }
@@ -204,8 +197,6 @@ float derivative_thit_theta(const float& x, const int& k, const int& d, const fl
     const float a = A[2*c];
     const float b = A[2*c + 1];
 
-    // float ak = B[2*nc*k + 2*c];
-    // float bk = B[2*nc*k + 2*c + 1];
     const float ak = B[(2*c)*d + k];
     const float bk = B[(2*c+1)*d + k];
 
@@ -219,7 +210,6 @@ float derivative_thit_theta(const float& x, const int& k, const int& d, const fl
     }
 
     float dthit_dtheta;
-    // if (a == 0.0){
     if (cmpf0(a)){
         dthit_dtheta = (x-xc)*bk / std::pow(b, 2.0);
     }
@@ -229,25 +219,6 @@ float derivative_thit_theta(const float& x, const int& k, const int& d, const fl
         dthit_dtheta = d1 + d2;
     }
     return dthit_dtheta;
-}
-
-// TODO: remove method
-float derivative_phi_theta_full(std::vector<float> &xr, std::vector<float> &tr, const int k, const int d, const float* B, const float* A, const float xmin, const float xmax, const int nc){
-    
-    float dthit_dtheta_cum = 0.0;
-    int iters = xr.size();
-    for (int i = 0; i < (iters-1); i++) {
-        dthit_dtheta_cum -= derivative_thit_theta(xr[i], k, d, B, A, xmin, xmax, nc);
-    }
-
-    float x = xr[iters-1];
-    float t = tr[iters-1];
-
-    float dpsi_dtheta = derivative_psi_theta(x, t, k, d, B, A, xmin, xmax, nc);
-    float dpsi_dtime = derivative_phi_time(x, t, A, xmin, xmax, nc);
-    float dphi_dtheta = dpsi_dtheta + dpsi_dtime*dthit_dtheta_cum;    
-
-    return dphi_dtheta;
 }
 
 float derivative_phi_theta(const float& xini, const float& tm, const int& cm, const int& k, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
@@ -277,44 +248,6 @@ float derivative_phi_theta(const float& xini, const float& tm, const int& cm, co
 
 
 // TRANSFORMATION
-
-// TODO: remove method
-float integrate_closed_form_trace_full(float x, float t, const float* A, const float xmin, const float xmax, const int nc, std::vector<float> &xr, std::vector<float> &tr){
-    int cont = 0;
-
-    xr.push_back(x);
-    tr.push_back(t);
-
-    int c;
-    float left, right, psi, thit;
-    while (true) {
-        c = get_cell(x, xmin, xmax, nc);
-        left = left_boundary(c, xmin, xmax, nc);
-        right = right_boundary(c, xmin, xmax, nc);
-        psi = get_psi(x, t, A, xmin, xmax, nc);
-
-        if ((left <= psi) && (psi <= right)){
-            return psi;
-        }
-        else{
-            thit = get_hit_time(x, A, xmin, xmax, nc);
-            t -= thit;
-        }
-
-        if (psi < left){
-            x = left;
-        }else if (psi > right){
-            x = right;
-        }
-        xr.push_back(x);
-        tr.push_back(t);
-
-        cont++;
-        if (cont > nc){
-            break;
-        }
-    }
-}
 
 void integrate_closed_form_trace(float* result, float x, float t, const float* A, const float& xmin, const float& xmax, const int& nc){
     int c = get_cell(x, xmin, xmax, nc);
@@ -366,7 +299,6 @@ float get_psi_optimized(const float& x, const int& c, const float& t, const floa
     // int c = get_cell(x, xmin, xmax, nc);
     const float a = A[2*c];
     const float b = A[2*c+1];
-    // float psi;
     if (cmpf0(a)){
         return x + t*b;
     }
@@ -387,8 +319,6 @@ float get_hit_time_optimized(const float& x, const int& c, const float& xc, cons
     // }
     const float a = A[2*c];
     const float b = A[2*c+1];
-    // float tcross;
-    // if (a == 0.0){
     if (cmpf0(a)){
         return (xc - x)/b;
     }
@@ -438,19 +368,15 @@ void integrate_closed_form_trace_optimized(float* result, float x, float t, cons
 
 // OPTIMIZED DERIVATIVE
 
-// TODO: CLEAN ALL COMMENTS
-float derivative_psi_theta_optimized(const float& x, const int& c, const float& t, const int& k, const int& d, const float* B, const float* A){
+// TODO: to be removed, it is here to improve the understanding of these operations
+float derivative_psi_theta_optimized_old(const float& x, const int& c, const float& t, const int& k, const int& d, const float* B, const float* A){
     // int c = get_cell(x, xmin, xmax, nc);
     const float a = A[2*c];
     const float b = A[2*c + 1];
 
-    // float ak = B[2*nc*k + 2*c];
-    // float bk = B[2*nc*k + 2*c + 1];
     const float ak = B[(2*c)*d + k];
     const float bk = B[(2*c+1)*d + k];
 
-    // float dpsi_dtheta;
-    // if (a == 0.0){
     if (cmpf0(a)){
         return t*(x*ak + bk);
     }
@@ -459,7 +385,32 @@ float derivative_psi_theta_optimized(const float& x, const int& c, const float& 
         return ak * t * tmp * (x + b/a) + (tmp-1)*(bk*a - ak*b)/std::pow(a, 2.0);
         // return = ak * t * std::exp(t*a) * (x + b/a) + (std::exp(t*a)-1)*(bk*a - ak*b)/std::pow(a, 2.0);
     }
-    // return dpsi_dtheta;
+}
+
+void derivative_psi_theta_optimized(float* dpsi_dtheta, const float& x, const int& c, const float& t, const int& d, const float* B, const float* A){
+    // int c = get_cell(x, xmin, xmax, nc);
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+
+    if (cmpf0(a)){
+        for(int k=0; k < d; k++){
+            const float ak = B[(2*c)*d + k];
+            const float bk = B[(2*c+1)*d + k];
+            dpsi_dtheta[k] = t*(x*ak + bk);
+        }
+    }
+    else{
+        const float tmp = std::exp(t*a);
+        const float tmp1 = t * tmp * (x + b/a);
+        const float tmp2 = (tmp-1)/std::pow(a, 2.0);
+        for(int k=0; k < d; k++){
+            const float ak = B[(2*c)*d + k];
+            const float bk = B[(2*c+1)*d + k];
+            dpsi_dtheta[k] = ak * tmp1 + tmp2 * (bk*a - ak*b);
+        }
+        // return = ak * t * std::exp(t*a) * (x + b/a) + (std::exp(t*a)-1)*(bk*a - ak*b)/std::pow(a, 2.0);
+    }
 }
 
 float derivative_phi_time_optimized(const float& x, const int& c, const float& t, const float* A){
@@ -478,7 +429,8 @@ float derivative_phi_time_optimized(const float& x, const int& c, const float& t
     // return dpsi_dtime;
 }
 
-float derivative_thit_theta_optimized(const float& x, const int& c, const float& xc, const int& k, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
+// TODO: to be removed, it is here to improve the understanding of these operations
+float derivative_thit_theta_optimized_old(const float& x, const int& c, const float& xc, const int& k, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
     // int c = get_cell(x, xmin, xmax, nc);
     const float a = A[2*c];
     const float b = A[2*c + 1];
@@ -508,7 +460,7 @@ float derivative_thit_theta_optimized(const float& x, const int& c, const float&
     return dthit_dtheta;
 }
 
-void derivative_thit_theta_optimized_alt(float* dthit_dtheta_cum, const float& x, const int& c, const float& xc, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
+void derivative_thit_theta_optimized(float* dthit_dtheta_cum, const float& x, const int& c, const float& xc, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
     // int c = get_cell(x, xmin, xmax, nc);
     const float a = A[2*c];
     const float b = A[2*c + 1];
@@ -534,7 +486,8 @@ void derivative_thit_theta_optimized_alt(float* dthit_dtheta_cum, const float& x
     }
 }
 
-float derivative_phi_theta_optimized(const float& xini, const float& tm, const int& cm, const int& k, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
+// TODO: to be removed, it is here to improve the understanding of these operations
+float derivative_phi_theta_optimized_old(const float& xini, const float& tm, const int& cm, const int& k, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
     
     const int cini = get_cell(xini, xmin, xmax, nc);
     float xm = xini;
@@ -549,19 +502,19 @@ float derivative_phi_theta_optimized(const float& xini, const float& tm, const i
             }else if (step == -1){
                 xc = left_boundary(c, xmin, xmax, nc);
             }
-            dthit_dtheta_cum -= derivative_thit_theta_optimized(xm, c, xc, k, d, B, A, xmin, xmax, nc);
+            dthit_dtheta_cum -= derivative_thit_theta_optimized_old(xm, c, xc, k, d, B, A, xmin, xmax, nc);
             xm = xc;
         } 
     }
 
-    const float dpsi_dtheta = derivative_psi_theta_optimized(xm, cm, tm, k, d, B, A);
+    const float dpsi_dtheta = derivative_psi_theta_optimized_old(xm, cm, tm, k, d, B, A);
     const float dpsi_dtime = derivative_phi_time_optimized(xm, cm, tm, A);
     const float dphi_dtheta = dpsi_dtheta + dpsi_dtime*dthit_dtheta_cum;    
 
     return dphi_dtheta;
 }
 
-void derivative_phi_theta_optimized_alt(float* dphi_dtheta, const float& xini, const float& tm, const int& cm, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){ 
+void derivative_phi_theta_optimized(float* dphi_dtheta, const float& xini, const float& tm, const int& cm, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){ 
     const int cini = get_cell(xini, xmin, xmax, nc);
     float xm = xini;
 
@@ -575,16 +528,18 @@ void derivative_phi_theta_optimized_alt(float* dphi_dtheta, const float& xini, c
             }else if (step == -1){
                 xc = left_boundary(c, xmin, xmax, nc);
             }
-            derivative_thit_theta_optimized_alt(dthit_dtheta_cum, xm, c, xc, d, B, A, xmin, xmax, nc);
+            derivative_thit_theta_optimized(dthit_dtheta_cum, xm, c, xc, d, B, A, xmin, xmax, nc);
             xm = xc;
         } 
     }
 
     // float dphi_dtheta[d] = { };
     const float dpsi_dtime = derivative_phi_time_optimized(xm, cm, tm, A);
+    float dpsi_dtheta[d] = { };
+    derivative_psi_theta_optimized(dpsi_dtheta, xm, cm, tm, d, B, A);
     for(int k=0; k < d; k++){
-        const float dpsi_dtheta = derivative_psi_theta_optimized(xm, cm, tm, k, d, B, A);
-        dphi_dtheta[k] = dpsi_dtheta + dpsi_dtime*dthit_dtheta_cum[k];    
+        // const float dpsi_dtheta = derivative_psi_theta_optimized(xm, cm, tm, k, d, B, A);
+        dphi_dtheta[k] = dpsi_dtheta[k] + dpsi_dtime*dthit_dtheta_cum[k];    
     }
 
     // return dphi_dtheta;

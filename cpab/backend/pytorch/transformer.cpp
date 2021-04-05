@@ -104,56 +104,6 @@ at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::
 
 // DERIVATIVE
 
-// TODO: remove method (two integrations for gradient computation)
-at::Tensor torch_derivative_numeric_old(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
-    float t = 1.0;
-
-    // Problem size
-    const int n_points = points.size(0);
-    const int n_batch = theta.size(0);
-    const int d = theta.size(1);
-
-
-
-
-    // Allocate output
-    const int e = 3;
-    // auto output = torch::zeros({n_batch, n_points}, at::kCPU);
-    // auto newpoints = output.data_ptr<float>();
-    auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
-    auto gradpoints = gradient.data_ptr<float>();
-
-
-    // Convert to pointers
-    float* B = Bt.data_ptr<float>();
-    float* x = points.data_ptr<float>();
-    for(int k = 0; k < d; k++){
-        for(int i = 0; i < n_batch; i++) { // for all batches
-            // Precompute affine velocity field
-            at::Tensor At1 = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
-            float* A1 = At1.data_ptr<float>();
-
-            // TODO: review this, make it faster
-            auto theta_acc = theta.accessor<float,2>();
-            float current = theta_acc[i][k];
-            theta.index_put_({i, k}, current + h);
-            at::Tensor At2 = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
-            float* A2 = At2.data_ptr<float>();
-            theta.index_put_({i, k}, current);
-
-            float phi_1, phi_2;
-            for(int j = 0; j < n_points; j++) { // for all points
-                phi_1 = integrate_numeric(x[j], t, A1, xmin, xmax, nc, nSteps1, nSteps2);
-                phi_2 = integrate_numeric(x[j], t, A2, xmin, xmax, nc, nSteps1, nSteps2);
-
-                gradpoints[i*(n_points * d) + j*d + k] = (phi_2 - phi_1)/h;
-            }
-        }
-    }
-    return gradient;
-}
-
-// TODO: remove method? maybe not, it is useful for gradient method
 at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Problem size
     const int n_points = points.size(0);
@@ -176,44 +126,6 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Ten
     return gradient;
 }
 
-// TODO: remove method (has std::vector)
-at::Tensor torch_derivative_full(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
-    float t = 1.0;
-
-    // Problem size
-    const int n_points = points.size(0);
-    const int n_batch = theta.size(0);
-    const int d = theta.size(1);
-
-    // Allocate output
-    auto output = torch::zeros({n_batch, n_points}, at::kCPU);
-    auto newpoints = output.data_ptr<float>();
-    auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
-    auto gradpoints = gradient.data_ptr<float>();
-
-    // Convert to pointers
-    float* B = Bt.data_ptr<float>();
-    float* x = points.data_ptr<float>();
-    for(int i = 0; i < n_batch; i++) { // for all batches
-
-        // Precompute affine velocity field
-        at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
-        float* A = At.data_ptr<float>();
-
-        for(int j = 0; j < n_points; j++) { // for all points
-            std::vector<float> xr, tr;
-            newpoints[i*n_points + j] = integrate_closed_form_trace_full(x[j], t, A, xmin, xmax, nc, xr, tr);
-            // TODO: think how are we going to pass xr and tr from forward to backward functions in pytorch
-            for(int k = 0; k < d; k++){
-                gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta_full(xr, tr, k, d, B, A, xmin, xmax, nc);
-            }
-        }
-    }
-    return gradient;
-    // return output;
-}
-
-// TODO: remove method? maybe not, it is useful for gradient method
 at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     float t = 1.0;
 
@@ -254,9 +166,6 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
     }
     return gradient;
 }
-
-
-
 
 // TRANSFORMATION
 at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
@@ -322,17 +231,17 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
             int cm = newpoints[i*(n_points * e) + j*e + 2];
             // NEW METHOD
             float result[d];
-            derivative_phi_theta_optimized_alt(result, x[j], tm, cm, d, B, A, xmin, xmax, nc);
+            derivative_phi_theta_optimized(result, x[j], tm, cm, d, B, A, xmin, xmax, nc);
             for(int k = 0; k < d; k++){ // for all parameters theta
                 gradpoints[i*(n_points * d) + j*d + k] = result[k];
             }
+            // OLD METHOD
             // for(int k = 0; k < d; k++){ // for all parameters theta
-            //     gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta_optimized(x[j], tm, cm, k, d, B, A, xmin, xmax, nc);
+            //     gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta_optimized_old(x[j], tm, cm, k, d, B, A, xmin, xmax, nc);
             // }
         }
     }
     return gradient;
-    // return output;
 }
 
 at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
@@ -356,10 +265,6 @@ at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, a
     }
     return gradient;
 }
-
-
-
-
 
 
 // Binding
