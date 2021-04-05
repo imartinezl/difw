@@ -2,7 +2,7 @@ import torch
 
 from .interpolation import interpolate
 # TODO: remove imports
-# from .transformer import cpab_cpu
+from .transformer import cpab_cpu, cpab_gpu
 # from .transformer import CPAB_transformer as transformer
 from .transformer import transformer, gradient
 from .transformer import get_cell, calc_velocity
