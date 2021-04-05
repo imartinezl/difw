@@ -94,7 +94,7 @@ float get_phi_numeric(const float& x, const float& t, const int& nSteps2, const 
     int c;
     for(int j = 0; j < nSteps2; j++) {
         c = get_cell(x, xmin, xmax, nc);
-        midpoint = yn + deltaT / 2 * get_velocity(x, A, xmin, xmax, nc);
+        midpoint = yn + deltaT / 2 * get_velocity(yn, A, xmin, xmax, nc);
         c = get_cell(midpoint, xmin, xmax, nc);
         yn = yn + deltaT * get_velocity(midpoint, A, xmin, xmax, nc);
     }
@@ -114,8 +114,7 @@ float integrate_numeric(const float& x, const float& t, const float* A, const fl
             xPrev = xTemp;
         }
         else{
-            float xNum = get_phi_numeric(xPrev, deltaT, nSteps2, A, xmin, xmax, nc);
-            xPrev = xNum;
+            xPrev = get_phi_numeric(xPrev, deltaT, nSteps2, A, xmin, xmax, nc);
         }
     }
     return xPrev;
@@ -364,6 +363,38 @@ void integrate_closed_form_trace_optimized(float* result, float x, float t, cons
     return;
 }
 
+// NUMERIC
+float get_phi_numeric_optimized(const float& x, const float& t, const int& nSteps2, const float* A, const float& xmin, const float& xmax, const int& nc){
+    float yn = x;
+    float midpoint;
+    const float deltaT = t / nSteps2;
+    // int c;
+    for(int j = 0; j < nSteps2; j++) {
+        // c = get_cell(x, xmin, xmax, nc);
+        midpoint = yn + deltaT / 2 * get_velocity(yn, A, xmin, xmax, nc);
+        // c = get_cell(midpoint, xmin, xmax, nc);
+        yn = yn + deltaT * get_velocity(midpoint, A, xmin, xmax, nc);
+    }
+    return yn;
+}
+
+float integrate_numeric_optimized(const float& x, const float& t, const float* A, const float& xmin, const float& xmax, const int& nc, const int& nSteps1, const int& nSteps2){
+    float xPrev = x;
+    const float deltaT = t / nSteps1;
+    int c = get_cell(xPrev, xmin, xmax, nc);
+    for(int j = 0; j < nSteps1; j++) {
+        float xTemp = get_psi_optimized(xPrev, c, deltaT, A);
+        int cTemp = get_cell(xTemp, xmin, xmax, nc);
+        if (c == cTemp){
+            xPrev = xTemp;
+        }
+        else{
+            xPrev = get_phi_numeric_optimized(xPrev, deltaT, nSteps2, A, xmin, xmax, nc);
+            c = get_cell(xPrev, xmin, xmax, nc);
+        }
+    }
+    return xPrev;
+}
 
 
 // OPTIMIZED DERIVATIVE

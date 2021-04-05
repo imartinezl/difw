@@ -68,7 +68,7 @@ at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tens
         float* A = At.data_ptr<float>();
 
         for(int j = 0; j < n_points; j++) { // for all points
-            newpoints[i*n_points + j] = integrate_numeric(x[j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
+            newpoints[i*n_points + j] = integrate_numeric_optimized(x[j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
         }
     }
     return output;
