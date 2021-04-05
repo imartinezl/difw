@@ -79,6 +79,7 @@ class Cpab:
         elif self.backend_name == "pytorch":
             from .backend.pytorch import functions as backend
             self.params.B = backend.to(self.params.B, device=self.device)
+            self.params.B = self.params.B.contiguous()
             # torch.tensor(params.B, dtype=torch.float32)
         self.backend = backend
 
