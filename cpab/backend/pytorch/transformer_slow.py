@@ -186,7 +186,7 @@ def derivative_numeric(x, theta, params, h=1e-3):
     d = theta.shape[1]
 
     # computation
-    der = torch.empty((n_batch, n_points, d)) # TODO: specify tensor device?
+    der = torch.empty((n_batch, n_points, d), device=x.device)
 
     phi_1 = integrate_numeric(x, theta, params)
     for k in range(d):
@@ -196,7 +196,6 @@ def derivative_numeric(x, theta, params, h=1e-3):
 
         der[:,:,k] = (phi_2 - phi_1)/h
 
-    # return der # TODO: also return phi just in case
     return phi_1, der
 
     
@@ -216,7 +215,7 @@ def derivative_closed_form(x, theta, params):
     x = batch_effect(x, theta)
     params = precompute_affine(x, theta, params)
 
-    der = torch.empty((n_batch, n_points, d))
+    der = torch.empty((n_batch, n_points, d), device=x.device)
     for k in range(d):
         dthit_dtheta_cum = torch.zeros_like(x)
 
@@ -237,8 +236,7 @@ def derivative_closed_form(x, theta, params):
         dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
         der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
     
-    # return der
-    return phi, der  # TODO: also return phi just in case
+    return phi, der
 
 
 def derivative_psi_theta(x, t, theta, k, params):
