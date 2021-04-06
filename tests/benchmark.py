@@ -21,6 +21,7 @@ zero_boundary = True
 use_slow = False
 outsize = 100
 batch_size = 20
+method = "closed_form"
 
 T = cpab.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
@@ -28,7 +29,10 @@ T.params.use_slow = use_slow
 grid = T.uniform_meshgrid(outsize)
 theta = T.sample_transformation(batch_size)
 theta = T.identity(batch_size, epsilon=1.0)
-grid_t = T.transform_grid(grid, theta)
+
+# T.params.nSteps1 = 5
+# T.params.nSteps2 = 5
+grid_t = T.transform_grid(grid, theta, method)
 
 plt.plot(grid_t.T)
 print(1)
@@ -39,13 +43,13 @@ torch.set_num_threads(1)
 theta_grad = torch.autograd.Variable(theta, requires_grad=True)
 yep.start("profile.prof")
 for i in range(100):
-    grid_t = T.transform_grid(grid, theta_grad, "closed_form")
+    grid_t = T.transform_grid(grid, theta_grad, method)
     loss = torch.norm(grid_t)
-    # loss.backward()
+    loss.backward()
 
 yep.stop()
 
-# %%
+# %% TIMEIT
 
 repetitions = 1
 n = 1
@@ -55,10 +59,20 @@ timing = timeit.Timer(
 ).repeat(repetitions, n)
 print("Time: ", np.mean(timing) / n, "+-", np.std(timing) / np.sqrt(n))
 
+# %% CPROFILE
+
+import cProfile
+cProfile.run('''
+theta_grad = torch.autograd.Variable(theta, requires_grad=True)
+for i in range(100): 
+    grid_t = T.transform_grid(grid, theta_grad, method)
+    loss = torch.norm(grid_t)
+    loss.backward()
+''', sort="cumtime")
 # %% PYTORCH PROFILER
 
 with profiler.profile(with_stack=True, profile_memory=True) as prof:
-    T.transform_grid(grid, theta)
+    T.transform_grid(grid, theta, method)
 
 print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=50))
 # prof.export_chrome_trace("trace.json")
@@ -104,7 +118,7 @@ for tess_size, outsize, batch_size in product(tess_size_array, outsize_array, ba
 
         T.params.use_slow = False
         t0 = benchmark.Timer(
-            stmt="T.transform_grid(grid, theta, mode='closed_form')",
+            stmt="T.transform_grid(grid, theta, method='closed_form')",
             globals={"T": T, "grid": grid, "theta": theta},
             num_threads=num_threads,
             label=label,
@@ -116,7 +130,7 @@ for tess_size, outsize, batch_size in product(tess_size_array, outsize_array, ba
 
         T.params.use_slow = True
         t1 = benchmark.Timer(
-            stmt="T.transform_grid(grid, theta, mode='closed_form')",
+            stmt="T.transform_grid(grid, theta, method='closed_form')",
             globals={"T": T, "grid": grid, "theta": theta},
             num_threads=num_threads,
             label=label,
@@ -127,7 +141,7 @@ for tess_size, outsize, batch_size in product(tess_size_array, outsize_array, ba
 
         T.params.use_slow = False
         t2 = benchmark.Timer(
-            stmt="T.transform_grid(grid, theta, mode='numeric')",
+            stmt="T.transform_grid(grid, theta, method='numeric')",
             globals={"T": T, "grid": grid, "theta": theta},
             num_threads=num_threads,
             label=label,
@@ -138,7 +152,7 @@ for tess_size, outsize, batch_size in product(tess_size_array, outsize_array, ba
 
         T.params.use_slow = True
         t3 = benchmark.Timer(
-            stmt="T.transform_grid(grid, theta, mode='numeric')",
+            stmt="T.transform_grid(grid, theta, method='numeric')",
             globals={"T": T, "grid": grid, "theta": theta},
             num_threads=num_threads,
             label=label,

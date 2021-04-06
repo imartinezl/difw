@@ -1,7 +1,7 @@
 # %%
 import torch
 from torch.utils.cpp_extension import load
-from ...core.utility import get_dir, modes
+from ...core.utility import get_dir, methods
 
 #%% NOT COMPILED HELPER
 class _notcompiled:
@@ -119,89 +119,89 @@ def calc_velocity(grid, theta, params):
 
 # %% GRADIENT
 
-def gradient(grid, theta, params, mode=None):
+def gradient(grid, theta, params, method=None):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            return gradient_fast_gpu(grid, theta, params, mode)
+            return gradient_fast_gpu(grid, theta, params, method)
         else:
             if _verbose: print('using slow gpu implementation')
-            return gradient_slow(grid, theta, params, mode)
+            return gradient_slow(grid, theta, params, method)
     else:
         if not params.use_slow and _cpu_success:
             if _verbose: print('using fast cpu implementation')
-            return gradient_fast_cpu(grid, theta, params, mode)
+            return gradient_fast_cpu(grid, theta, params, method)
         else:
             if _verbose: print('using slow cpu implementation')
-            return gradient_slow(grid, theta, params, mode)
+            return gradient_slow(grid, theta, params, method)
 
 # %% GRADIENT: SLOW / CPU + GPU
 from .transformer_slow import derivative_numeric, derivative_closed_form
 
-def gradient_slow(grid, theta, params, mode=None):
-    modes.check_mode(mode)
-    mode = modes.default(mode)
+def gradient_slow(grid, theta, params, method=None):
+    methods.check(method)
+    method = methods.default(method)
 
-    if mode == modes.closed_form:
+    if method == methods.closed_form:
         phi, der = derivative_closed_form(grid, theta, params)
         return der
-    elif mode == modes.numeric:
+    elif method == methods.numeric:
         h = 1e-2
         phi, der = derivative_numeric(grid, theta, params, h)
         return der
 
 # %% GRADIENT: FAST / CPU
-def gradient_fast_cpu(grid, theta, params, mode=None):
-    modes.check_mode(mode)
-    mode = modes.default(mode)
+def gradient_fast_cpu(grid, theta, params, method=None):
+    methods.check(method)
+    method = methods.default(method)
     
-    if mode == modes.closed_form:
+    if method == methods.closed_form:
         return cpab_cpu.derivative_closed_form(grid, theta, params.B, params.xmin, params.xmax, params.nc)
-    elif mode == modes.numeric:
+    elif method == methods.numeric:
         h = 1e-2
         return cpab_cpu.derivative_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
 
 
 # %% GRADIENT: FAST / GPU
-def gradient_fast_gpu(grid, theta, params, mode=None):
-    modes.check_mode(mode)
-    mode = modes.default(mode)
+def gradient_fast_gpu(grid, theta, params, method=None):
+    methods.check(method)
+    method = methods.default(method)
 
-    if mode == modes.closed_form:
+    if method == methods.closed_form:
         return cpab_gpu.derivative_closed_form(grid, theta, params.B, params.xmin, params.xmax, params.nc)
-    elif mode == modes.numeric:
+    elif method == methods.numeric:
         h = 1e-2
         return cpab_gpu.derivative_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
 
 # %% TRANSFORMER
 
-def transformer(grid, theta, params, mode=None):
+def transformer(grid, theta, params, method=None):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            return transformer_fast_gpu(grid, theta, params, mode)
+            return transformer_fast_gpu(grid, theta, params, method)
         else:
             if _verbose: print('using slow gpu implementation')
-            return transformer_slow(grid, theta, params, mode)
+            return transformer_slow(grid, theta, params, method)
     else:
         if not params.use_slow and _cpu_success:
             if _verbose: print('using fast cpu implementation')
-            return transformer_fast_cpu(grid, theta, params, mode)
+            return transformer_fast_cpu(grid, theta, params, method)
         else:
             if _verbose: print('using slow cpu implementation')
-            return transformer_slow(grid, theta, params, mode)
+            return transformer_slow(grid, theta, params, method)
 
 # %% TRANSFORMER: SLOW / CPU + GPU
 from .transformer_slow import integrate_closed_form, integrate_numeric
-def transformer_slow(grid, theta, params, mode=None):
-    modes.check_mode(mode)
-    mode = modes.default(mode)
+def transformer_slow(grid, theta, params, method=None):
+    methods.check(method)
+    method = methods.default(method)
 
     # TODO: testing benchmark
-    if mode == modes.closed_form:
+    if method == methods.closed_form:
         # return integrate_closed_form(grid, theta, params)
         return Transformer_slow_closed_form.apply(grid, theta, params)
-    elif mode == modes.numeric:
+    elif method == methods.numeric:
         return integrate_numeric(grid, theta, params)
         # return Transformer_slow_numeric.apply(grid, theta, params)
 
@@ -252,13 +252,13 @@ class Transformer_slow_numeric(torch.autograd.Function):
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 # %% #%% TRANSFORMER: FAST / CPU 
-def transformer_fast_cpu(grid, theta, params, mode=None):
-    modes.check_mode(mode)
-    mode = modes.default(mode)
+def transformer_fast_cpu(grid, theta, params, method=None):
+    methods.check(method)
+    method = methods.default(method)
 
-    if mode == modes.closed_form:
+    if method == methods.closed_form:
         return Transformer_fast_cpu_closed_form.apply(grid, theta, params)
-    elif mode == modes.numeric:
+    elif method == methods.numeric:
         return Transformer_fast_cpu_numeric.apply(grid, theta, params)
 
 # %% #%% TRANSFORMER: FAST / CPU / CLOSED-FORM
@@ -302,13 +302,13 @@ class Transformer_fast_cpu_numeric(torch.autograd.Function):
         return None, grad, None # [n_batch, d]
 
 # %% #%% TRANSFORMER: FAST / GPU
-def transformer_fast_gpu(grid, theta, params, mode=None):
-    modes.check_mode(mode)
-    mode = modes.default(mode)
+def transformer_fast_gpu(grid, theta, params, method=None):
+    methods.check(method)
+    method = methods.default(method)
 
-    if mode == modes.closed_form:
+    if method == methods.closed_form:
         return Transformer_fast_gpu_closed_form.apply(grid, theta, params)
-    elif mode == modes.numeric:
+    elif method == methods.numeric:
         return Transformer_fast_gpu_numeric.apply(grid, theta, params)
 
 # %% #%% TRANSFORMER: FAST / GPU / CLOSED-FORM

@@ -19,6 +19,7 @@ zero_boundary = True
 use_slow = True
 outsize = 10
 batch_size = 2
+method = "numeric"
 
 T = cpab.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
@@ -30,9 +31,9 @@ grid_t = T.transform_grid(grid, theta)
 T.visualize_tesselation()
 T.visualize_velocity(theta)
 T.visualize_deformgrid(theta)
-T.visualize_deformgrid(theta, mode='numeric')
+T.visualize_deformgrid(theta, method)
 T.visualize_gradient(theta)
-T.visualize_gradient(theta, mode="numeric")
+T.visualize_gradient(theta, method)
 
 
 # %% OPTIMIZATION BY GRADIENT
@@ -44,6 +45,7 @@ zero_boundary = True
 use_slow = False
 outsize = 100
 batch_size = 20
+method = "numeric"
 
 T = cpab.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
@@ -51,7 +53,7 @@ T.params.use_slow = use_slow
 grid = T.uniform_meshgrid(outsize)
 
 theta_1 = T.sample_transformation(batch_size)
-grid_t1 = T.transform_grid(grid, theta_1)
+grid_t1 = T.transform_grid(grid, theta_1, method)
 
 theta_2 = torch.autograd.Variable(T.sample_transformation(batch_size), requires_grad=True)
 
@@ -64,8 +66,7 @@ maxiter = 500
 with tqdm(desc='Alignment of samples', unit='iters', total=maxiter,  position=0, leave=True) as pb:
     for i in range(maxiter):
         optimizer.zero_grad()
-        grid_t2 = T.transform_grid(grid, theta_2, mode="closed_form")
-        # grid_t2 = T.gradient_grid(grid, theta_2, mode="numeric")
+        grid_t2 = T.transform_grid(grid, theta_2, method=method)
         loss = torch.norm(grid_t2 - grid_t1)
         loss.backward()
         optimizer.step()
@@ -119,7 +120,7 @@ pb = tqdm(desc='Alignment of samples', unit='samples', total=maxiter)
 for i in range(maxiter):
     # Sample and transform 
     theta = T.sample_transformation(batch_size, mean=current_sample.flatten())
-    grid_t = T.transform_grid(grid, theta, mode="closed_form")
+    grid_t = T.transform_grid(grid, theta, method="closed_form")
 
     # Calculate new error
     new_error = np.linalg.norm(grid_t - grid_ref)
@@ -142,7 +143,7 @@ pb.close()
 
 
 theta = np.mean(samples, axis=0)[np.newaxis,:]
-grid_t = T.transform_grid(grid, T.backend.to(theta), mode="closed_form")
+grid_t = T.transform_grid(grid, T.backend.to(theta), method="closed_form")
 
 plt.figure()
 plt.plot(grid, grid_ref[0])

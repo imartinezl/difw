@@ -28,19 +28,18 @@ def get_dir(file):
 
 # %%
 
-# TODO: review name: modes, method, 
-class modes:
+class methods:
     closed_form = "closed_form"
     numeric = "numeric"
 
     @staticmethod
-    def check_mode(mode):
-        if mode is not None:
-            assert mode in [modes.closed_form, modes.numeric], "Unknown mode, choose between " + Modes.closed_form + " or " + Modes.numeric
+    def check(method):
+        if method is not None:
+            assert method in [methods.closed_form, methods.numeric], "Unknown method, choose between " + methods.closed_form + " or " + methods.numeric
 
     @staticmethod
-    def default(mode=None):
-        if mode is not None:
-            return mode
+    def default(method=None):
+        if method is not None:
+            return method
         else:
-            return modes.closed_form
+            return methods.closed_form
