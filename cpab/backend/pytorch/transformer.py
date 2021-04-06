@@ -81,19 +81,18 @@ _verbose = False
 # %% GET CELL
 
 from .transformer_slow import get_cell as get_cell_slow
-# TODO: review call to compiled cpu
 def get_cell(grid, params):
     if grid.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            return cpab_gpu.get_cell(grid.contiguous(), params.xmin, params.xmax, params.nc)
+            return cpab_gpu.get_cell(grid, params.xmin, params.xmax, params.nc)
         else:
             if _verbose: print('using slow gpu implementation')
             return get_cell_slow(grid, params)
     else:
         if not params.use_slow and _cpu_success:
             if _verbose: print('using fast cpu implementation')
-            return cpab_cpu.get_cell(grid.contiguous(), params.xmin, params.xmax, params.nc)
+            return cpab_cpu.get_cell(grid, params.xmin, params.xmax, params.nc)
         else:
             if _verbose: print('using slow cpu implementation')
             return get_cell_slow(grid, params)
@@ -105,14 +104,14 @@ def calc_velocity(grid, theta, params):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            return cpab_gpu.get_velocity(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
+            return cpab_gpu.get_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc)
         else:
             if _verbose: print('using slow gpu implementation')
             return calc_velocity_slow(grid, theta, params)
     else:
         if not params.use_slow and _cpu_success:
             if _verbose: print('using fast cpu implementation')
-            return cpab_cpu.get_velocity(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
+            return cpab_cpu.get_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc)
         else:
             if _verbose: print('using slow cpu implementation')
             return calc_velocity_slow(grid, theta, params)
@@ -120,7 +119,6 @@ def calc_velocity(grid, theta, params):
 
 # %% GRADIENT
 
-# TODO: maybe also remove gradient? if we can use the backward function to return the gradient
 def gradient(grid, theta, params, mode=None):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
@@ -148,7 +146,7 @@ def gradient_slow(grid, theta, params, mode=None):
         phi, der = derivative_closed_form(grid, theta, params)
         return der
     elif mode == modes.numeric:
-        h = 1e-3
+        h = 1e-2
         phi, der = derivative_numeric(grid, theta, params, h)
         return der
 
@@ -158,10 +156,10 @@ def gradient_fast_cpu(grid, theta, params, mode=None):
     mode = modes.default(mode)
     
     if mode == modes.closed_form:
-        return cpab_cpu.derivative_closed_form(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
+        return cpab_cpu.derivative_closed_form(grid, theta, params.B, params.xmin, params.xmax, params.nc)
     elif mode == modes.numeric:
-        h = 1e-3
-        return cpab_cpu.derivative_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        h = 1e-2
+        return cpab_cpu.derivative_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
 
 
 # %% GRADIENT: FAST / GPU
@@ -170,10 +168,10 @@ def gradient_fast_gpu(grid, theta, params, mode=None):
     mode = modes.default(mode)
 
     if mode == modes.closed_form:
-        return cpab_gpu.derivative_closed_form(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
+        return cpab_gpu.derivative_closed_form(grid, theta, params.B, params.xmin, params.xmax, params.nc)
     elif mode == modes.numeric:
-        h = 1e-3
-        return cpab_gpu.derivative_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        h = 1e-2
+        return cpab_gpu.derivative_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
 
 # %% TRANSFORMER
 
@@ -194,7 +192,7 @@ def transformer(grid, theta, params, mode=None):
             return transformer_slow(grid, theta, params, mode)
 
 # %% TRANSFORMER: SLOW / CPU + GPU
-from .transformer_slow import integrate_closed_form
+from .transformer_slow import integrate_closed_form, integrate_numeric
 def transformer_slow(grid, theta, params, mode=None):
     modes.check_mode(mode)
     mode = modes.default(mode)
@@ -205,13 +203,12 @@ def transformer_slow(grid, theta, params, mode=None):
         return Transformer_slow_closed_form.apply(grid, theta, params)
     elif mode == modes.numeric:
         return integrate_numeric(grid, theta, params)
-        return Transformer_slow_numeric.apply(grid, theta, params)
+        # return Transformer_slow_numeric.apply(grid, theta, params)
 
 #%% TRANSFORMER: SLOW / CPU + GPU / CLOSED-FORM 
 from .transformer_slow import integrate_closed_form_trace, derivative_closed_form_trace
 
 class Transformer_slow_closed_form(torch.autograd.Function):
-    # Function that connects the forward pass to the backward pass
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
@@ -237,7 +234,6 @@ class Transformer_slow_closed_form(torch.autograd.Function):
 from .transformer_slow import integrate_numeric, derivative_numeric_trace
 
 class Transformer_slow_numeric(torch.autograd.Function):
-    # Function that connects the forward pass to the backward pass
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
@@ -252,7 +248,6 @@ class Transformer_slow_numeric(torch.autograd.Function):
         grid_t, grid, theta = ctx.saved_tensors
 
         h = 1e-2
-
         grad_theta = derivative_numeric_trace(grid_t, grid, theta, params, h)
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
@@ -268,11 +263,9 @@ def transformer_fast_cpu(grid, theta, params, mode=None):
 
 # %% #%% TRANSFORMER: FAST / CPU / CLOSED-FORM
 class Transformer_fast_cpu_closed_form(torch.autograd.Function):
-    # Function that connects the forward pass to the backward pass
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
-        # output = cpab_cpu.integrate_closed_form_trace(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
         output = cpab_cpu.integrate_closed_form_trace(grid, theta, params.B, params.xmin, params.xmax, params.nc)
         grid_t = output[:,:,0]
         ctx.save_for_backward(output, grid, theta)
@@ -283,22 +276,16 @@ class Transformer_fast_cpu_closed_form(torch.autograd.Function):
     def backward(ctx, grad_output): # grad [n_batch, n_points]
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
-        # grad_theta = cpab_cpu.derivative_closed_form_trace(output.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
-        grad_theta = cpab_cpu.derivative_closed_form_trace(output, grid, theta, params.B, params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
 
-        # print(grad_output.shape, gradient.shape)
-        # NOTE: we have to permute the gradient in order to do the element-wise product
-        # Then, the gradient must be summarized for all grid points
+        grad_theta = cpab_cpu.derivative_closed_form_trace(output, grid, theta, params.B, params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
 # %% #%% TRANSFORMER: FAST / CPU / NUMERIC
 class Transformer_fast_cpu_numeric(torch.autograd.Function):
-    # Function that connects the forward pass to the backward pass
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
-        # grid_t = cpab_cpu.integrate_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
         grid_t = cpab_cpu.integrate_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
         ctx.save_for_backward(grid_t, grid, theta)
         return grid_t
@@ -310,8 +297,6 @@ class Transformer_fast_cpu_numeric(torch.autograd.Function):
         grid_t, grid, theta = ctx.saved_tensors
 
         h = 1e-2
-
-        # grad_theta = cpab_cpu.derivative_numeric_trace(grid_t.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad_theta = cpab_cpu.derivative_numeric_trace(grid_t, grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
@@ -328,11 +313,10 @@ def transformer_fast_gpu(grid, theta, params, mode=None):
 
 # %% #%% TRANSFORMER: FAST / GPU / CLOSED-FORM
 class Transformer_fast_gpu_closed_form(torch.autograd.Function):
-    # Function that connects the forward pass to the backward pass
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
-        output = cpab_gpu.integrate_closed_form_trace(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc)
+        output = cpab_gpu.integrate_closed_form_trace(grid, theta, params.B, params.xmin, params.xmax, params.nc)
         ctx.save_for_backward(output, grid, theta)
         grid_t = output[:,:,0]
         return grid_t
@@ -342,11 +326,8 @@ class Transformer_fast_gpu_closed_form(torch.autograd.Function):
     def backward(ctx, grad_output): # grad [n_batch, n_points]
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
-        grad_theta = cpab_gpu.derivative_closed_form_trace(output.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
 
-        # print(grad_output.shape, gradient.shape)
-        # NOTE: we have to permute the gradient in order to do the element-wise product
-        # Then, the gradient must be summarized for all grid points
+        grad_theta = cpab_gpu.derivative_closed_form_trace(output, grid, theta, params.B, params.xmin, params.xmax, params.nc) # [n_batch, n_points, d]
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
@@ -356,7 +337,7 @@ class Transformer_fast_gpu_numeric(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params):
         ctx.params = params
-        grid_t = cpab_gpu.integrate_numeric(grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
+        grid_t = cpab_gpu.integrate_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2)
         ctx.save_for_backward(grid_t, grid, theta)
         return grid_t
 
@@ -367,8 +348,7 @@ class Transformer_fast_gpu_numeric(torch.autograd.Function):
         grid_t, grid, theta = ctx.saved_tensors
 
         h = 1e-2
-
-        grad_theta = cpab_gpu.derivative_numeric_trace(grid_t.contiguous(), grid.contiguous(), theta.contiguous(), params.B.contiguous(), params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        grad_theta = cpab_gpu.derivative_numeric_trace(grid_t, grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
