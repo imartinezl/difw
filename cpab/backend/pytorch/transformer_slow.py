@@ -103,9 +103,9 @@ def get_phi_numeric(x, t, theta, params):
     yn = x
     deltaT = t / nSteps2
     for j in range(nSteps2):
-        c = get_cell(yn, params)
+        # c = get_cell(yn, params)
         midpoint = yn + deltaT / 2 * get_velocity(yn, theta, params)
-        c = get_cell(midpoint, params)
+        # c = get_cell(midpoint, params)
         yn = yn + deltaT * get_velocity(midpoint, theta, params)
     return yn
 
@@ -190,9 +190,9 @@ def derivative_numeric(x, theta, params, h=1e-3):
 
     phi_1 = integrate_numeric(x, theta, params)
     for k in range(d):
-        theta2 = theta.clone()
-        theta2[:,k] += h
-        phi_2 = integrate_numeric(x, theta2, params)
+        theta[:,k] += h
+        phi_2 = integrate_numeric(x, theta, params)
+        theta[:,k] -= h
 
         der[:,:,k] = (phi_2 - phi_1)/h
 
@@ -253,7 +253,7 @@ def derivative_psi_theta(x, t, theta, k, params):
     cond = a == 0
     d1 = t * (x * ak + bk)
     d2 = (
-        ak * t * torch.exp(a * t) * (x + b / a)
+        ak * t * torch.exp(t * a) * (x + b / a)
         + (torch.exp(t * a) - 1) * (bk * a - ak * b) / a ** 2
     )
     dpsi_dtheta = torch.where(cond, d1, d2)
@@ -372,7 +372,6 @@ def derivative_closed_form_trace(result, x, theta, params):
         dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
         der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
     
-    # return der # TODO: also return phi just in case
     return der  
 
 def derivative_numeric_trace(phi_1, x, theta, params, h=1e-3):
@@ -386,13 +385,11 @@ def derivative_numeric_trace(phi_1, x, theta, params, h=1e-3):
 
     # phi_1 = integrate_numeric(x, theta, params)
     for k in range(d):
-        theta2 = theta.clone()
-        theta2[:,k] += h
-        phi_2 = integrate_numeric(x, theta2, params)
+        theta[:,k] += h
+        phi_2 = integrate_numeric(x, theta, params)
+        theta[:,k] -= h
 
         der[:,:,k] = (phi_2 - phi_1)/h
-
-    # return der # TODO: also return phi just in case
     return der
 
     
