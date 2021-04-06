@@ -254,7 +254,6 @@ class Cpab:
         self._check_device(data)
         self._check_type(theta)
         self._check_device(theta)
-        # TODO: DONE assert n_batch in data and theta are the same
         assert (
             data.shape[0] == theta.shape[0]
         ), """Batch sizes should be the same on arguments data and theta"""
@@ -510,10 +509,3 @@ class Cpab:
             self.backend_name,
         )
         return output
-
-    # TODO: remove
-    def test(self, grid, theta):
-        return self.backend.derivative(grid, theta, self.params)
-
-
-# %%
