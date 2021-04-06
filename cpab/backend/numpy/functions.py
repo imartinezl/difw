@@ -71,6 +71,6 @@ def gradient(grid, theta, params, mode=None):
         phi, der = derivative_closed_form(grid, theta, params)
         return der
     elif mode == modes.numeric:
-        h = 1e-3
+        h = 1e-2
         phi, der = derivative_numeric(grid, theta, params, h)
         return der
