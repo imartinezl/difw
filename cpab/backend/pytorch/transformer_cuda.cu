@@ -134,11 +134,19 @@ at::Tensor cuda_derivative_closed_form_trace(at::Tensor output, at::Tensor point
    const int d = theta.size(1);
 
    // Kernel configuration
-   dim3 bc((int)ceil(n_points/256.0), n_batch, d);
-   dim3 tpb(256, 1, 1);
+   // dim3 bc((int)ceil(n_points/256.0), n_batch, d);
+   // dim3 tpb(256, 1, 1);
 
    // Launch kernel
-   kernel_derivative_closed_form_trace<<<bc, tpb>>>(n_points, n_batch, d,
+   // kernel_derivative_closed_form_trace<<<bc, tpb>>>(n_points, n_batch, d,
+   //    output.data_ptr<float>(), points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), xmin, xmax, nc, gradient.data_ptr<float>());
+
+   // Kernel configuration
+   dim3 bc((int)ceil(n_points/256.0), n_batch);
+   dim3 tpb(256, 1);
+
+   // Launch kernel
+   kernel_derivative_closed_form_trace_optimized<<<bc, tpb>>>(n_points, n_batch, d,
       output.data_ptr<float>(), points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), xmin, xmax, nc, gradient.data_ptr<float>());
 
    gpuErrchk( cudaPeekAtLastError() );                           
