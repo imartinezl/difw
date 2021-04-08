@@ -17,7 +17,7 @@ import torch.utils.benchmark as benchmark
 # %% SETUP
 tess_size = 50
 backend = "pytorch"  # ["pytorch", "numpy"]
-device = "cpu"  # ["cpu", "gpu"]
+device = "gpu"  # ["cpu", "gpu"]
 zero_boundary = True
 use_slow = False
 outsize = 100
@@ -35,32 +35,21 @@ theta = T.identity(batch_size, epsilon=1.0)
 # T.params.nSteps2 = 5
 grid_t = T.transform_grid(grid, theta, method)
 
-plt.plot(grid_t.T)
+# plt.plot(grid_t.cpu().T)
 print(1)
-# %%
-import yep
 
-torch.set_num_threads(1)
-
-theta_grad = torch.autograd.Variable(theta, requires_grad=True)
-yep.start("profile.prof")
-for i in range(100):
+# %% PYTORCH BENCHMARK
+t0 = benchmark.Timer(
+    stmt="""
+    theta_grad = torch.autograd.Variable(theta, requires_grad=True)
     grid_t = T.transform_grid(grid, theta_grad, method)
     loss = torch.norm(grid_t)
-    loss.backward()
-
-yep.stop()
-
-# %% TIMEIT
-
-repetitions = 1
-n = 1
-timing = timeit.Timer(
-    lambda: T.transform_grid(grid, theta),
-    # setup="gc.enable()"
-).repeat(repetitions, n)
-print("Time: ", np.mean(timing) / n, "+-", np.std(timing) / np.sqrt(n))
-
+    loss.backward() 
+    """, 
+    globals={"T": T, "grid": grid, "theta": theta, "method": method}
+)
+# t0.timeit(1)
+t0.blocked_autorange(min_run_time=0.5)
 # %% CPROFILE
 
 import cProfile
@@ -68,13 +57,37 @@ import cProfile
 cProfile.run(
     """
 theta_grad = torch.autograd.Variable(theta, requires_grad=True)
-for i in range(100): 
+for i in range(1000): 
     grid_t = T.transform_grid(grid, theta_grad, method)
-    loss = torch.norm(grid_t)
-    loss.backward()
+    # loss = torch.norm(grid_t)
+    # loss.backward()
 """,
     sort="cumtime",
 )
+# %% YEP + PPROF
+import yep
+
+# torch.set_num_threads(1)
+
+theta_grad = torch.autograd.Variable(theta, requires_grad=True)
+yep.start("profile.prof")
+for i in range(100):
+    grid_t = T.transform_grid(grid, theta_grad, method)
+    # loss = torch.norm(grid_t)
+    # loss.backward()
+
+yep.stop()
+
+# %% TIMEIT
+
+repetitions = 1000
+n = 10
+timing = timeit.Timer(
+    lambda: T.transform_grid(grid, theta),
+    # setup="gc.enable()"
+).repeat(repetitions, n)
+print("Time: ", np.mean(timing) / n, "+-", np.std(timing) / np.sqrt(n))
+
 # %% PYTORCH PROFILER
 
 with profiler.profile(with_stack=True, profile_memory=True) as prof:
@@ -82,12 +95,6 @@ with profiler.profile(with_stack=True, profile_memory=True) as prof:
 
 print(prof.key_averages().table(sort_by="self_cpu_time_total", row_limit=50))
 # prof.export_chrome_trace("trace.json")
-
-# %%
-t0 = benchmark.Timer(
-    stmt="T.transform_grid(grid, theta)", globals={"T": T, "grid": grid, "theta": theta}
-)
-t0.timeit(1)
 
 # %% snakeviz
 # %prun -D program.prof T.transform_grid(grid, theta)
@@ -98,17 +105,17 @@ from itertools import product
 
 results = []
 
-num_threads_arr = [1, 2, 4]
+num_threads_arr = [1] # [1, 2, 4]
 
 backend_arr = ["pytorch"] # ["pytorch", "numpy"]
-device_arr = ["cpu"] # ["cpu", "gpu"]
-method_arr = ["closed_form", "numeric"] # ["closed_form", "numeric"]
-use_slow_arr = [False, True] # [True, False]
-zero_boundary_arr = [True, False] # [True, False]
+device_arr = ["cpu", "gpu"] # ["cpu", "gpu"]
+method_arr = ["closed_form"] # ["closed_form", "numeric"]
+use_slow_arr = [False] # [True, False]
+zero_boundary_arr = [True] # [True, False]
 
 tess_size_arr = [50]
-outsize_arr = [100]
-batch_size_arr = [20]
+outsize_arr = [1000]
+batch_size_arr = [200]
 
 for (
     backend,
@@ -141,7 +148,7 @@ for (
     sub_label = f"[{backend}, {device}, {method}, {use_slow}, {zero_boundary}, {tess_size}, {outsize}, {batch_size}]"
     print(sub_label)
     for num_threads in num_threads_arr:
-        repetitions = 10
+        repetitions = 1
 
         # FORWARD
         t0 = benchmark.Timer(
@@ -156,8 +163,8 @@ for (
             description="Forward",
         )
         # results.append(t0.timeit(repetitions))
-        # results.append(t0.blocked_autorange(min_run_time=0.5))
-        results.append(t0.adaptive_autorange())
+        results.append(t0.blocked_autorange(min_run_time=0.5))
+        # results.append(t0.adaptive_autorange())
 
         # BACKWARD
         t1 = benchmark.Timer(
@@ -175,8 +182,8 @@ for (
             description="Backward",
         )
         # results.append(t1.timeit(repetitions))
-        # results.append(t1.blocked_autorange(min_run_time=0.5))
-        results.append(t1.adaptive_autorange())
+        results.append(t1.blocked_autorange(min_run_time=0.5))
+        # results.append(t1.adaptive_autorange())
 
 
 # %%
@@ -185,7 +192,31 @@ compare.trim_significant_figures()
 compare.colorize()
 compare.print()
 
-# %%
+# %% RESULTS TO LATEX
+import pandas as pd
+
+df = [
+    pd.DataFrame({
+        'experiment': t.as_row_name.replace('[', '').replace(']', ''), 
+        'description': t.task_spec.description,
+        'threads': t.task_spec.num_threads,
+        'time': t.raw_times,
+        'time_mean': np.mean(t.raw_times),
+        'time_std': np.std(t.raw_times),
+        })
+    for t in results
+]
+df = pd.concat(df, ignore_index=True)
+
+
+header = ['Backend', 'Device', 'Method', 'Speed', 'Boundary', 'Tess Size', 'Grid Size', 'Batch Size']
+parameters = pd.DataFrame(df["experiment"].str.split(',', expand=True).values, columns=header)
+
+a = pd.concat([parameters, df], axis=1).drop(columns=['experiment'])
+a.to_latex(index=False, escape=False)
+
+
+# %% RESULTS TO PLOT
 import seaborn as sns
 import pandas as pd
 
