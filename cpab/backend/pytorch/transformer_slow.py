@@ -2,8 +2,15 @@
 
 import torch
 
-eps = torch.finfo(torch.float32).eps
+# %% COMPARE EQUAL TO ZERO
+# eps = torch.finfo(torch.float32).eps
 # eps = 1e-6
+
+def cmpf0(x):
+    # return x == 0
+    eps = 1e-6
+    return torch.abs(x) < eps
+
 # %% BATCH EFFECT
 
 def batch_effect(x, theta):
@@ -37,16 +44,15 @@ def precompute_affine(x, theta, params):
     params.precomputed = True
     return params
 
-
 def right_boundary(c, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
+    eps = 1e-6
     return xmin + (c + 1) * (xmax - xmin) / nc + eps
-
 
 def left_boundary(c, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
+    eps = 1e-6
     return xmin + c * (xmax - xmin) / nc - eps
-
 
 def get_cell(x, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
@@ -54,7 +60,6 @@ def get_cell(x, params):
     c = torch.floor((x - xmin) / (xmax - xmin) * nc)
     c = torch.clamp(c, 0, nc - 1).long()
     return c
-
 
 def get_velocity(x, theta, params):
     A, r = get_affine(x, theta, params)
@@ -74,12 +79,11 @@ def get_psi(x, t, theta, params):
     a = A[r, c, 0]
     b = A[r, c, 1]
 
-    cond = a == 0
+    cond = cmpf0(a)
     x1 = x + t * b
     x2 = torch.exp(t * a) * (x + (b / a)) - (b / a)
     psi = torch.where(cond, x1, x2)
     return psi
-
 
 def get_hit_time(x, theta, params):
     A, r = get_affine(x, theta, params)
@@ -91,7 +95,7 @@ def get_hit_time(x, theta, params):
     a = A[r, c, 0]
     b = A[r, c, 1]
 
-    cond = a == 0
+    cond = cmpf0(a)
     x1 = (xc - x) / b
     x2 = torch.log((xc + b / a) / (x + b / a)) / a
     thit = torch.where(cond, x1, x2)
@@ -248,7 +252,7 @@ def derivative_psi_theta(x, t, theta, k, params):
     ak = params.B[2 * c, k]
     bk = params.B[2 * c + 1, k]
 
-    cond = a == 0
+    cond = cmpf0(a)
     d1 = t * (x * ak + bk)
     d2 = (
         ak * t * torch.exp(t * a) * (x + b / a)
@@ -264,7 +268,7 @@ def derivative_phi_time(x, t, theta, k, params):
     a = A[r, c, 0]
     b = A[r, c, 1]
 
-    cond = a == 0
+    cond = cmpf0(a)
     d1 = b
     d2 = torch.exp(t * a) * (a * x + b)
     dpsi_dtime = torch.where(cond, d1, d2)
@@ -284,7 +288,7 @@ def derivative_thit_theta(x, theta, k, params):
 
     xc = torch.where(v >= 0, right_boundary(c, params), left_boundary(c, params))
 
-    cond = a == 0
+    cond = cmpf0(a)
     d1 = (x - xc) * bk / b ** 2
     d2 = -ak * torch.log((a * xc + b) / (a * x + b)) / a ** 2
     d3 = (x - xc) * (bk * a - ak * b) / (a * (a * x + b) * (a * xc + b))
