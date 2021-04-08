@@ -13,14 +13,14 @@ int sign(const int r){
 }
 
 // TODO: replace 2 for params per cell
-bool cmpf(float& x, float& y, float eps = 1e-6f)
-{
-    // return x == y;
+bool cmpf(float x, float y, float eps = 1e-6f)
+{   
     return std::fabs(x - y) < eps;
 }
 
 bool cmpf0(const float& x, float eps = 1e-6f)
-{
+{   
+    // eps = 1e-6f;
     return std::fabs(x) < eps;
 }
 
@@ -240,7 +240,7 @@ float derivative_phi_theta(const float& xini, const float& tm, const int& cm, co
 
     const float dpsi_dtheta = derivative_psi_theta(xm, tm, k, d, B, A, xmin, xmax, nc);
     const float dpsi_dtime = derivative_phi_time(xm, tm, A, xmin, xmax, nc);
-    const float dphi_dtheta = dpsi_dtheta + dpsi_dtime*dthit_dtheta_cum;    
+    const float dphi_dtheta = dpsi_dtheta + dpsi_dtime*dthit_dtheta_cum;
 
     return dphi_dtheta;
 }
