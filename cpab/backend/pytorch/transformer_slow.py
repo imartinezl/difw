@@ -4,7 +4,6 @@ import torch
 
 # %% COMPARE EQUAL TO ZERO
 # eps = torch.finfo(torch.float32).eps
-# eps = 1e-6
 
 def cmpf0(x):
     # return x == 0

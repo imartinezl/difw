@@ -24,15 +24,16 @@ bool cmpf0(const float& x, float eps = 1e-6f)
     return std::fabs(x) < eps;
 }
 
-float eps = std::numeric_limits<float>::epsilon();
+// float eps = std::numeric_limits<float>::epsilon();
+float eps = 1e-6;
 
 float right_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
-    // eps = 1e-5f;
+    // eps = 1e-6f;
     return xmin + (c + 1) * (xmax - xmin) / nc + eps;
 }
 
 float left_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
-    // eps = 1e-5f;
+    // eps = 1e-6f;
     return xmin + c * (xmax - xmin) / nc - eps;
 }
 
