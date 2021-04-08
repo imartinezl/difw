@@ -30,7 +30,7 @@ try:
         sources=[_dir + "/transformer.cpp",
                 _dir + '/../../core/cpab.cpp'],
         # extra_cflags=["-O0", "-g"], # TODO: change compilation flags to -O3 or -Ofast
-        extra_cflags=["-Ofast", "-ffast-math", "-funsafe-math-optimizations", "-msse4.2"],
+        extra_cflags=["-Ofast", "-ffast-math", "-funsafe-math-optimizations"], # , "-msse4.2"
         verbose=_verbose,
     )
     _cpu_success = True
@@ -59,7 +59,7 @@ try:
                 _dir + '/transformer_cuda.cu',
                 _dir + '/../../core/cpab_ops.cu'],
         # extra_cflags=["-O0", "-g"], # TODO: change compilation flags to -O3 or -Ofast
-        extra_cflags=["-Ofast"],
+        extra_cflags=["-Ofast", "-ffast-math", "-funsafe-math-optimizations"],
         verbose=_verbose,
         with_cuda=True)
     _gpu_success = True
@@ -317,8 +317,8 @@ class Transformer_fast_gpu_closed_form(torch.autograd.Function):
     def forward(ctx, grid, theta, params):
         ctx.params = params
         output = cpab_gpu.integrate_closed_form_trace(grid, theta, params.B, params.xmin, params.xmax, params.nc)
-        ctx.save_for_backward(output, grid, theta)
         grid_t = output[:,:,0]
+        ctx.save_for_backward(output, grid, theta)
         return grid_t
 
     @staticmethod
