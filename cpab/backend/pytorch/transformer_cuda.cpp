@@ -1,12 +1,5 @@
 #include <torch/extension.h>
 
-// Cuda forward declaration
-// at::Tensor cpab_cuda_forward(at::Tensor points_in, at::Tensor trels_in,  
-//                              at::Tensor nstepsolver_in, at::Tensor nc_in, 
-// 							 const int broadcast, at::Tensor output);
-// at::Tensor cpab_cuda_backward(at::Tensor points_in, at::Tensor As_in, 
-//                               at::Tensor Bs_in, at::Tensor nstepsolver_in,
-//                               at::Tensor nc, const int broadcast, at::Tensor output);
 at::Tensor cuda_get_cell(at::Tensor points, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, const int nSteps1, const int nSteps2, at::Tensor output);
