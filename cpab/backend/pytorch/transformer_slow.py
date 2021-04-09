@@ -5,6 +5,10 @@ import torch
 # %% COMPARE EQUAL TO ZERO
 # eps = torch.finfo(torch.float32).eps
 
+def cmpf(x, y):
+    eps = 1e-6
+    return torch.abs(x-y) < eps
+
 def cmpf0(x):
     # return x == 0
     eps = 1e-6
@@ -98,7 +102,7 @@ def get_hit_time(x, theta, params):
     x1 = (xc - x) / b
     x2 = torch.log((xc + b / a) / (x + b / a)) / a
     thit = torch.where(cond, x1, x2)
-    return thit
+    return thit.clamp(min=0)
 
 def get_phi_numeric(x, t, theta, params):
     nSteps2 = params.nSteps2

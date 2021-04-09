@@ -14,13 +14,14 @@ int sign(const int r){
 
 // TODO: replace 2 for params per cell
 bool cmpf(float x, float y, float eps = 1e-6f)
-{   
+{
     return std::fabs(x - y) < eps;
 }
 
 bool cmpf0(const float& x, float eps = 1e-6f)
 {   
     // eps = 1e-6f;
+    // abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
     return std::fabs(x) < eps;
 }
 
@@ -82,6 +83,12 @@ float get_hit_time(const float& x, const float* A, const float& xmin, const floa
     }
     else{
         tcross = std::log((xc + b/a)/(x + b/a))/a;
+    }
+    if (tcross < 0){
+        tcross = 0;
+    }
+    if (cmpf(x, xc)){
+        tcross = 0;
     }
     return tcross;
 }
@@ -319,12 +326,20 @@ float get_hit_time_optimized(const float& x, const int& c, const float& xc, cons
     // }
     const float a = A[2*c];
     const float b = A[2*c+1];
+    float tcross;
     if (cmpf0(a)){
-        return (xc - x)/b;
+        tcross = (xc - x)/b;
     }
     else{
-        return std::log((xc + b/a)/(x + b/a))/a;
+        tcross = std::log((xc + b/a)/(x + b/a))/a;
     }
+    if (tcross < 0){
+        tcross = 0;
+    }
+    if (cmpf(x, xc)){
+        tcross = 0;
+    }
+    return tcross;
 }
 
 void integrate_closed_form_trace_optimized(float* result, float x, float t, const float* A, const float& xmin, const float& xmax, const int& nc){
