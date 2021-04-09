@@ -299,20 +299,12 @@ __device__ float get_psi_optimized(const float& x, const int&c, const float& t, 
 __device__ float get_hit_time_optimized(const float& x, const int& c, const float& xc, const float* A, const int& n_batch, const int& batch_index){
     const float a = A[(2*c) * n_batch + batch_index];
     const float b = A[(2*c+1) * n_batch + batch_index];
-    float tcross;
     if (cmpf0(a)){
-        tcross = (xc - x)/b;
+        return (xc - x)/b;
     }
     else{
-        tcross = log((xc + b/a)/(x + b/a))/a;
+        return log((xc + b/a)/(x + b/a))/a;
     }
-    if (tcross < 0){
-        tcross = 0;
-    }
-    if (cmpf(x, xc)){
-        tcross = 0;
-    }
-    return tcross;
 }
 
 __device__ void integrate_closed_form_trace_optimized(float* result, float x, float t, const float* A, const int& n_batch, const int& batch_index, const float& xmin, const float& xmax, const int& nc){

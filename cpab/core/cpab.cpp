@@ -84,12 +84,6 @@ float get_hit_time(const float& x, const float* A, const float& xmin, const floa
     else{
         tcross = std::log((xc + b/a)/(x + b/a))/a;
     }
-    if (tcross < 0){
-        tcross = 0;
-    }
-    if (cmpf(x, xc)){
-        tcross = 0;
-    }
     return tcross;
 }
 
@@ -326,20 +320,12 @@ float get_hit_time_optimized(const float& x, const int& c, const float& xc, cons
     // }
     const float a = A[2*c];
     const float b = A[2*c+1];
-    float tcross;
     if (cmpf0(a)){
-        tcross = (xc - x)/b;
+        return (xc - x)/b;
     }
     else{
-        tcross = std::log((xc + b/a)/(x + b/a))/a;
+        return std::log((xc + b/a)/(x + b/a))/a;
     }
-    if (tcross < 0){
-        tcross = 0;
-    }
-    if (cmpf(x, xc)){
-        tcross = 0;
-    }
-    return tcross;
 }
 
 void integrate_closed_form_trace_optimized(float* result, float x, float t, const float* A, const float& xmin, const float& xmax, const int& nc){
