@@ -20,13 +20,13 @@ bool cmpf(float x, float y, float eps = 1e-6f)
 
 bool cmpf0(const float& x, float eps = 1e-6f)
 {   
+    // return x == 0;
     // eps = 1e-6f;
-    // abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
     return std::fabs(x) < eps;
 }
 
-// float eps = std::numeric_limits<float>::epsilon();
-float eps = 1e-6;
+// float eps = 1e-6;
+float eps = std::numeric_limits<float>::epsilon();
 
 float right_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
     // eps = 1e-6f;

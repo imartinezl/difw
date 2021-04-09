@@ -20,15 +20,15 @@ __device__ bool cmpf0(const float& x, float eps = 1e-6f){
     return fabs(x) < eps;
 }
 
+const float eps = FLT_EPSILON;
 __device__ float right_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
-    // const float eps = FLT_EPSILON;
-    const float eps = 1e-6f;
+    // const float eps = 1e-6f;
     return xmin + (c + 1) * (xmax - xmin) / nc + eps;
 }
 
 __device__ float left_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
     // const float eps = FLT_EPSILON;
-    const float eps = 1e-6f;
+    // const float eps = 1e-6f;
     return xmin + c * (xmax - xmin) / nc - eps;
 }
 
