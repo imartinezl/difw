@@ -102,7 +102,7 @@ at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::
 
    // Launch kernel
    kernel_derivative_closed_form<<<bc, tpb>>>(n_points, n_batch, d,
-      points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), xmin, xmax, nc, gradient.data_ptr<float>());
+      points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), xmin, xmax, nc, gradient.data_ptr<double>());
 
    gpuErrchk( cudaPeekAtLastError() );                           
    return gradient; 
@@ -147,7 +147,7 @@ at::Tensor cuda_derivative_closed_form_trace(at::Tensor output, at::Tensor point
 
    // Launch kernel
    kernel_derivative_closed_form_trace_optimized<<<bc, tpb>>>(n_points, n_batch, d,
-      output.data_ptr<float>(), points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), xmin, xmax, nc, gradient.data_ptr<float>());
+      output.data_ptr<float>(), points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), xmin, xmax, nc, gradient.data_ptr<double>());
 
    gpuErrchk( cudaPeekAtLastError() );                           
    return gradient; 
