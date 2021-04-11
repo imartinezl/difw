@@ -10,16 +10,17 @@ import matplotlib.pyplot as plt
 import cpab
 from tqdm import tqdm 
 
+
 # %% TEST 
 
-tess_size = 5
+tess_size = 50
 backend = "pytorch" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
-use_slow = True
+use_slow = False
 outsize = 10
 batch_size = 2
-method = "numeric"
+method = "closed_form"
 
 T = cpab.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
@@ -31,9 +32,9 @@ grid_t = T.transform_grid(grid, theta)
 T.visualize_tesselation()
 T.visualize_velocity(theta)
 T.visualize_deformgrid(theta)
-T.visualize_deformgrid(theta, method)
+T.visualize_deformgrid(theta, "numeric")
 T.visualize_gradient(theta)
-T.visualize_gradient(theta, method)
+T.visualize_gradient(theta, "numeric")
 
 
 # %% OPTIMIZATION BY GRADIENT
@@ -45,31 +46,43 @@ zero_boundary = True
 use_slow = False
 outsize = 100
 batch_size = 20
-method = "numeric"
+method = "closed_form"
 
 T = cpab.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
 
-theta_1 = T.sample_transformation(batch_size)
+torch.manual_seed(0)
+theta_1 = T.sample_transformation(batch_size)*10
+# theta_1 = T.identity(batch_size, epsilon=1.0)
 grid_t1 = T.transform_grid(grid, theta_1, method)
 
 theta_2 = torch.autograd.Variable(T.sample_transformation(batch_size), requires_grad=True)
 
-lr = 1e-1
+lr = 1e-2
 optimizer = torch.optim.Adam([theta_2], lr=lr)
 
 # torch.set_num_threads(1)
 loss_values = []
-maxiter = 500
+maxiter = 1500
 with tqdm(desc='Alignment of samples', unit='iters', total=maxiter,  position=0, leave=True) as pb:
     for i in range(maxiter):
         optimizer.zero_grad()
+        
+        # output = T.backend.cpab_cpu.integrate_closed_form_trace(grid, theta_2, T.params.B, T.params.xmin, T.params.xmax, T.params.nc)
+        # grad_theta = T.backend.cpab_cpu.derivative_closed_form_trace(output, grid, theta_2, T.params.B, T.params.xmin, T.params.xmax, T.params.nc) # [n_batch, n_points, d]
+        # theta_backup = theta_2.clone()
+        
         grid_t2 = T.transform_grid(grid, theta_2, method=method)
-        loss = torch.norm(grid_t2 - grid_t1)
+        # loss = torch.norm(grid_t2 - grid_t1)
+        loss = torch.norm(grid_t2 - grid_t1, dim=1).mean()
         loss.backward()
         optimizer.step()
+
+        if torch.any(torch.isnan(theta_2)):
+            print("AHSDASD")
+            break
 
         loss_values.append(loss.item())
         pb.update()
@@ -92,7 +105,7 @@ plt.axhline(color="black", ls="dashed")
 
 # %% OPTIMIZATION BY MCMC SAMPLING
 
-tess_size = 5
+tess_size = 50
 backend = "pytorch" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
