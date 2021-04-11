@@ -3,16 +3,13 @@
 import torch
 
 # %% COMPARE EQUAL TO ZERO
-# eps = torch.finfo(torch.float32).eps
+eps = torch.finfo(torch.float32).eps
 
 def cmpf(x, y):
-    eps = 1e-6
     return torch.abs(x-y) < eps
 
 def cmpf0(x):
     # return x == 0
-    eps = 1e-6
-    # eps = torch.finfo(torch.float32).eps
     return torch.abs(x) < eps
 
 # %% BATCH EFFECT
@@ -38,7 +35,6 @@ def get_affine(x, theta, params):
         r = torch.arange(n_batch).repeat_interleave(repeat).long().to(x.device)
 
         A = params.B.mm(theta.T).T.reshape(n_batch, -1, 2).to(x.device)
-
         return A, r
 
 def precompute_affine(x, theta, params):
@@ -47,8 +43,6 @@ def precompute_affine(x, theta, params):
     params.A, params.r = get_affine(x, theta, params)
     params.precomputed = True
     return params
-
-eps = torch.finfo(torch.float32).eps
 
 def right_boundary(c, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
@@ -89,7 +83,7 @@ def get_psi(x, t, theta, params):
     psi = torch.where(cond, x1, x2)
     return psi
 
-def get_hit_time(x, theta, params):
+def get_hit_time_DEPRECATED(x, theta, params):
     A, r = get_affine(x, theta, params)
 
     c = get_cell(x, params)
@@ -107,6 +101,37 @@ def get_hit_time(x, theta, params):
     # cond = torch.isnan(thit)
     # thit[cond] = float('inf')
     return thit
+
+def get_hit_time(x, theta, params):
+
+    thit = torch.empty_like(x)
+    valid = torch.full_like(x, True, dtype=bool)
+
+    c = get_cell(x, params)
+    A, r = get_affine(x, theta, params)
+    
+    a = A[r, c, 0]
+    b = A[r, c, 1]
+    
+    v = a * x + b
+    cond1 = cmpf0(v)
+
+    cc = c + torch.sign(v)
+    cond2 = torch.logical_or(cc < 0, cc >= params.nc)
+    xc = torch.where(v > 0, right_boundary(c, params), left_boundary(c, params))
+
+    vc = a * xc + b
+    cond3 = cmpf0(vc)
+    cond4 = torch.sign(v) != torch.sign(vc)
+    cond5 = torch.logical_or(xc == params.xmin, xc == params.xmax)
+
+    cond = cond1 | cond2 | cond3 | cond4 | cond5
+    thit[~cond] = torch.where(
+        cmpf0(a[~cond]), 
+        (xc[~cond] - x[~cond])/b[~cond], 
+        torch.log(vc[~cond] / v[~cond]) / a[~cond])
+    thit[cond] = float("inf")
+    return thit, xc, cc
 
 def get_phi_numeric(x, t, theta, params):
     nSteps2 = params.nSteps2
@@ -142,8 +167,7 @@ def integrate_numeric(x, theta, params):
         xPrev = torch.where(c == cTemp, xTemp, xNum)
     return xPrev.reshape((n_batch, -1))
 
-
-def integrate_closed_form(x, theta, params):
+def integrate_closed_form_DEPRECATED(x, theta, params):
     # setup
     x = batch_effect(x, theta)
     t = torch.ones_like(x)
@@ -184,9 +208,39 @@ def integrate_closed_form(x, theta, params):
             raise BaseException
     return None
 
+def integrate_closed_form(x, theta, params):
+    # setup
+    x = batch_effect(x, theta)
+    t = torch.ones_like(x)
+    params = precompute_affine(x, theta, params)
+    n_batch = theta.shape[0]
 
+    # computation
+    phi = torch.empty_like(x)
+    done = torch.full_like(x, False, dtype=bool)
+    
+    c = get_cell(x, params)
+    cont = 0
+    while True:
+        thit, xc, cc = get_hit_time(x, theta, params)
+        psi = get_psi(x, t, theta, params)
 
+        valid = thit > t
+        phi[~done] = psi
+        done[~done] = valid
 
+        if torch.all(valid):
+            return phi.reshape((n_batch, -1))
+
+        params.r = params.r[~valid]
+        x = xc[~valid]
+        c = cc[~valid]
+        t = (t - thit)[~valid]
+
+        cont += 1
+        if cont > params.nc:
+            raise BaseException
+    return None
 
 # %% DERIVATIVE
 
@@ -209,7 +263,6 @@ def derivative_numeric(x, theta, params, h=1e-3):
 
     return phi_1, der
 
-    
 def derivative_closed_form(x, theta, params):
     # setup
     n_points = x.shape[-1]
@@ -249,9 +302,10 @@ def derivative_closed_form(x, theta, params):
     
     return phi, der
 
-
 def derivative_psi_theta(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
+    A = A.double() # note: double precision is necessary
+
     c = get_cell(x, params)
     a = A[r, c, 0]
     b = A[r, c, 1]
@@ -265,9 +319,10 @@ def derivative_psi_theta(x, t, theta, k, params):
         ak * t * torch.exp(t * a) * (x + b / a)
         + (torch.exp(t * a) - 1) * (bk * a - ak * b) / a ** 2
     )
+    d1 = d1.double()
+    # d2 = d2.double()
     dpsi_dtheta = torch.where(cond, d1, d2)
     return dpsi_dtheta
-
 
 def derivative_phi_time(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
@@ -281,9 +336,10 @@ def derivative_phi_time(x, t, theta, k, params):
     dpsi_dtime = torch.where(cond, d1, d2)
     return dpsi_dtime
 
-
 def derivative_thit_theta(x, theta, k, params):
     A, r = get_affine(x, theta, params)
+    A = A.double() # note: double precision is necessary
+
     c = get_cell(x, params)
     a = A[r, c, 0]
     b = A[r, c, 1]
@@ -304,7 +360,7 @@ def derivative_thit_theta(x, theta, k, params):
 
 # %% TRANSFORMATION
 
-def integrate_closed_form_trace(x, theta, params):
+def integrate_closed_form_trace_DEPRECATED(x, theta, params):
     # setup
     n_batch = theta.shape[0]
     x = batch_effect(x, theta)
@@ -339,6 +395,40 @@ def integrate_closed_form_trace(x, theta, params):
         psi = torch.where(psi > right, right, psi)
         x = psi[~valid]
         c = torch.where(v >= 0, c+1, c-1)[~valid]
+
+        cont += 1
+        if cont > params.nc:
+            raise BaseException
+    return None
+
+def integrate_closed_form_trace(x, theta, params):
+    # setup
+    x = batch_effect(x, theta)
+    t = torch.ones_like(x)
+    params = precompute_affine(x, theta, params)
+    n_batch = theta.shape[0]
+
+    # computation
+    result = torch.empty((*x.shape, 3), device=x.device)
+    done = torch.full_like(x, False, dtype=bool)
+    
+    c = get_cell(x, params)
+    cont = 0
+    while True:
+        thit, xc, cc = get_hit_time(x, theta, params)
+        psi = get_psi(x, t, theta, params)
+
+        valid = thit > t
+        result[~done] = torch.stack((psi, t, c)).T
+        done[~done] = valid
+
+        if torch.all(valid):
+            return result
+
+        params.r = params.r[~valid]
+        x = xc[~valid]
+        c = cc[~valid]
+        t = (t - thit)[~valid]
 
         cont += 1
         if cont > params.nc:
