@@ -5,6 +5,8 @@
 #include <limits>
 
 // FUNCTIONS
+float eps = std::numeric_limits<float>::epsilon();
+float inf = std::numeric_limits<float>::infinity();
 
 int sign(const int r){
     // return (r > 0) - (r < 0);
@@ -20,32 +22,22 @@ int signf(const float r){
     return 0;
 }
 
-
 // TODO: replace 2 for params per cell
-bool cmpf(float x, float y, float eps = std::numeric_limits<float>::epsilon())
+bool cmpf(float x, float y)
 {
     return std::fabs(x - y) < eps;
 }
 
-bool cmpf0(const float& x, float eps = std::numeric_limits<float>::epsilon())
+bool cmpf0(const float& x)
 {   
-    // return x == 0;
-    // eps = 1e-3f;
-    // eps = std::numeric_limits<float>::epsilon();
     return std::fabs(x) < eps;
 }
 
-// float eps = 1e-6;
-float eps = std::numeric_limits<float>::epsilon();
-float inf = std::numeric_limits<float>::infinity();
-
 float right_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
-    // eps = 1e-6f;
     return xmin + (c + 1) * (xmax - xmin) / nc + eps;
 }
 
 float left_boundary(const int& c, const float& xmin, const float& xmax, const int& nc){
-    // eps = 1e-6f;
     return xmin + c * (xmax - xmin) / nc - eps;
 }
 
@@ -109,7 +101,7 @@ float get_hit_time_DEPRECATED(const float& x, const float* A, const float& xmin,
 
 float get_hit_time(float x, int c, const float& a, const float& b, const float& xmin, const float& xmax, const int& nc, float& xc, int& cc){
 
-    float v = a * x + b;
+    const float v = a * x + b;
     if(cmpf0(v)) return inf;
 
     cc = c + signf(v);
@@ -239,6 +231,73 @@ float integrate_closed_form(float x, float t, const float* A, const float& xmin,
     return -1;
 }
 
+void integrate_closed_form_trace_DEPRECATED(float* result, float x, float t, const float* A, const float& xmin, const float& xmax, const int& nc){
+    int c = get_cell(x, xmin, xmax, nc);
+    int cont = 0;
+    const int contmax = std::max(c, nc-1-c);
+
+    float left, right, v, psi;
+    bool cond1, cond2, cond3;
+    while (true) {
+        left = left_boundary(c, xmin, xmax, nc);
+        right = right_boundary(c, xmin, xmax, nc);
+        v = get_velocity(x, A, xmin, xmax, nc);
+        psi = get_psi_DEPRECATED(x, t, A, xmin, xmax, nc);
+
+        cond1 = (left <= psi) && (psi <= right);
+        cond2 = (v >= 0) && (c == nc-1);
+        cond3 = (v <= 0) && (c == 0);
+
+        if (cond1 || cond2 || cond3){
+            result[0] = psi;
+            result[1] = t;
+            result[2] = c;
+            return;
+        }
+        
+        t -= get_hit_time_DEPRECATED(x, A, xmin, xmax, nc);        
+        x = (v >= 0) ? right : left;
+        c = (v >= 0) ? c+1 : c-1;
+
+        cont++;
+        if (cont > contmax){
+            break;
+        }
+    }
+    return;
+}
+
+void integrate_closed_form_trace(float* result, float x, float t, const float* A, const float& xmin, const float& xmax, const int& nc){
+    int c = get_cell(x, xmin, xmax, nc);
+    int cont = 0;
+    const int contmax = std::max(c, nc-1-c);
+
+    float a, b, xc, thit;
+    int cc;
+    while (true) {
+        a = A[2*c];
+        b = A[2*c+1];
+
+        thit = get_hit_time(x, c, a, b, xmin, xmax, nc, xc, cc);
+        if (thit > t){
+            result[0] = get_psi(x, t, a, b);
+            result[1] = t;
+            result[2] = c;
+            return;
+        }
+
+        x = xc;
+        c = cc;
+        t -= thit;
+
+        cont++;
+        if (cont > contmax){
+            break;
+        }
+    }
+    return;
+}
+
 
 // DERIVATIVE
 
@@ -331,74 +390,6 @@ float derivative_phi_theta(const float& xini, const float& tm, const int& cm, co
 }
 
 
-// TRANSFORMATION
-
-void integrate_closed_form_trace_DEPRECATED(float* result, float x, float t, const float* A, const float& xmin, const float& xmax, const int& nc){
-    int c = get_cell(x, xmin, xmax, nc);
-    int cont = 0;
-    const int contmax = std::max(c, nc-1-c);
-
-    float left, right, v, psi;
-    bool cond1, cond2, cond3;
-    while (true) {
-        left = left_boundary(c, xmin, xmax, nc);
-        right = right_boundary(c, xmin, xmax, nc);
-        v = get_velocity(x, A, xmin, xmax, nc);
-        psi = get_psi_DEPRECATED(x, t, A, xmin, xmax, nc);
-
-        cond1 = (left <= psi) && (psi <= right);
-        cond2 = (v >= 0) && (c == nc-1);
-        cond3 = (v <= 0) && (c == 0);
-
-        if (cond1 || cond2 || cond3){
-            result[0] = psi;
-            result[1] = t;
-            result[2] = c;
-            return;
-        }
-        
-        t -= get_hit_time_DEPRECATED(x, A, xmin, xmax, nc);        
-        x = (v >= 0) ? right : left;
-        c = (v >= 0) ? c+1 : c-1;
-
-        cont++;
-        if (cont > contmax){
-            break;
-        }
-    }
-    return;
-}
-
-void integrate_closed_form_trace(float* result, float x, float t, const float* A, const float& xmin, const float& xmax, const int& nc){
-    int c = get_cell(x, xmin, xmax, nc);
-    int cont = 0;
-    const int contmax = std::max(c, nc-1-c);
-
-    float a, b, xc, thit;
-    int cc;
-    while (true) {
-        a = A[2*c];
-        b = A[2*c+1];
-
-        thit = get_hit_time(x, c, a, b, xmin, xmax, nc, xc, cc);
-        if (thit > t){
-            result[0] = get_psi(x, t, a, b);
-            result[1] = t;
-            result[2] = c;
-            return;
-        }
-
-        x = xc;
-        c = cc;
-        t -= thit;
-
-        cont++;
-        if (cont > contmax){
-            break;
-        }
-    }
-    return;
-}
 
 // OPTIMIZED INTEGRAL
 
@@ -496,11 +487,8 @@ float get_phi_numeric_optimized(const float& x, const float& t, const int& nStep
     float yn = x;
     float midpoint;
     const float deltaT = t / nSteps2;
-    // int c;
     for(int j = 0; j < nSteps2; j++) {
-        // c = get_cell(x, xmin, xmax, nc);
         midpoint = yn + deltaT / 2 * get_velocity(yn, A, xmin, xmax, nc);
-        // c = get_cell(midpoint, xmin, xmax, nc);
         yn = yn + deltaT * get_velocity(midpoint, A, xmin, xmax, nc);
     }
     return yn;
