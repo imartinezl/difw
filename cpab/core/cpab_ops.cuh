@@ -25,7 +25,7 @@ __global__ void kernel_integrate_closed_form(
 __global__ void kernel_derivative_closed_form(
     const int n_points, const int n_batch, const int d,
     const float* x, const float* A, const float* B, 
-    const int xmin, const int xmax, const int nc, float* gradpoints);
+    const int xmin, const int xmax, const int nc, double* gradpoints);
 
 
 __global__ void kernel_integrate_closed_form_trace(
@@ -35,11 +35,11 @@ __global__ void kernel_integrate_closed_form_trace(
 __global__ void kernel_derivative_closed_form_trace(
     const int n_points, const int n_batch, const int d,
     const float* newpoints, const float* x, const float* A, const float* B, 
-    const float xmin, const float xmax, const int nc, float* gradpoints);
+    const float xmin, const float xmax, const int nc, double* gradpoints);
   
 __global__ void kernel_derivative_closed_form_trace_optimized(
     const int n_points, const int n_batch, const int d,
     const float* newpoints, const float* x, const float* A, const float* B, 
-    const float xmin, const float xmax, const int nc, float* gradpoints);
+    const float xmin, const float xmax, const int nc, double* gradpoints);
       
 #endif
