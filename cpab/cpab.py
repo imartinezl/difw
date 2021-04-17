@@ -48,9 +48,9 @@ class Cpab:
         self.params.zero_boundary = zero_boundary
         self.params.xmin = 0
         self.params.xmax = 1
-        self.params.nSteps1 = 5
+        self.params.nSteps1 = 10
         self.params.nSteps2 = 5
-        self.params.precomputed = False # TODO: review if necessary
+        self.params.precomputed = False
         self.params.use_slow = False
 
         # Initialize tesselation

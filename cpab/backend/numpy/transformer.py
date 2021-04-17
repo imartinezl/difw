@@ -258,8 +258,7 @@ def derivative_closed_form(x, theta, params):
         dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
         der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
     
-    # return der
-    return phi, der  # TODO: also return phi just in case
+    return phi, der
 
 def derivative_psi_theta(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)

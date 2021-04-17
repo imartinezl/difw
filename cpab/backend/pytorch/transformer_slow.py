@@ -31,7 +31,7 @@ def get_affine(x, theta, params):
         repeat = int(n_points / n_batch)
 
         # r = np.broadcast_to(np.arange(n_batch), [n_points, n_batch]).T
-        # TODO: here we suppose batch effect has been already executed
+        # NOTE: here we suppose batch effect has been already executed
         r = torch.arange(n_batch).repeat_interleave(repeat).long().to(x.device)
 
         A = params.B.mm(theta.T).T.reshape(n_batch, -1, 2).to(x.device)

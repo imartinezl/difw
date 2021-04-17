@@ -628,7 +628,6 @@ __device__ void derivative_phi_theta_optimized(double* gradpoints, const float& 
     const int cini = get_cell(xini, xmin, xmax, nc);
     float xm = xini;
 
-    // float dthit_dtheta_cum[d] = { };
     if (cini != cm){
         float xc;
         const int step = sign(cm - cini);
@@ -643,12 +642,10 @@ __device__ void derivative_phi_theta_optimized(double* gradpoints, const float& 
         }
     }
 
-    // TODO: OPTIONAL change name derivative_phi_time => derivative_phi_thit NO!!! better dthit_dtheta => dtime_dtheta
     const float dpsi_dtime = derivative_phi_time_optimized(xm, cm, tm, A, n_batch, batch_index);
     for(int k=0; k < d; k++){
         gradpoints[batch_index*(n_points * d) + point_index*d + k] *= dpsi_dtime;
     }
-    // float dpsi_dtheta[d] = { };
     derivative_psi_theta_optimized(gradpoints, xm, cm, tm, d, B, A, n_batch, batch_index, n_points, point_index);
     
 }
