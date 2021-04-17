@@ -73,7 +73,7 @@ at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tens
 
         // For all points
         for(int j = 0; j < n_points; j++) {
-            newpoints[i*n_points + j] = integrate_numeric_optimized(x[j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
+            newpoints[i*n_points + j] = integrate_numeric(x[j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
         }
     }
     return output;
@@ -163,27 +163,17 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
         for(int j = 0; j < n_points; j++) { 
             float result[e];
             integrate_closed_form_trace(result, x[j], t, A, xmin, xmax, nc);
-            // for(int p = 0; p < e; p++){
-            //     newpoints[i*(n_points * e) + j*e + p] = result[p];
-            // }
             // float phi = result[0];
             float tm = result[1];
             int cm = result[2];
             // NEW METHOD
             float dphi_dtheta[d];
-            derivative_phi_theta_optimized(dphi_dtheta, x[j], tm, cm, d, B, A, xmin, xmax, nc);
+            derivative_phi_theta(dphi_dtheta, x[j], tm, cm, d, B, A, xmin, xmax, nc);
 
             // For all parameters theta
             for(int k = 0; k < d; k++){ 
                 gradpoints[i*(n_points * d) + j*d + k] = dphi_dtheta[k];
             }
-            // OLD METHOD
-            // for(int k = 0; k < d; k++){
-            //     float phi = result[0];
-            //     float tm = result[1];
-            //     int cm = result[2];
-            //     gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta(x[j], tm, cm, k, d, B, A, xmin, xmax, nc);
-            // }
         }
     }
     return gradient;
@@ -257,18 +247,14 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
             // float phi = newpoints[i*(n_points * e) + j*e + 0];
             float tm = newpoints[i*(n_points * e) + j*e + 1];
             int cm = newpoints[i*(n_points * e) + j*e + 2];
-            // NEW METHOD
+
             float dphi_dtheta[d];
-            derivative_phi_theta_optimized(dphi_dtheta, x[j], tm, cm, d, B, A, xmin, xmax, nc);
+            derivative_phi_theta(dphi_dtheta, x[j], tm, cm, d, B, A, xmin, xmax, nc);
 
             // For all parameters theta
             for(int k = 0; k < d; k++){
                 gradpoints[i*(n_points * d) + j*d + k] = dphi_dtheta[k];
             }
-            // OLD METHOD
-            // for(int k = 0; k < d; k++){ // for all parameters theta
-            //     gradpoints[i*(n_points * d) + j*d + k] = derivative_phi_theta_optimized_old(x[j], tm, cm, k, d, B, A, xmin, xmax, nc);
-            // }
         }
     }
     return gradient;
