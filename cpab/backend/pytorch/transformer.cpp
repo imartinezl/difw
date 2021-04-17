@@ -1,5 +1,5 @@
 #include <torch/extension.h>
-#include "../../core/cpab.h"
+#include "../../core/cpab_ops.h"
 #include <iostream>
 
 // FUNCTIONS
