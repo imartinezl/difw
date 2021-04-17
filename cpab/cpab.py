@@ -414,9 +414,8 @@ class Cpab:
         assert tess_size > 0, """tess size must be positive"""
         assert backend in [
             "numpy",
-            "tensorflow",
             "pytorch",
-        ], """Unknown backend, choose between 'numpy', 'tensorflow' or 'pytorch' """
+        ], """Unknown backend, choose between 'numpy' or 'pytorch' """
         assert device in [
             "cpu",
             "gpu",
@@ -426,7 +425,6 @@ class Cpab:
         assert (
             type(zero_boundary) == bool
         ), """Argument zero_boundary must be True or False"""
-        # TODO: review backend possibilities
 
     def _check_type(self, x):
         """ Assert that the type of x is compatible with the class i.e

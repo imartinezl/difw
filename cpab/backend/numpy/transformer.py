@@ -24,7 +24,7 @@ def get_affine(x, theta, params):
         n_points = x.shape[-1]
 
         # r = np.broadcast_to(np.arange(n_batch), [n_points, n_batch]).T
-        # TODO: here we suppose batch effect has been already executed
+        # NOTE: here we suppose batch effect has been already executed
         r = np.arange(n_batch).repeat(n_points / n_batch)
 
         A = params.B.dot(theta.T).T.reshape(n_batch, -1, 2)
@@ -219,7 +219,6 @@ def derivative_numeric(x, theta, params, h=1e-3):
 
         der[:,:,k] = (phi_2 - phi_1)/h
 
-    # return der # TODO: also return phi just in case
     return phi_1, der
 
 def derivative_closed_form(x, theta, params):
