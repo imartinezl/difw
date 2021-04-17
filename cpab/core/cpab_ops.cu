@@ -330,12 +330,11 @@ __global__ void kernel_derivative_closed_form(
 
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
-    // int dim_index = blockIdx.z * blockDim.z + threadIdx.z;
     
     float t = 1.0;
     const int e = 3;
 
-    if(point_index < n_points && batch_index < n_batch){ // && dim_index < d){
+    if(point_index < n_points && batch_index < n_batch){ 
         float result[e];
         integrate_closed_form_trace(result, x[point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
             
@@ -343,7 +342,6 @@ __global__ void kernel_derivative_closed_form(
         float tm = result[1];
         int cm = result[2];
         derivative_phi_theta(gradpoints, x[point_index], tm, cm, d, B, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
-        //gradpoints[batch_index*(n_points * d) + point_index*d + k] = derivative_phi_theta(x[point_index], tm, cm, k, d, B, A, n_batch, batch_index, xmin, xmax, nc);
         
     }
     return;
