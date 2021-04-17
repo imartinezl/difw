@@ -8,17 +8,17 @@ float eps = std::numeric_limits<float>::epsilon();
 float inf = std::numeric_limits<float>::infinity();
 
 int sign(const int r){
-    // return (r > 0) - (r < 0);
-    if (r > 0) return 1;
-    if (r < 0) return -1;
-    return 0;
+    return (r > 0) - (r < 0);
+    // if (r > 0) return 1;
+    // if (r < 0) return -1;
+    // return 0;
 }
 
 int signf(const float r){
-    // return (r > 0) - (r < 0);
-    if (r > 0) return 1;
-    if (r < 0) return -1;
-    return 0;
+    return (r > 0) - (r < 0);
+    // if (r > 0) return 1;
+    // if (r < 0) return -1;
+    // return 0;
 }
 
 // TODO: replace 2 for params per cell

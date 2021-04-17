@@ -9,15 +9,11 @@
 #define inf INFINITY;
 
 __device__ int sign(const int r){
-    if (r > 0) return 1;
-    if (r < 0) return -1;
-    return 0;
+    return (r > 0) - (r < 0);
 }
 
 __device__ int signf(const float r){
-    if (r > 0) return 1;
-    if (r < 0) return -1;
-    return 0;
+    return (r > 0) - (r < 0);
 }
 
 __device__ bool cmpf(float x, float y){
