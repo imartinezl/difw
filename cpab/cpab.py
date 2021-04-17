@@ -376,48 +376,7 @@ class Cpab:
         # ax.tick_params(left=False, labelleft=False)
         ax.grid(alpha=0.3)
         return plot
-
-    # TODO: remove method
-    def visualize_velocity2deform(self, theta, method=None, n_points=100, fig=None):
-        """ Utility function that helps visualize deformation vs velocity
-        Arguments:
-            theta: [n_batch, d] single parametrization vector
-            n_points: int, number of points
-            fig: matplotlib figure handle
-        Output:
-            plot: handle to lineplot
-        """
-        pass
-        if fig is None:
-            fig = plt.figure()
-
-        # Calculate velocity, transform grid and convert to numpy
-        grid = self.uniform_meshgrid(n_points)
-        grid_t = self.transform_grid(grid, theta, method)
-        v = self.calc_velocity(grid, theta)
-
-        grid = self.backend.tonumpy(grid)
-        grid_t = self.backend.tonumpy(grid_t)
-        v = self.backend.tonumpy(v)
-
-        # Plot
-        ax = fig.add_subplot(2, 1, 1)
-        ax.axhline(color="black", ls="dashed")
-        ax.plot(grid, v.T, color="blue", alpha=0.1)
-        ax.set_title("Velocity Field " + r'$v(x)$')
-        ax.set_xlabel(r'$x$')
-        ax.set_ylabel(r'$v(x)$')
-        ax.grid(alpha=0.3)
-
-        ax = fig.add_subplot(2, 1, 2)
-        ax.axhline(color="black", ls="dashed")
-        ax.plot(grid, (grid_t - grid).T, c="blue", alpha=0.1)
-        ax.set_title("Grid Deformation " + r'$\phi(x,t)$')
-        ax.set_xlabel(r'$x$', rotation='horizontal')
-        ax.set_ylabel(r'$\phi(x,t)$', rotation='horizontal')
-        ax.grid(alpha=0.3)
-
-        return ax
+        
 
     def visualize_gradient(self, theta, method=None, n_points=100, fig=None):
         """ Utility function that helps visualize the gradient
