@@ -5,7 +5,7 @@
 // FUNCTIONS
 
 at::Tensor torch_get_affine(at::Tensor B, at::Tensor theta){
-    return at::matmul(B, theta);//.reshape({-1,2});
+    return at::matmul(B, theta);
 }
 
 at::Tensor torch_get_cell(at::Tensor points, const float xmin, const float xmax, const int nc){
@@ -33,13 +33,15 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
     // Convert to pointers
     float* x = points.data_ptr<float>();
 
-    for(int i = 0; i < n_batch; i++) { // for all batches
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
         
         // Precompute affine velocity field
         at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
 
-        for(int j = 0; j < n_points; j++) { // for all points
+        // For all points
+        for(int j = 0; j < n_points; j++) {
             newpoints[i*n_points + j] = get_velocity(x[j], A, xmin, xmax, nc);
         }
     }
@@ -61,13 +63,16 @@ at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tens
 
     // Convert to pointers
     float* x = points.data_ptr<float>();
-    for(int i = 0; i < n_batch; i++) { // for all batches
+
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
         
         // Precompute affine velocity field
         at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
 
-        for(int j = 0; j < n_points; j++) { // for all points
+        // For all points
+        for(int j = 0; j < n_points; j++) {
             newpoints[i*n_points + j] = integrate_numeric_optimized(x[j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
         }
     }
@@ -88,13 +93,15 @@ at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::
     // Convert to pointers
     float* x = points.data_ptr<float>();
 
-    for(int i = 0; i < n_batch; i++) { // for all batches
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
 
         // Precompute affine velocity field
         at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
 
-        for(int j = 0; j < n_points; j++) { // for all points
+        // For all points
+        for(int j = 0; j < n_points; j++) {
             newpoints[i*n_points + j] = integrate_closed_form(x[j], t, A, xmin, xmax, nc);
         }
     }
@@ -144,13 +151,16 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
     // Convert to pointers
     float* B = Bt.data_ptr<float>();
     float* x = points.data_ptr<float>();
-    for(int i = 0; i < n_batch; i++) { // for all batches
+
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
 
         // Precompute affine velocity field
         at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
 
-        for(int j = 0; j < n_points; j++) { // for all points
+        // For all points
+        for(int j = 0; j < n_points; j++) { 
             float result[e];
             integrate_closed_form_trace(result, x[j], t, A, xmin, xmax, nc);
             // for(int p = 0; p < e; p++){
@@ -162,7 +172,9 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
             // NEW METHOD
             float dphi_dtheta[d];
             derivative_phi_theta_optimized(dphi_dtheta, x[j], tm, cm, d, B, A, xmin, xmax, nc);
-            for(int k = 0; k < d; k++){ // for all parameters theta
+
+            // For all parameters theta
+            for(int k = 0; k < d; k++){ 
                 gradpoints[i*(n_points * d) + j*d + k] = dphi_dtheta[k];
             }
             // OLD METHOD
@@ -194,13 +206,16 @@ at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta
     // Convert to pointers
     float* B = Bt.data_ptr<float>();
     float* x = points.data_ptr<float>();
-    for(int i = 0; i < n_batch; i++) { // for all batches
+
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
 
         // Precompute affine velocity field
         at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
 
-        for(int j = 0; j < n_points; j++) { // for all points
+        // For all points
+        for(int j = 0; j < n_points; j++) {
             float result[e];
             integrate_closed_form_trace(result, x[j], t, A, xmin, xmax, nc);
             for(int p = 0; p < e; p++){
@@ -229,20 +244,25 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
     // Convert to pointers
     float* B = Bt.data_ptr<float>();
     float* x = points.data_ptr<float>();
-    for(int i = 0; i < n_batch; i++) { // for all batches
+
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
 
         // Precompute affine velocity field
         at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
         float* A = At.data_ptr<float>();
 
-        for(int j = 0; j < n_points; j++) { // for all points
+        // For all points
+        for(int j = 0; j < n_points; j++) {
             // float phi = newpoints[i*(n_points * e) + j*e + 0];
             float tm = newpoints[i*(n_points * e) + j*e + 1];
             int cm = newpoints[i*(n_points * e) + j*e + 2];
             // NEW METHOD
             float dphi_dtheta[d];
             derivative_phi_theta_optimized(dphi_dtheta, x[j], tm, cm, d, B, A, xmin, xmax, nc);
-            for(int k = 0; k < d; k++){ // for all parameters theta
+
+            // For all parameters theta
+            for(int k = 0; k < d; k++){
                 gradpoints[i*(n_points * d) + j*d + k] = dphi_dtheta[k];
             }
             // OLD METHOD
