@@ -29,7 +29,7 @@ CLASSIFIERS = [
 ]
 ENTRY_POINTS = {
     "console_scripts": [
-        #'tsclust=tsclust:main',
+        #
     ],
 }
 PROJECT_URLS = {
