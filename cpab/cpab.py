@@ -80,7 +80,6 @@ class Cpab:
             from .backend.pytorch import functions as backend
             self.params.B = backend.to(self.params.B, device=self.device)
             self.params.B = self.params.B.contiguous()
-            # torch.tensor(params.B, dtype=torch.float32)
         self.backend = backend
 
         # Assert that we have a recent version of the backend
@@ -304,7 +303,6 @@ class Cpab:
 
         # Plot
         ax = fig.add_subplot(1, 1, 1)
-        # ax.quiver(grid, np.zeros_like(grid), np.zeros_like(v), v)
         ax.axhline(color="black", ls="dashed")
         alpha = max(0.01, 1/np.sqrt(len(theta)))
         ax.plot(grid, v.T, color="blue", alpha=alpha)
@@ -367,13 +365,11 @@ class Cpab:
 
         # Plot
         ax = fig.add_subplot(1, 1, 1)
-        # plot = ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
         plot = ax.scatter(grid.flatten(), idx, c=idx)
         ax.set_title("Tesselation " + r'$N_\mathcal{P}=$' + str(self.params.nc))
         ax.set_xlabel(r'$x$')
         ax.set_ylabel("Cell Index")
         ax.set_yticks(np.arange(np.max(idx)+1))
-        # ax.tick_params(left=False, labelleft=False)
         ax.grid(alpha=0.3)
         return plot
         

@@ -1,4 +1,3 @@
-// #include <math.h>
 #include <iostream>
 #include <cmath>
 #include <vector>

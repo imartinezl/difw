@@ -46,7 +46,6 @@ class Tessellation:
         return L
 
     def generate_basis(self):
-        # return self.basis_svd()
         if self.zero_boundary:
             return self.basis_zb()
         else:
