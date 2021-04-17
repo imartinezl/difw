@@ -3,7 +3,6 @@
 import numpy as np
 
 eps = np.finfo(np.float32).eps
-# eps = 1e-12
 np.seterr(divide="ignore", invalid="ignore")
 
 # %% BATCH EFFECT
@@ -188,7 +187,7 @@ def integrate_closed_form_trace(x, theta, params):
         result[~done] = np.array([psi, t, c]).T
         done[~done] = valid
         if np.alltrue(valid):
-            return result#.reshape((n_batch, -1, 3))
+            return result
 
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
@@ -229,9 +228,9 @@ def derivative_closed_form(x, theta, params):
 
     # computation
     result = integrate_closed_form_trace(x, theta, params)
-    phi = result[:,0].reshape((n_batch, -1))#.flatten()
-    tm = result[:,1]#.flatten()
-    cm = result[:,2]#.flatten()
+    phi = result[:,0].reshape((n_batch, -1))
+    tm = result[:,1]
+    cm = result[:,2]
 
     # setup
     x = batch_effect(x, theta)

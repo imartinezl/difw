@@ -16,7 +16,7 @@ at::Tensor cuda_derivative_closed_form_trace(at::Tensor output, at::Tensor point
 // FUNCTIONS
 
 at::Tensor torch_get_affine(at::Tensor B, at::Tensor theta){
-    return at::matmul(B, at::transpose(theta, 0, 1));//.reshape({-1,2});
+    return at::matmul(B, at::transpose(theta, 0, 1));
 }
 
 at::Tensor torch_get_cell(at::Tensor points, const float xmin, const float xmax, const int nc){
@@ -137,7 +137,6 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
     const int d = theta.size(1);
 
     // Allocate output
-    // auto gradient = torch::zeros({n_batch, n_points, d}, at::kCUDA);
     auto gradient = torch::zeros({n_batch, n_points, d}, torch::dtype(torch::kDouble).device(torch::kCUDA));
 
     // Precompute affine velocity field
@@ -184,7 +183,6 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
     const int d = theta.size(1);
 
     // Allocate output
-    // auto gradient = torch::zeros({n_batch, n_points, d}, at::kCUDA);
     auto gradient = torch::zeros({n_batch, n_points, d}, torch::dtype(torch::kDouble).device(torch::kCUDA));
 
     // Precompute affine velocity field
