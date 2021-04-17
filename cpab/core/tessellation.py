@@ -23,8 +23,6 @@ class Tessellation:
 
         self.D, self.d = self.B.shape
 
-        # TODO: additional methods?: get_cell_centers, find_verts, find_shared_verts
-
     def constrain_matrix(self):
         vertices = np.linspace(self.xmin, self.xmax, self.nv)
         shared_vertices = vertices[1:-1]
