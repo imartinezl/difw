@@ -28,7 +28,7 @@ try:
     cpab_cpu = load(
         name="cpab_cpu",
         sources=[_dir + "/transformer.cpp",
-                _dir + '/../../core/cpab.cpp'],
+                _dir + '/../../core/cpab_ops.cpp'],
         # extra_cflags=["-O0", "-g"], 
         extra_cflags=["-Ofast", "-ffast-math", "-funsafe-math-optimizations"], # , "-msse4.2"
         verbose=_verbose,
