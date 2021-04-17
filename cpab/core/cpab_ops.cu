@@ -500,18 +500,18 @@ __device__ float integrate_numeric_optimized(const float& x, const float& t, con
 
 // OPTIMIZED DERIVATIVE
 
-__device__ float derivative_psi_theta_optimized_DEPRECATED(const float& x, const int& c, const float& t, const int& k, const int& d, const float* B, const float* A, const int& n_batch, const int& batch_index){
-    const float a = A[(2*c) * n_batch + batch_index];
-    const float b = A[(2*c+1) * n_batch + batch_index];
+__device__ double derivative_psi_theta_optimized_DEPRECATED(const double& x, const int& c, const float& t, const int& k, const int& d, const float* B, const float* A, const int& n_batch, const int& batch_index){
+    const double a = A[(2*c) * n_batch + batch_index];
+    const double b = A[(2*c+1) * n_batch + batch_index];
 
-    const float ak = B[(2*c)*d + k];
-    const float bk = B[(2*c+1)*d + k];
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
 
     if (cmpf0(a)){
         return t*(x*ak + bk);
     }
     else{
-        float tmp = exp(t*a);
+        double tmp = exp(t*a);
         return ak * t * tmp * (x + b/a) + (tmp-1)*(bk*a - ak*b)/pow(a, 2.0);
     }
 }
@@ -552,20 +552,20 @@ __device__ float derivative_phi_time_optimized(const float& x, const int& c, con
     }
 }
 
-__device__ float derivative_thit_theta_optimized_DEPRECATED(const float& x, const int& c, const float& xc, const int& k, const int& d, const float* B, const float* A, const int& n_batch, const int& batch_index){
-    const float a = A[(2*c) * n_batch + batch_index];
-    const float b = A[(2*c+1) * n_batch + batch_index];
+__device__ float derivative_thit_theta_optimized_DEPRECATED(const double& x, const int& c, const float& xc, const int& k, const int& d, const float* B, const float* A, const int& n_batch, const int& batch_index){
+    const double a = A[(2*c) * n_batch + batch_index];
+    const double b = A[(2*c+1) * n_batch + batch_index];
 
-    const float ak = B[(2*c)*d + k];
-    const float bk = B[(2*c+1)*d + k];
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
 
-    float dthit_dtheta;
+    double dthit_dtheta;
     if (cmpf0(a)){
         dthit_dtheta = (x-xc)*bk / pow(b, 2.0);
     }
     else{
-        float d1 = - ak * log( (a*xc + b) / (a*x + b) )/pow(a, 2.0);
-        float d2 = (x - xc) * ( bk*a - ak*b) / (a * (a*x + b) * (a*xc + b) );
+        double d1 = - ak * log( (a*xc + b) / (a*x + b) )/pow(a, 2.0);
+        double d2 = (x - xc) * ( bk*a - ak*b) / (a * (a*x + b) * (a*xc + b) );
         dthit_dtheta = d1 + d2;
     }
     return dthit_dtheta;
@@ -601,7 +601,7 @@ __device__ float derivative_phi_theta_optimized_DEPRECATED(const float& xini, co
     const int cini = get_cell(xini, xmin, xmax, nc);
     float xm = xini;
 
-    float dthit_dtheta_cum = 0.0;
+    double dthit_dtheta_cum = 0.0;
     if (cini != cm){
         float xc;
         const int step = sign(cm - cini);
@@ -616,9 +616,9 @@ __device__ float derivative_phi_theta_optimized_DEPRECATED(const float& xini, co
         }
     }
 
-    const float dpsi_dtheta = derivative_psi_theta_optimized_DEPRECATED(xm, cm, tm, k, d, B, A, n_batch, batch_index);
-    const float dpsi_dtime = derivative_phi_time_optimized(xm, cm, tm, A, n_batch, batch_index);
-    const float dphi_dtheta = dpsi_dtheta + dpsi_dtime*dthit_dtheta_cum;    
+    const double dpsi_dtheta = derivative_psi_theta_optimized_DEPRECATED(xm, cm, tm, k, d, B, A, n_batch, batch_index);
+    const double dpsi_dtime = derivative_phi_time_optimized(xm, cm, tm, A, n_batch, batch_index);
+    const double dphi_dtheta = dpsi_dtheta + dpsi_dtime*dthit_dtheta_cum;    
 
     return dphi_dtheta;
 }
