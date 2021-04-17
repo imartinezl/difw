@@ -9,7 +9,6 @@ def cmpf(x, y):
     return torch.abs(x-y) < eps
 
 def cmpf0(x):
-    # return x == 0
     return torch.abs(x) < eps
 
 # %% BATCH EFFECT
@@ -98,8 +97,6 @@ def get_hit_time_DEPRECATED(x, theta, params):
     x2 = torch.log((xc + b / a) / (x + b / a)) / a
     thit = torch.where(cond, x1, x2)
 
-    # cond = torch.isnan(thit)
-    # thit[cond] = float('inf')
     return thit
 
 def get_hit_time(x, theta, params):
@@ -139,9 +136,7 @@ def get_phi_numeric(x, t, theta, params):
     yn = x
     deltaT = t / nSteps2
     for j in range(nSteps2):
-        # c = get_cell(yn, params)
         midpoint = yn + deltaT / 2 * get_velocity(yn, theta, params)
-        # c = get_cell(midpoint, params)
         yn = yn + deltaT * get_velocity(midpoint, theta, params)
     return yn
 
@@ -271,9 +266,9 @@ def derivative_closed_form(x, theta, params):
 
     # computation
     result = integrate_closed_form_trace(x, theta, params)
-    phi = result[:,0].reshape((n_batch, -1))#.flatten()
-    tm = result[:,1]#.flatten()
-    cm = result[:,2]#.flatten()
+    phi = result[:,0].reshape((n_batch, -1))
+    tm = result[:,1]
+    cm = result[:,2]
 
     # setup
     x = batch_effect(x, theta)
@@ -304,7 +299,7 @@ def derivative_closed_form(x, theta, params):
 
 def derivative_psi_theta(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
-    A = A.double() # note: double precision is necessary
+    A = A.double() # NOTE: double precision is necessary
 
     c = get_cell(x, params)
     a = A[r, c, 0]
@@ -320,7 +315,7 @@ def derivative_psi_theta(x, t, theta, k, params):
         + (torch.exp(t * a) - 1) * (bk * a - ak * b) / a ** 2
     )
     d1 = d1.double()
-    # d2 = d2.double()
+    d2 = d2.double()
     dpsi_dtheta = torch.where(cond, d1, d2)
     return dpsi_dtheta
 
@@ -338,7 +333,7 @@ def derivative_phi_time(x, t, theta, k, params):
 
 def derivative_thit_theta(x, theta, k, params):
     A, r = get_affine(x, theta, params)
-    A = A.double() # note: double precision is necessary
+    A = A.double() # NOTE: double precision is necessary
 
     c = get_cell(x, params)
     a = A[r, c, 0]
@@ -387,7 +382,7 @@ def integrate_closed_form_trace_DEPRECATED(x, theta, params):
         result[~done] = torch.stack((psi, t, c)).T
         done[~done] = valid
         if torch.all(valid):
-            return result#.reshape((n_batch, -1, 3))
+            return result
 
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
@@ -443,9 +438,9 @@ def derivative_closed_form_trace(result, x, theta, params):
 
     # computation
     # result = integrate_closed_form_trace(x, theta, params)
-    phi = result[:,0].reshape((n_batch, -1))#.flatten()
-    tm = result[:,1]#.flatten()
-    cm = result[:,2]#.flatten()
+    phi = result[:,0].reshape((n_batch, -1))
+    tm = result[:,1]
+    cm = result[:,2]
 
     # setup
     x = batch_effect(x, theta)

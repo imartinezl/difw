@@ -3,7 +3,7 @@ import torch
 from torch.utils.cpp_extension import load
 from ...core.utility import get_dir, methods
 
-#%% NOT COMPILED HELPER
+# %% NOT COMPILED HELPER
 class _notcompiled:
     # Small class, with structure similar to the compiled modules we can default
     # to. The class will never be called but the program can compile at run time
@@ -15,7 +15,7 @@ class _notcompiled:
         self.backward = f
 
 
-#%% COMPILE AND LOAD
+# %% COMPILE AND LOAD
 
 # TODO: change slow and fast for c++ / python or compiled / not compiled
 _dir = get_dir(__file__)
@@ -251,7 +251,7 @@ class Transformer_slow_numeric(torch.autograd.Function):
         grad_theta = derivative_numeric_trace(grid_t, grid, theta, params, h)
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
-# %% #%% TRANSFORMER: FAST / CPU 
+# %% TRANSFORMER: FAST / CPU 
 def transformer_fast_cpu(grid, theta, params, method=None):
     methods.check(method)
     method = methods.default(method)
@@ -261,7 +261,7 @@ def transformer_fast_cpu(grid, theta, params, method=None):
     elif method == methods.numeric:
         return Transformer_fast_cpu_numeric.apply(grid, theta, params)
 
-# %% #%% TRANSFORMER: FAST / CPU / CLOSED-FORM
+# %% TRANSFORMER: FAST / CPU / CLOSED-FORM
 class Transformer_fast_cpu_closed_form(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params):
@@ -281,7 +281,7 @@ class Transformer_fast_cpu_closed_form(torch.autograd.Function):
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
-# %% #%% TRANSFORMER: FAST / CPU / NUMERIC
+# %% TRANSFORMER: FAST / CPU / NUMERIC
 class Transformer_fast_cpu_numeric(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params):
@@ -301,7 +301,7 @@ class Transformer_fast_cpu_numeric(torch.autograd.Function):
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
-# %% #%% TRANSFORMER: FAST / GPU
+# %% TRANSFORMER: FAST / GPU
 def transformer_fast_gpu(grid, theta, params, method=None):
     methods.check(method)
     method = methods.default(method)
@@ -311,7 +311,7 @@ def transformer_fast_gpu(grid, theta, params, method=None):
     elif method == methods.numeric:
         return Transformer_fast_gpu_numeric.apply(grid, theta, params)
 
-# %% #%% TRANSFORMER: FAST / GPU / CLOSED-FORM
+# %% TRANSFORMER: FAST / GPU / CLOSED-FORM
 class Transformer_fast_gpu_closed_form(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params):
@@ -331,7 +331,7 @@ class Transformer_fast_gpu_closed_form(torch.autograd.Function):
         grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
         return None, grad, None # [n_batch, d]
 
-# %% #%% TRANSFORMER: FAST / GPU / NUMERIC
+# %% TRANSFORMER: FAST / GPU / NUMERIC
 class Transformer_fast_gpu_numeric(torch.autograd.Function):
     # Function that connects the forward pass to the backward pass
     @staticmethod
