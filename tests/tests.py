@@ -182,6 +182,8 @@ theta = T.sample_transformation(batch_size)
 grid = T.uniform_meshgrid(outsize)
 grid_t = T.transform_grid(grid, theta)
 
+T.visualize_deformgrid(theta)
+
 width = 50
 channels = 2
 
@@ -195,7 +197,6 @@ data = np.sin(x)
 
 data_t = T.transform_data(torch.tensor(data), theta, outsize)
 
-# TODO: define data visualize functions on cpab
 # plot data
 batch_size, width, channels = data.shape
 
