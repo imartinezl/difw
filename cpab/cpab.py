@@ -403,6 +403,44 @@ class Cpab:
         ax.grid(alpha=0.3)
         return ax
 
+    def visualize_deformdata(self, data, theta, method=None, outsize=100, fig=None):
+        """ Utility function that helps visualize a deformation
+        Arguments:
+            theta: [n_batch, d] single parametrization vector
+            n_points: int, number of points
+            fig: matplotlib figure handle
+        Output:
+            plot: handle to lineplot
+        """
+        pass
+        if fig is None:
+            fig = plt.figure()
+
+        # Transform grid and convert to numpy
+        data_t = self.transform_data(data, theta, outsize, method)
+        data_t = self.backend.tonumpy(data_t)
+
+        batch_size, width, channels = data.shape
+        x = np.linspace(0,1,width)
+        xt = np.linspace(0,1,outsize)
+        alpha = max(0.01, 1/np.sqrt(channels))
+
+        # Plot
+        plt.suptitle("Data Deformation with " + r'$\phi(x,t)$')
+        for i in range(channels):
+            ax = fig.add_subplot(channels, 1, i+1)
+            ax.plot(x, data[:,:,i].T, c="red", ls="dashed", alpha=alpha, label="Data")
+            ax.plot(xt, data_t[:,:,i].T, alpha=alpha, label="Transformed")
+            ax.set_title("Ch " + str(i), rotation=-90, loc='right', y=0.5, ha="left", va="center")
+            ax.set_ylabel(r"$x'$", rotation='horizontal')
+            ax.grid(alpha=0.3)
+            if i+1 < channels:
+                ax.set_xticklabels([])
+            else:
+                ax.set_xlabel(r"$x$", rotation='horizontal')
+        
+        return ax
+
 
     def _check_input(self, tess_size, backend, device, zero_boundary):
         """ Utility function used to check the input to the class.
