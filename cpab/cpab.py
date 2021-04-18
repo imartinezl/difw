@@ -120,9 +120,8 @@ class Cpab:
 
         return self.backend.to(samples, device=self.device)
 
-    # TODO: prepare backend functions to sample with prior
     def sample_transformation_with_prior(
-        self, n_sample, mean=None, cov=None, length_scale=0.1, output_variance=1
+        self, n_sample, mean=None, length_scale=0.1, output_variance=1
     ):
         """ Function for sampling smooth transformations. The smoothness is determined
             by the distance between cell centers. The closer the cells are to each other,
@@ -141,23 +140,26 @@ class Cpab:
                 a multivariate gaussian
         """
 
-        cov_theta = self.backend.matmul()
-        samples = self.sample_transformation(n_sample, mean=mean, cov=cov_theta)
+        if mean is not None:
+            self._check_type(mean)
+            self._check_device(mean)
 
         # Smoothness priors on CPA
         s = output_variance  # 0.01
         l = length_scale  # 0.1
-        kernel = lambda x, y: (s ** 2) * np.exp(-((x - y) ** 2) / (2 * l ** 2))
+        kernel = lambda x, y: (s ** 2) * self.backend.exp(-((x - y) ** 2) / (2 * l ** 2))
 
-        D, d = B.shape
-        grid = np.linspace(0, 1, D)
-        X, Y = np.meshgrid(grid, grid)
+        B = self.params.B
+        grid = self.backend.linspace(0, 1, self.params.D)
+        X, Y = self.backend.meshgrid(grid, grid)
         cov_pa = kernel(X, Y)
 
-        cov_cpa = B.T.dot(cov_pa).dot(B)
+        cov_cpa = self.backend.matmul(self.backend.matmul(B.T, cov_pa), B)
 
-        theta = sample_transformation(d, mean, cov_cpa)
-        return theta
+        samples = self.backend.sample_transformation(
+            self.params.d, n_sample, mean, cov_cpa, self.device
+        )
+        return self.backend.to(samples, device=self.device)
 
     def identity(self, n_sample=1, epsilon=0):
         """ Method for getting the parameters for the identity 
