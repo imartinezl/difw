@@ -23,6 +23,7 @@ T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
 theta = T.sample_transformation(batch_size)
+theta = T.sample_transformation_with_prior(batch_size)
 grid_t = T.transform_grid(grid, theta)
 
 T.visualize_tesselation()
