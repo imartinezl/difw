@@ -294,7 +294,7 @@ class Cpab:
             fig = plt.figure()
 
         if n_points is None:
-            n_points = self.params.nc
+            n_points = self.params.nc+1
 
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid(n_points)
