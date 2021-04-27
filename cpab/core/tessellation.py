@@ -4,7 +4,7 @@ from scipy.linalg import null_space
 
 
 class Tessellation:
-    def __init__(self, nc, xmin=0, xmax=1, zero_boundary=True, basis="custom"):
+    def __init__(self, nc, xmin=0, xmax=1, zero_boundary=True, basis="direct"):
         self.nc = nc
         self.nv = nc + 1
         self.ns = nc - 1
@@ -20,6 +20,8 @@ class Tessellation:
             self.B = self.basis_svd()
         elif basis == "custom":
             self.B = self.generate_basis()
+        elif basis == "direct":
+            self.B = self.generate_basis_direct()
 
         self.D, self.d = self.B.shape
 
@@ -147,6 +149,34 @@ class Tessellation:
         # normalize
         B = B.T / np.linalg.norm(B, axis=1)
         return B
+
+    def generate_basis_direct(self):
+        if self.zero_boundary:
+            return self.basis_zb_direct()
+        else:
+            return self.basis_direct()
+
+    def basis_direct(self):
+        rows = 2 * self.nc
+        cols = self.nv
+        B = np.zeros((rows, cols))
+
+        s = (self.xmax - self.xmin) / self.nc
+
+        r = np.arange(0, rows, 2)
+        c = np.arange(cols-1)
+
+        B[r, c] = -1
+        B[r, c+1] = 1
+        B[r+1, c] = np.arange(self.xmin + s, self.xmax + s, s)
+        B[r+1, c+1] = -np.arange(self.xmin, self.xmax, s)
+
+        B = B / s
+        B = B / np.linalg.norm(B, axis=0)
+        return B
+
+    def basis_zb_direct(self):
+        return self.basis_direct()[:, 1:-1]
 
     def plot_basis(self):
         plt.figure()
