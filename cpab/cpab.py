@@ -9,20 +9,22 @@ from .core.tessellation import Tessellation
 
 class Cpab:
     """ Core class for this library. This class contains all the information
-        about the tesselation, transformation ect. The user is not meant to
+        about the tesselation, transformation etc. The user is not meant to
         use anything else than this specific class.
         
     Arguments:
         tess_size: list, with the number of cells in each dimension
         
         backend: string, computational backend to use. Choose between 
-            "numpy" (default), "pytorch" or "tensorflow"
+            "numpy" (default), or "pytorch"
         
         device: string, either "cpu" (default) or "gpu". For the numpy backend
             only the "cpu" option is valid
         
         zero_boundary: bool, determines is the velocity at the boundary is zero 
         
+        basis: string, constrain basis to use. Choose between 
+            "direct" (default), "custom", or "svd"
         
     Methods:
         @uniform_meshgrid
@@ -38,9 +40,9 @@ class Cpab:
         @visualize_tesselation
     """
 
-    def __init__(self, tess_size, backend="python", device="cpu", zero_boundary=True):
+    def __init__(self, tess_size, backend="numpy", device="cpu", zero_boundary=True, basis="direct"):
         # Check input
-        self._check_input(tess_size, backend, device, zero_boundary)
+        self._check_input(tess_size, backend, device, zero_boundary, basis)
 
         # Parameters
         self.params = Parameters()
@@ -52,6 +54,7 @@ class Cpab:
         self.params.nSteps2 = 5
         self.params.precomputed = False
         self.params.use_slow = False
+        self.params.basis = basis
 
         # Initialize tesselation
         self.tess = Tessellation(
@@ -59,7 +62,7 @@ class Cpab:
             self.params.xmin,
             self.params.xmax,
             self.params.zero_boundary,
-            basis="custom",
+            basis=self.params.basis,
         )
 
         # Extract parameters from tesselation
@@ -73,9 +76,9 @@ class Cpab:
         self.backend_name = backend
         if self.backend_name == "numpy":
             from .backend.numpy import functions as backend
-        elif self.backend_name == "numba":
-            pass
-            # from .tensorflow import functions as backend
+        # elif self.backend_name == "numba":
+        #     pass
+        #     from .tensorflow import functions as backend
         elif self.backend_name == "pytorch":
             from .backend.pytorch import functions as backend
             self.params.B = backend.to(self.params.B, device=self.device)
@@ -444,7 +447,7 @@ class Cpab:
         return ax
 
 
-    def _check_input(self, tess_size, backend, device, zero_boundary):
+    def _check_input(self, tess_size, backend, device, zero_boundary, basis):
         """ Utility function used to check the input to the class.
             Not meant to be called by the user. """
         assert tess_size > 0, """tess size must be positive"""
@@ -461,7 +464,11 @@ class Cpab:
         assert (
             type(zero_boundary) == bool
         ), """Argument zero_boundary must be True or False"""
-
+        assert basis in [
+            "svd",
+            "custom",
+            "direct"
+        ], """Unknown basis, choose between 'svd', 'custom' or 'direct' """
     def _check_type(self, x):
         """ Assert that the type of x is compatible with the class i.e
                 numpy backend expects np.array
