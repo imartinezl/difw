@@ -24,7 +24,7 @@ class Cpab:
         zero_boundary: bool, determines is the velocity at the boundary is zero 
         
         basis: string, constrain basis to use. Choose between 
-            "direct" (default), "custom", or "svd"
+            "rref" (default), "svd", or "sparse"
         
     Methods:
         @uniform_meshgrid
@@ -40,7 +40,7 @@ class Cpab:
         @visualize_tesselation
     """
 
-    def __init__(self, tess_size, backend="numpy", device="cpu", zero_boundary=True, basis="direct"):
+    def __init__(self, tess_size, backend="numpy", device="cpu", zero_boundary=True, basis="rref"):
         # Check input
         self._check_input(tess_size, backend, device, zero_boundary, basis)
 
@@ -450,7 +450,7 @@ class Cpab:
     def _check_input(self, tess_size, backend, device, zero_boundary, basis):
         """ Utility function used to check the input to the class.
             Not meant to be called by the user. """
-        assert tess_size > 0, """tess size must be positive"""
+        assert tess_size > 1, """tess size must be > 1"""
         assert backend in [
             "numpy",
             "pytorch",
@@ -466,9 +466,9 @@ class Cpab:
         ), """Argument zero_boundary must be True or False"""
         assert basis in [
             "svd",
-            "custom",
-            "direct"
-        ], """Unknown basis, choose between 'svd', 'custom' or 'direct' """
+            "rref",
+            "sparse"
+        ], """Unknown basis, choose between 'svd', 'rref' or 'sparse' """
     def _check_type(self, x):
         """ Assert that the type of x is compatible with the class i.e
                 numpy backend expects np.array

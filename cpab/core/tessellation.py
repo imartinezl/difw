@@ -4,7 +4,7 @@ from scipy.linalg import null_space
 
 
 class Tessellation:
-    def __init__(self, nc, xmin=0, xmax=1, zero_boundary=True, basis="direct"):
+    def __init__(self, nc, xmin=0, xmax=1, zero_boundary=True, basis="rref"):
         self.nc = nc
         self.nv = nc + 1
         self.ns = nc - 1
@@ -18,10 +18,10 @@ class Tessellation:
         if basis == "svd":
             self.L = self.constrain_matrix()
             self.B = self.basis_svd()
-        elif basis == "custom":
-            self.B = self.generate_basis()
-        elif basis == "direct":
-            self.B = self.generate_basis_direct()
+        elif basis == "rref":
+            self.B = self.generate_basis_rref()
+        elif basis == "sparse":
+            self.B = self.generate_basis_sparse()
 
         self.D, self.d = self.B.shape
 
@@ -47,17 +47,25 @@ class Tessellation:
         L[1, -2:] = [-self.xmax, -1]
         return L
 
-    def generate_basis(self):
+    def generate_basis_rref(self):
         if self.zero_boundary:
-            return self.basis_zb()
+            return self.basis_rref_zb()
         else:
-            return self.basis()
+            return self.basis_rref()
 
     def basis_svd(self):
+        # return self.qr_null(self.L)
         return null_space(self.L)
 
+    def qr_null(self, A, tol=None):
+        from scipy.linalg import qr
+        Q, R, P = qr(A.T, mode='full', pivoting=True)
+        tol = np.max(A) * np.finfo(R.dtype).eps if tol is None else tol
+        rnk = min(A.shape) - np.abs(np.diag(R))[::-1].searchsorted(tol)
+        return Q[:, rnk:].conj()
+
     # with zero boundary
-    def basis_zb(self):
+    def basis_rref_zb(self):
         rows = self.nc - 1
         cols = 2 * self.nc
         B = np.zeros((rows, cols))
@@ -78,7 +86,7 @@ class Tessellation:
         return B
 
     # without zero boundary
-    def basis(self):
+    def basis_rref(self):
         rows = self.nc + 1
         cols = 2 * self.nc
         B = np.zeros((rows, cols))
@@ -103,7 +111,7 @@ class Tessellation:
         return B
 
     # with zero boundary
-    def basis_zb_new(self):
+    def basis_rref_zb_new(self):
         rows = self.nc - 1
         cols = 2 * self.nc
         B = np.zeros((rows, cols))
@@ -125,7 +133,7 @@ class Tessellation:
         return B
 
     # without zero boundary
-    def basis_new(self):
+    def basis_rref_new(self):
         rows = self.nc + 1
         cols = 2 * self.nc
         B = np.zeros((rows, cols))
@@ -150,13 +158,13 @@ class Tessellation:
         B = B.T / np.linalg.norm(B, axis=1)
         return B
 
-    def generate_basis_direct(self):
+    def generate_basis_sparse(self):
         if self.zero_boundary:
-            return self.basis_zb_direct()
+            return self.basis_sparse_zb()
         else:
-            return self.basis_direct()
+            return self.basis_sparse()
 
-    def basis_direct(self):
+    def basis_sparse(self):
         rows = 2 * self.nc
         cols = self.nv
         B = np.zeros((rows, cols))
@@ -173,10 +181,11 @@ class Tessellation:
 
         B = B / s
         B = B / np.linalg.norm(B, axis=0)
+        
         return B
 
-    def basis_zb_direct(self):
-        return self.basis_direct()[:, 1:-1]
+    def basis_sparse_zb(self):
+        return self.basis_sparse()[:, 1:-1]
 
     def plot_basis(self):
         plt.figure()
