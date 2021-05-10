@@ -7,7 +7,6 @@ import torch
 import matplotlib.pyplot as plt
 import cpab
 
-
 # %%
 
 tess_size = 5
@@ -15,15 +14,19 @@ backend = "numpy" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
 use_slow = False
-outsize = 10
-batch_size = 2
+outsize = 100
+batch_size = 1
+basis = "svd"
+basis = "sparse"
+basis = "rref"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary)
+T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
 theta = T.sample_transformation(batch_size)
 theta = T.sample_transformation_with_prior(batch_size)
+theta = T.identity(batch_size, epsilon=0)
 grid_t = T.transform_grid(grid, theta)
 
 T.visualize_tesselation()
