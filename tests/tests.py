@@ -21,8 +21,9 @@ use_slow = False
 outsize = 10
 batch_size = 2
 method = "closed_form"
+basis = "rref"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary)
+T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
@@ -47,17 +48,21 @@ use_slow = False
 outsize = 100
 batch_size = 20
 method = "closed_form"
+basis = "svd"
+basis = "sparse"
+basis = "rref"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary)
+T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
 
 torch.manual_seed(0)
 theta_1 = T.sample_transformation(batch_size)*10
-# theta_1 = T.identity(batch_size, epsilon=1.0)
+theta_1 = T.identity(batch_size, epsilon=1.0)
 grid_t1 = T.transform_grid(grid, theta_1, method)
 
+torch.manual_seed(1)
 theta_2 = torch.autograd.Variable(T.sample_transformation(batch_size), requires_grad=True)
 
 lr = 1e-2
@@ -65,7 +70,7 @@ optimizer = torch.optim.Adam([theta_2], lr=lr)
 
 # torch.set_num_threads(1)
 loss_values = []
-maxiter = 1500
+maxiter = 150
 with tqdm(desc='Alignment of samples', unit='iters', total=maxiter,  position=0, leave=True) as pb:
     for i in range(maxiter):
         optimizer.zero_grad()
@@ -75,7 +80,7 @@ with tqdm(desc='Alignment of samples', unit='iters', total=maxiter,  position=0,
         # theta_backup = theta_2.clone()
         
         grid_t2 = T.transform_grid(grid, theta_2, method=method)
-        # loss = torch.norm(grid_t2 - grid_t1)
+        loss = torch.norm(grid_t2 - grid_t1)
         loss = torch.norm(grid_t2 - grid_t1, dim=1).mean()
         loss.backward()
         optimizer.step()
@@ -215,3 +220,92 @@ fig, ax = plt.subplots(nrows=channels, ncols=1, sharex=True, squeeze=False)
 for i in range(channels):
     ax[i, 0].plot(np.linspace(0,1,width), data[:, :, i].T, color="blue")
     ax[i, 0].plot(np.linspace(0,1,outsize), data_t[:, :, i].T, color="red")
+
+
+# %% OPTIMIZATION BY GRADIENT (DATA)
+
+tess_size = 50
+backend = "pytorch" # ["pytorch", "numpy"]
+device = "cpu" # ["cpu", "gpu"]
+zero_boundary = False
+use_slow = False
+outsize = 100
+batch_size = 1
+method = "closed_form"
+basis = "svd"
+basis = "rref"
+basis = "sparse"
+
+width = 50
+channels = 1
+
+# Generation
+a = np.zeros((batch_size, channels))
+b = np.ones((batch_size, channels)) * 2 * np.pi
+noise = np.random.normal(0, 0.1, (batch_size, width, channels))
+x = np.linspace(a, b, width, axis=1)
+data = np.sin(x)
+data = torch.tensor(data)
+
+T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T.params.use_slow = use_slow
+
+alpha = 1
+n = outsize
+np.random.seed(0)
+grid_t = np.cumsum(np.random.dirichlet(alpha=[alpha] * n))
+grid_t = np.linspace(0,1,n)**2
+data_t1 = T.interpolate(data, torch.tensor(grid_t), outsize)
+# theta_1 = T.identity(batch_size, epsilon=1.0)
+# data_t1 = data
+
+torch.manual_seed(0)
+# theta_1 = T.sample_transformation(batch_size)*1
+# data_t1 = T.transform_data(data, theta_1, outsize, method)
+
+theta_2 = torch.autograd.Variable(T.sample_transformation(batch_size), requires_grad=True)
+theta_2 = torch.autograd.Variable(T.identity(batch_size), requires_grad=True)
+data_t2 = T.transform_data(data, theta_2, outsize, method)
+
+lr = 1e-2
+optimizer = torch.optim.Adam([theta_2], lr=lr)
+# optimizer = torch.optim.SGD([theta_2], lr=lr)
+
+# torch.set_num_threads(1)
+loss_values = []
+maxiter = 150
+with tqdm(desc='Alignment of samples', unit='iters', total=maxiter,  position=0, leave=True) as pb:
+    for i in range(maxiter):
+        optimizer.zero_grad()
+        
+        data_t2 = T.transform_data(data, theta_2, outsize, method)
+        loss = torch.norm(data_t2 - data_t1)
+        # loss = torch.norm(data_t2 - data_t1, dim=1).mean()
+        loss.backward()
+        optimizer.step()
+
+        if torch.any(torch.isnan(theta_2)):
+            print("AHSDASD")
+            break
+
+        loss_values.append(loss.item())
+        pb.update()
+        pb.set_postfix({'loss': loss.item()})
+    pb.close()
+
+plt.figure()
+plt.plot(loss_values)
+plt.axhline(color="black", ls="dashed")
+# plt.yscale('log')
+
+plt.figure()
+plt.plot(data_t1[:,:,0].t())
+plt.plot(data_t2[:,:,0].detach().t())
+
+plt.figure()
+plt.plot(data_t1[:,:,0].t() - data_t2[:,:,0].detach().t())
+plt.axhline(color="black", ls="dashed")
+# theta_1, theta_2
+
+T.visualize_gradient(theta_2)
+# %%
