@@ -11,9 +11,8 @@ import cpab
 from tqdm import tqdm 
 
 # %%
-
 from numpy.linalg import cond
-from scipy.linalg import orth, qr, norm, pinv
+from scipy.linalg import orth, norm, pinv
 
 def plot_basis_velocity(T, B=None):
     if B is not None:
@@ -33,19 +32,26 @@ def plot_basis_velocity(T, B=None):
 def sparsity(sparse):
     return (sparse == 0).sum() / sparse.size
 
-def orthogonal(A):
+def orthonormality(A):
+    return norm(A.T.dot(A) - np.eye(A.shape[1]))
+
+def orthonormal(A):
     return np.allclose(A.T.dot(A), np.eye(A.shape[1]))
 
 def orthogonality(A):
-    return norm(A.T.dot(A) - np.eye(A.shape[1]))
+    E = A.T.dot(A)
+    return np.sum(~np.isclose(E - np.diag(np.diagonal(E)), np.zeros_like(E))) / A.size
+
+def orthogonal(A):
+    return orthogonality(A) == 0
 
 # %% 
 # The Sparse Null Space Basis Problem
 
-tess_size = 5
+tess_size = 50
 backend = "numpy" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
-zero_boundary = False
+zero_boundary = True
 outsize = 100
 batch_size = 1
 
@@ -73,24 +79,29 @@ L = T.tess.constrain_matrix()
 sparsity(L)
 
 # %% Properties
+def properties_table(results):
+    header = ["basis", "sparsity", "cond num", "orth", "orthnorm", "norm", "norm inv"]
+    print(" | ".join(header))
+    print("-"*90)
+    for v in results:
+        name = v[0]
+        B = v[1]
+        Binv = pinv(B)
+        values = [
+            name, 
+            np.round(sparsity(B),2), 
+            np.round(cond(B),2), 
+            orthogonal(B), 
+            np.round(orthogonality(B), 2), 
+            orthonormal(B), 
+            np.round(orthonormality(B), 2), 
+            np.round(norm(B),2), 
+            np.round(norm(Binv),2)
+        ]
+        print("\t".join(map(str, values)))
 
-header = ["basis", "sparsity", "cond num", "orth", "norm", "norm inv"]
-print(" | ".join(header))
-print("-"*90)
-for v in [("svd", B_svd), ("rref", B_rref), ("sparse", B_sparse), ("qr", B_qr)]:
-    name = v[0]
-    B = v[1]
-    Binv = pinv(B)
-    values = [
-        name, 
-        np.round(sparsity(B),2), 
-        np.round(cond(B),2), 
-        orthogonal(B), 
-        np.round(orthogonality(B), 2), 
-        np.round(norm(B),2), 
-        np.round(norm(Binv),2)
-    ]
-    print("\t".join(map(str, values)))
+results = [("svd", B_svd), ("rref", B_rref), ("sparse", B_sparse), ("qr", B_qr)]
+properties_table(results)
 
 # %% MATLAB
 
@@ -103,17 +114,7 @@ B1 = B1 / norm(B1, axis=0)
 plot_basis_velocity(T, B1)
 plot_basis_velocity(T, B2)
 
-print("B1\t", sparsity(B1), cond(B1), orthogonal(B1), norm(B1, axis=0), norm(pinv(B1)))
-print("B2\t", sparsity(B2), cond(B2), orthogonal(B2), norm(B2, axis=0), norm(pinv(B2)))
-
-
-# %%
-
-x0 = T.calc_velocity(np.linspace(0,1,6), theta_2.detach().numpy())[0,1:-1]
-x0
-
-norm(B_svd - x0, axis=0), norm(B_rref - x0, axis=0), norm(B_sparse - x0, axis=0)
-# norm(B_svd - x0), norm(B_rref - x0), norm(B_sparse - x0)
+properties_table([("B1", B1), ("B2", B2)])
 
 # %%
  
