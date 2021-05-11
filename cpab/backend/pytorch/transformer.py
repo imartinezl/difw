@@ -202,8 +202,8 @@ def transformer_slow(grid, theta, params, method=None):
         # return integrate_closed_form(grid, theta, params)
         return Transformer_slow_closed_form.apply(grid, theta, params)
     elif method == methods.numeric:
-        return integrate_numeric(grid, theta, params)
-        # return Transformer_slow_numeric.apply(grid, theta, params)
+        # return integrate_numeric(grid, theta, params)
+        return Transformer_slow_numeric.apply(grid, theta, params)
 
 #%% TRANSFORMER: SLOW / CPU + GPU / CLOSED-FORM 
 from .transformer_slow import integrate_closed_form_trace, derivative_closed_form_trace
