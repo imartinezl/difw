@@ -14,6 +14,8 @@ class Tessellation:
         self.xr = self.xmax - self.xmin
 
         self.zero_boundary = zero_boundary
+        self.ord = np.inf
+        # self.ord = 2
 
         if basis == "svd":
             self.L = self.constrain_matrix()
@@ -57,10 +59,14 @@ class Tessellation:
             return self.basis_rref()
 
     def basis_svd(self):
-        return null_space(self.L)
+        B = null_space(self.L)
+        # B = B / np.linalg.norm(B, ord=self.ord, axis=0)
+        return B
 
     def basis_qr(self):
-        return self.qr_null(self.L)
+        B = self.qr_null(self.L)
+        # B = B / np.linalg.norm(B, ord=self.ord, axis=0)
+        return B
 
 
     def qr_null(self, A, tol=None):
@@ -88,11 +94,11 @@ class Tessellation:
             B[k - 1, 2 * k + 1] = (a + k * s) * (a + (k + 1) * s)
 
         # normalize
-        B = B.T / np.linalg.norm(B, axis=1)
+        B = B.T / np.linalg.norm(B, ord=self.ord, axis=1)
         return B
 
     # without zero boundary
-    def basis_rref(self):
+    def basis_rref_backup(self):
         rows = self.nc + 1
         cols = 2 * self.nc
         B = np.zeros((rows, cols))
@@ -114,6 +120,35 @@ class Tessellation:
 
         # normalize
         B = B.T / np.linalg.norm(B, axis=1)
+        return B
+
+    def basis_rref(self):
+        rows = self.nc + 1
+        cols = 2 * self.nc
+        B = np.zeros((rows, cols))
+
+        a = self.xmin
+        b = self.xmax
+        n = self.nc
+        s = (b - a) / n
+
+        B[0, 0] = -1
+        B[0, 1] = (a + s)
+        B[-2, ::2] = 1
+        # B[-1, :-2:2] = 1
+        B[-1, -2] = 1
+        B[-1, -1] = -(a + (n - 1) * s)
+        for k in range(1, n - 1):
+            B[k, : 2 * k : 2] = s
+            B[k, 2 * k] = -(a + k * s)
+            B[k, 2 * k + 1] = (a + k * s) * (a + (k + 1) * s)
+
+        # return B.T
+
+        # normalize
+        B = B.T / np.linalg.norm(B, ord=self.ord, axis=1)
+        if self.ord == np.inf:
+            B[::2, -2] = 1/n
         return B
 
     # with zero boundary
@@ -186,13 +221,13 @@ class Tessellation:
         B[r+1, c+1] = -np.arange(self.xmin, self.xmax, s)
 
         B = B / s
-        B = B / np.linalg.norm(B, axis=0)
+        B = B / np.linalg.norm(B, ord=self.ord, axis=0)
         
         return B
 
     def basis_sparse_zb(self):
         B = self.basis_sparse()[:, 1:-1]
-        B = B / np.linalg.norm(B, axis=0)
+        B = B / np.linalg.norm(B, ord=self.ord, axis=0)
         return B
 
     def plot_basis(self):
