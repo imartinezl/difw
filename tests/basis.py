@@ -8,80 +8,115 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import cpab
+from tqdm import tqdm 
 
 # %%
+
+from numpy.linalg import cond
+from scipy.linalg import orth, qr, norm, pinv
+
+def plot_basis_velocity(T, B=None):
+    if B is not None:
+        T.params.B = B
+    plt.figure()
+    for k in range(T.params.d):
+        theta = T.identity()
+
+        theta[0][k] = 1
+
+        grid = T.uniform_meshgrid(outsize)
+        v = T.calc_velocity(grid, theta)
+
+        # Plot
+        plt.plot(grid, v.T)
+
+def sparsity(sparse):
+    return (sparse == 0).sum() / sparse.size
+
+def orthogonal(A):
+    return np.allclose(A.T.dot(A), np.eye(A.shape[1]))
+
+def orthogonality(A):
+    return norm(A.T.dot(A) - np.eye(A.shape[1]))
+
+# %% 
+# The Sparse Null Space Basis Problem
 
 tess_size = 5
 backend = "numpy" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
-zero_boundary = True
-use_slow = False
-outsize = 100
-batch_size = 1
-basis = "svd"
-basis = "sparse"
-basis = "rref"
-
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
-T.params.use_slow = use_slow
-
-grid = T.uniform_meshgrid(outsize)
-theta = T.sample_transformation(batch_size)
-theta = T.sample_transformation_with_prior(batch_size)
-theta = T.identity(batch_size, epsilon=0)
-grid_t = T.transform_grid(grid, theta)
-
-# T.visualize_tesselation()
-# T.visualize_velocity(theta)
-# T.visualize_deformgrid(theta)
-# T.visualize_deformgrid(theta, method='numeric')
-T.visualize_gradient(theta)
-# T.visualize_gradient(theta, method="numeric")
-
-
-# %% Data Transform
-
-width = 50
-channels = 3
-
-# Generation
-# data = np.random.normal(0, 1, (batch_size, width, channels))
-a = np.zeros((batch_size, channels))
-b = np.ones((batch_size, channels)) * 2 * np.pi
-noise = np.random.normal(0, 0.1, (batch_size, width, channels))
-x = np.linspace(a, b, width, axis=1)
-data = np.sin(x)
-T.visualize_deformdata(data, theta)
-
-
-# %%
-
-tess_size = 3
-backend = "numpy" # ["pytorch", "numpy"]
-device = "cpu" # ["cpu", "gpu"]
-zero_boundary = True
+zero_boundary = False
 outsize = 100
 batch_size = 1
 
 basis = "svd"
 T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
 B_svd = T.params.B
+plot_basis_velocity(T)
 
 basis = "rref"
 T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
 B_rref = T.params.B
+plot_basis_velocity(T)
 
 basis = "sparse"
 T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
 B_sparse = T.params.B
+plot_basis_velocity(T)
+
+basis = "qr"
+T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+B_qr = T.params.B
+plot_basis_velocity(T)
+
+L = T.tess.constrain_matrix()
+sparsity(L)
+
+# %% Properties
+
+header = ["basis", "sparsity", "cond num", "orth", "norm", "norm inv"]
+print(" | ".join(header))
+print("-"*90)
+for v in [("svd", B_svd), ("rref", B_rref), ("sparse", B_sparse), ("qr", B_qr)]:
+    name = v[0]
+    B = v[1]
+    Binv = pinv(B)
+    values = [
+        name, 
+        np.round(sparsity(B),2), 
+        np.round(cond(B),2), 
+        orthogonal(B), 
+        np.round(orthogonality(B), 2), 
+        np.round(norm(B),2), 
+        np.round(norm(Binv),2)
+    ]
+    print("\t".join(map(str, values)))
+
+# %% MATLAB
+
+from scipy.io import loadmat
+B1 = loadmat("/home/imartinez/Documents/MATLAB/B1.mat")["B"]
+B2 = loadmat("/home/imartinez/Documents/MATLAB/B2.mat")["B"]
+
+B1 = B1 / norm(B1, axis=0)
+
+plot_basis_velocity(T, B1)
+plot_basis_velocity(T, B2)
+
+print("B1\t", sparsity(B1), cond(B1), orthogonal(B1), norm(B1, axis=0), norm(pinv(B1)))
+print("B2\t", sparsity(B2), cond(B2), orthogonal(B2), norm(B2, axis=0), norm(pinv(B2)))
+
 
 # %%
-from scipy.linalg import orth
 
-B_svd, orth(B_svd), B_rref, orth(B_rref), B_sparse, orth(B_sparse)
+x0 = T.calc_velocity(np.linspace(0,1,6), theta_2.detach().numpy())[0,1:-1]
+x0
+
+norm(B_svd - x0, axis=0), norm(B_rref - x0, axis=0), norm(B_sparse - x0, axis=0)
+# norm(B_svd - x0), norm(B_rref - x0), norm(B_sparse - x0)
+
 # %%
-
-# 
+ 
 def metric1(B):
     data = []
     for i in np.arange(0, B.shape[0], 2):
@@ -159,3 +194,38 @@ for B in [B_svd, B_rref, B_sparse]:
     plt.scatter(0,0, color="orange")
 
 # %%
+
+import numpy as np
+import scipy
+from scipy.optimize import LinearConstraint, minimize
+from scipy.linalg import null_space, norm
+
+fun = lambda x: norm(x-c)**2
+
+n = 3
+c = np.ones(n)*1
+x0 = np.zeros(n)
+fun(x0)
+
+A = np.array([
+    [1,4,0],
+    [4,0,2]
+])
+m = A.shape[0]
+ub = np.zeros(m)
+lb = np.zeros(m)
+constraint = LinearConstraint(A, lb, ub)
+# res = minimize(fun, x0, constraints=constraint, method="SLSQP")
+res = minimize(fun, x0, constraints=constraint, method="trust-constr",
+    options={
+        "factorization_method": None,
+        "verbose": 3
+        })
+res.x
+
+A = np.array([
+    [2,3,5],
+    [-4,2,3]
+])
+Ap = null_space(A)
+Ap
