@@ -22,6 +22,9 @@ class Tessellation:
             self.B = self.generate_basis_rref()
         elif basis == "sparse":
             self.B = self.generate_basis_sparse()
+        elif basis == "qr":
+            self.L = self.constrain_matrix()
+            self.B = self.basis_qr()
 
         self.D, self.d = self.B.shape
 
@@ -54,8 +57,11 @@ class Tessellation:
             return self.basis_rref()
 
     def basis_svd(self):
-        # return self.qr_null(self.L)
         return null_space(self.L)
+
+    def basis_qr(self):
+        return self.qr_null(self.L)
+
 
     def qr_null(self, A, tol=None):
         from scipy.linalg import qr
@@ -185,7 +191,9 @@ class Tessellation:
         return B
 
     def basis_sparse_zb(self):
-        return self.basis_sparse()[:, 1:-1]
+        B = self.basis_sparse()[:, 1:-1]
+        B = B / np.linalg.norm(B, axis=0)
+        return B
 
     def plot_basis(self):
         plt.figure()

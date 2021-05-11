@@ -467,8 +467,9 @@ class Cpab:
         assert basis in [
             "svd",
             "rref",
-            "sparse"
-        ], """Unknown basis, choose between 'svd', 'rref' or 'sparse' """
+            "sparse",
+            "qr"
+        ], """Unknown basis, choose between 'svd', 'rref' 'qr', or 'sparse' """
     def _check_type(self, x):
         """ Assert that the type of x is compatible with the class i.e
                 numpy backend expects np.array
