@@ -10,6 +10,8 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import cpab
+import pandas as pd
+import seaborn as sns
 
 # %%
 
@@ -72,7 +74,8 @@ def PiecewiseSlinear(x, xp, yp):
 def CPA(grid, T):
     # T = cpab.Cpab(tess_size=3)
     theta = T.sample_transformation(1)
-    theta = theta * np.linalg.norm(theta)
+    # theta = T.sample_transformation_with_prior(1, length_scale=1e-3, output_variance=0.5)
+    # theta = theta * np.linalg.norm(theta)
     # grid = T.uniform_meshgrid(100)
     return T.transform_grid(grid, theta)[0]
 
@@ -82,9 +85,12 @@ def sampler(p, method="uniform"):
         yp = np.cumsum(yp / np.sum(yp))
         yp = np.insert(yp, 0, 0)
 
-        # yp = np.random.uniform(0, 1, 1)
-        # yp = np.insert(yp, 0, 0)
-        # yp = np.insert(yp, 2, 1)
+    if method == "uniform2":
+        yp = np.random.uniform(0, 1, p-1)
+        yp = np.append(yp, 1)
+        yp = np.append(yp, 0)
+        yp = np.sort(yp)
+
 
     if method == "dirichlet":
         # random concentration
@@ -99,6 +105,7 @@ def sampler(p, method="uniform"):
         yp = np.random.dirichlet(alpha)
         yp = np.cumsum(yp)
         yp = np.insert(yp, 0, 0)
+        
 
     if method == "reject":
         done = False
@@ -114,6 +121,15 @@ def sampler(p, method="uniform"):
                 continue
             done = True
 
+    if method == "exponential":
+        u = np.random.uniform(0, 1, p)
+        e = -np.log(u)
+        x = e / np.sum(e)
+        yp = np.cumsum(x)
+        # yp = np.append(yp, 1)
+        yp = np.append(yp, 0)
+        yp = np.sort(yp)
+
     return yp
             
 
@@ -128,7 +144,7 @@ def count_paths(p, n, function="PiecewiseLinear", samples=2000, plot=False):
     # sampler = "uniform"
 
     if function == "CPA":
-        T = cpab.Cpab(tess_size=p, basis="rref")
+        T = cpab.Cpab(tess_size=p, basis="svd")
 
     if "Piecewise" in function:
         xp = np.linspace(0, 1, p+1)
@@ -136,7 +152,7 @@ def count_paths(p, n, function="PiecewiseLinear", samples=2000, plot=False):
     for i in range(samples):  
 
         if "Piecewise" in function:      
-            yp = sampler(p, "dirichlet")
+            yp = sampler(p, "exponential")
             
         if function == "PiecewiseLinear":
             y = PiecewiseLinear(x, xp, yp)
@@ -166,18 +182,41 @@ def count_paths(p, n, function="PiecewiseLinear", samples=2000, plot=False):
     if plot:
         # plt.plot(xp, yp)
         # plt.plot(x,y) 
-        fig, ax = plt.subplots(1, 3, constrained_layout=True)
-        im0 = ax[0].imshow(np.log((data+1)/np.max(data)), origin="lower")
-        plt.colorbar(im0, ax=ax[0], location="bottom")
+        cmap = "plasma"
+        fig, ax = plt.subplots(1, 4, constrained_layout=True, figsize=(11, 7))
+        
+        d = np.log((data+1)/np.max(data))
+        im0 = ax[0].imshow(d, origin="lower", cmap=cmap)
         ax[0].set_title("Path Count (log)")
+        ax[0].set_xticks(np.arange(0, n + 1, n // 5))
+        ax[0].set_yticks(np.arange(0, n + 1, n // 5))
+        plt.colorbar(im0, ax=ax[0], location="bottom", 
+            ticks=[-6, -4, -2, 0])
 
-        im1 = ax[1].imshow(np.log(path_norm), origin="lower")
-        plt.colorbar(im1, ax=ax[1], location="bottom")
+        d = np.log(path_norm)
+        im1 = ax[1].imshow(d, origin="lower", cmap=cmap)
         ax[1].set_title("Delannoy Count (log)")
+        ax[1].set_xticks(np.arange(0, n + 1, n // 5))
+        ax[1].set_yticks(np.arange(0, n + 1, n // 5))
+        plt.colorbar(im1, ax=ax[1], location="bottom", 
+            # ticks=[-6, -4, -2, 0])
+            ticks=[-160, -120, -80, -40, 0])
 
-        im2 = ax[2].imshow(path_norm - data/samples, origin="lower")
-        ax[2].set_title("Path - Delannoy")
-        plt.colorbar(im2, ax=ax[2], location="bottom")
+        d = np.log(path_norm)
+        im1b = ax[2].imshow(d, origin="lower", cmap=cmap, vmin=-7)
+        ax[2].set_title("Delannoy Count Subset (log)")
+        ax[2].set_xticks(np.arange(0, n + 1, n // 5))
+        ax[2].set_yticks(np.arange(0, n + 1, n // 5))
+        plt.colorbar(im1b, ax=ax[2], location="bottom", 
+            ticks=[-6, -4, -2, 0])
+        
+        import matplotlib.colors as colors
+        d = data/samples - path_norm
+        im2 = ax[3].imshow(d, origin="lower", norm=colors.CenteredNorm(), cmap="seismic")
+        ax[3].set_title("Path - Delannoy")
+        ax[3].set_xticks(np.arange(0, n + 1, n // 5))
+        ax[3].set_yticks(np.arange(0, n + 1, n // 5))
+        plt.colorbar(im2, ax=ax[3], location="bottom")
 
     # return np.sum(data == 0)
     # option 1
@@ -185,12 +224,13 @@ def count_paths(p, n, function="PiecewiseLinear", samples=2000, plot=False):
     # error_mean = np.sum(path_norm - data/samples)
     error_abs = path_norm - (data/samples)
 
-    error_abs = np.clip(error_abs, 0, None)
+    # error_abs = np.clip(error_abs, 0, None)
     # error_abs = np.abs(error_abs)
-    error_rel = error_abs / path_norm
+    # error_rel = error_abs / path_norm
+    error_rel = error_abs
 
-    # error_norm = np.linalg.norm(error_rel)
-    error_norm = np.mean(error_rel)
+    error_norm = np.linalg.norm(error_rel)
+    # error_norm = np.mean(error_rel)
 
     # option 2
 
@@ -204,24 +244,25 @@ def count_paths(p, n, function="PiecewiseLinear", samples=2000, plot=False):
     return error_norm
 
 n = 100
-p = 20
+p = 10
 function = "PiecewiseNearest"
 function = "PiecewiseQuadratic"
 function = "PiecewiseZero"
 function = "PiecewiseSlinear"
-function = "CPA"
 function = "PiecewiseLinear"
-count_paths(p, n, function, samples=2000, plot=True)
+function = "CPA"
+count_paths(p, n, function, samples=1000, plot=True)
 
-
-p_arr = np.arange(2,100,5)
+# %%
+p_arr = np.arange(2,150,10)
+# p_arr = [102]
 function_arr = [
     # "PiecewiseNearest",
     # "PiecewiseZero",
     # "PiecewiseSlinear",
     "PiecewiseLinear",
     # "PiecewiseQuadratic",
-    # "CPA"
+    "CPA"
 ]
 results = [[p, f, count_paths(p, n, f, samples=2000, plot=False)] 
     for f in function_arr for p in p_arr]
@@ -229,14 +270,18 @@ results = [[p, f, count_paths(p, n, f, samples=2000, plot=False)]
 results
 
 # %%
+
+results_df = pd.DataFrame(results, columns=["parameters", "function", "error"])
+plt.figure(figsize=(6,4), constrained_layout=True)
+sns.lineplot(x=results_df.parameters, y=results_df.error, hue=results_df.function)
+plt.grid()
+# plt.savefig("expressivity.png", dpi=300)
+
+# %%
 n = 100
 parr = [3,4,5,10,20,50]
 parr = np.arange(3,20,5)
 errors = [count_paths(p, n) for p in parr]
-
-
-# %%
-
 plt.plot(parr, errors)
 
 # %%
