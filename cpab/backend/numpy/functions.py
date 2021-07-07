@@ -15,6 +15,10 @@ def assert_version():
             or newer """
 
 # %%
+half = np.float16
+single = np.float32
+double = np.float64
+
 def to(x, dtype=np.float32, device=None):
     return np.array(x)
 
@@ -64,6 +68,16 @@ def meshgrid(*args, **kwargs):
 
 def matmul(*args, **kwargs):
     return np.matmul(*args, **kwargs)
+
+def max(*args, **kwargs):
+    return np.max(*args, **kwargs)
+
+def ones(*args, **kwargs):
+    return np.ones(*args, **kwargs)
+
+def pdist(c):
+    x, y = np.meshgrid(c, c)
+    return np.abs(x-y)
 
 # %%
 
