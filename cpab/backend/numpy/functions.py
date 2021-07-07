@@ -1,6 +1,6 @@
 # %%
 import numpy as np
-from .interpolation import interpolate
+from .interpolation import interpolate, interpolate_grid
 from .transformer import integrate_numeric, integrate_closed_form, derivative_numeric, derivative_closed_form
 from .transformer import get_cell, get_velocity, batch_effect
 from ...core.utility import methods
@@ -67,24 +67,24 @@ def matmul(*args, **kwargs):
 
 # %%
 
-def transformer(grid, theta, params, method=None):
+def transformer(grid, theta, params, method=None, time=1.0):
     methods.check(method)
     method = methods.default(method)
     
     if method == methods.closed_form:
-        return integrate_closed_form(grid, theta, params)
+        return integrate_closed_form(grid, theta, params, time)
     elif method == methods.numeric:
-        return integrate_numeric(grid, theta, params)
+        return integrate_numeric(grid, theta, params, time)
 
 # %%
-def gradient(grid, theta, params, method=None):
+def gradient(grid, theta, params, method=None, time=1.0):
     methods.check(method)
     method = methods.default(method)
     
     if method == methods.closed_form:
-        phi, der = derivative_closed_form(grid, theta, params)
+        phi, der = derivative_closed_form(grid, theta, params, time)
         return der
     elif method == methods.numeric:
         h = 1e-2
-        phi, der = derivative_numeric(grid, theta, params, h)
+        phi, der = derivative_numeric(grid, theta, params, time, h)
         return der
