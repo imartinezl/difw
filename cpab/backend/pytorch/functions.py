@@ -15,6 +15,10 @@ def assert_version():
 
 
 # %%
+half = torch.float16
+single = torch.float32
+double = torch.float64
+
 def to(x, dtype=torch.float32, device=None):
     if type(device) == str:
         device = torch.device("cuda") if device == "gpu" else torch.device("cpu")
@@ -71,3 +75,13 @@ def meshgrid(*args, **kwargs):
 
 def matmul(*args, **kwargs):
     return torch.matmul(*args, **kwargs)
+
+def max(*args, **kwargs):
+    return torch.max(*args, **kwargs)
+
+def ones(*args, **kwargs):
+    return torch.ones(*args, **kwargs)
+
+def pdist(c):
+    x, y = torch.meshgrid(c, c)
+    return torch.abs(x-y)
