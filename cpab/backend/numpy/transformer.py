@@ -67,7 +67,9 @@ def get_psi(x, t, theta, params):
 
     cond = a == 0
     x1 = x + t * b
-    x2 = np.exp(t * a) * (x + (b / a)) - (b / a)
+    eta = np.exp(t * a)
+    x2 = eta * x + (b / a) * (eta-1.0)
+    # x2 = np.exp(t * a) * (x + (b / a)) - (b / a)
     psi = np.where(cond, x1, x2)
     return psi
 
@@ -103,11 +105,11 @@ def get_phi_numeric(x, t, theta, params):
 # %% INTEGRATION
 
 
-def integrate_numeric(x, theta, params):
+def integrate_numeric(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
     n_batch = theta.shape[0]
-    t = 1
+    t = time
     params = precompute_affine(x, theta, params)
 
     # computation
@@ -123,10 +125,10 @@ def integrate_numeric(x, theta, params):
         c = get_cell(xPrev, params)
     return xPrev.reshape((n_batch, -1))
 
-def integrate_closed_form(x, theta, params):
+def integrate_closed_form(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
-    t = np.ones_like(x)
+    t = np.ones_like(x)*time
     params = precompute_affine(x, theta, params)
     n_batch = theta.shape[0]
 
@@ -162,10 +164,10 @@ def integrate_closed_form(x, theta, params):
             raise BaseException
     return None
 
-def integrate_closed_form_trace(x, theta, params):
+def integrate_closed_form_trace(x, theta, params, time=1.0):
 
     x = batch_effect(x, theta)
-    t = np.ones_like(x)
+    t = np.ones_like(x)*time
     params = precompute_affine(x, theta, params)
 
     result = np.empty((*x.shape, 3))
@@ -201,7 +203,7 @@ def integrate_closed_form_trace(x, theta, params):
 
 # %% DERIVATIVE
 
-def derivative_numeric(x, theta, params, h=1e-3):
+def derivative_numeric(x, theta, params, time=1.0, h=1e-3):
     # setup
     n_points = x.shape[-1]
     n_batch = theta.shape[0]
@@ -210,24 +212,24 @@ def derivative_numeric(x, theta, params, h=1e-3):
     # computation
     der = np.empty((n_batch, n_points, d))
 
-    phi_1 = integrate_numeric(x, theta, params)
+    phi_1 = integrate_numeric(x, theta, params, time)
     for k in range(d):
         theta2 = theta.copy()
         theta2[:,k] += h
-        phi_2 = integrate_numeric(x, theta2, params)
+        phi_2 = integrate_numeric(x, theta2, params, time)
 
         der[:,:,k] = (phi_2 - phi_1)/h
 
     return phi_1, der
 
-def derivative_closed_form(x, theta, params):
+def derivative_closed_form(x, theta, params, time=1.0):
     # setup
     n_points = x.shape[-1]
     n_batch = theta.shape[0]
     d = theta.shape[1]
 
     # computation
-    result = integrate_closed_form_trace(x, theta, params)
+    result = integrate_closed_form_trace(x, theta, params, time)
     phi = result[:,0].reshape((n_batch, -1))
     tm = result[:,1]
     cm = result[:,2]
