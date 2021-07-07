@@ -50,9 +50,7 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 
 
 // INTEGRATION
-at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10){
-    float t = 1.0;
-
+at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -79,9 +77,7 @@ at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tens
     return output;
 }
 
-at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
-    float t = 1.0;
-
+at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -111,7 +107,7 @@ at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, at::
 
 // DERIVATIVE
 
-at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -119,23 +115,21 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, at::Ten
 
     auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
 
-    at::Tensor phi_1 =  torch_integrate_numeric(points, theta, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-    // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, Bt, xmin, xmax, nc);
+    at::Tensor phi_1 =  torch_integrate_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, t, Bt, xmin, xmax, nc);
     
     for(int k = 0; k < d; k++){
         at::Tensor theta_2 = theta.clone();
         at::Tensor row = theta.index({torch::indexing::Slice(), k});
         theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
-        at::Tensor phi_2 =  torch_integrate_numeric(points, theta_2, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta_2, Bt, xmin, xmax, nc);
+        at::Tensor phi_2 =  torch_integrate_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta_2, t, Bt, xmin, xmax, nc);
         gradient.index_put_({torch::indexing::Slice(), torch::indexing::Slice(), k}, (phi_2 - phi_1)/h);
     }
     return gradient;
 }
 
-at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
-    float t = 1.0;
-
+at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -180,9 +174,7 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, at:
 }
 
 // TRANSFORMATION
-at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
-    float t = 1.0;
-
+at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -217,8 +209,6 @@ at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta
 }
 
 at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
-    float t = 1.0;
-
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -260,7 +250,7 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
     return gradient;
 }
 
-at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Problem size
     const int n_points = points.size(0);
     const int n_batch = theta.size(0);
@@ -268,15 +258,15 @@ at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, a
 
     auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
 
-    // at::Tensor phi_1 =  torch_integrate_numeric(points, theta, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-    // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, Bt, xmin, xmax, nc);
+    // at::Tensor phi_1 =  torch_integrate_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, t, Bt, xmin, xmax, nc);
     
     for(int k = 0; k < d; k++){
         at::Tensor theta_2 = theta.clone();
         at::Tensor row = theta_2.index({torch::indexing::Slice(), k});
         theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
-        at::Tensor phi_2 =  torch_integrate_numeric(points, theta_2, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta_2, Bt, xmin, xmax, nc);
+        at::Tensor phi_2 =  torch_integrate_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta_2, t, Bt, xmin, xmax, nc);
         gradient.index_put_({torch::indexing::Slice(), torch::indexing::Slice(), k}, (phi_2 - phi_1)/h);
     }
     return gradient;
