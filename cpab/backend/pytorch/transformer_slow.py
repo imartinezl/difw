@@ -78,10 +78,13 @@ def get_psi(x, t, theta, params):
 
     cond = cmpf0(a)
     x1 = x + t * b
-    x2 = torch.exp(t * a) * (x + (b / a)) - (b / a)
+    eta = torch.exp(t * a)
+    x2 = eta * x + (b / a) * (eta - 1.0)
+    # x2 = torch.exp(t * a) * (x + (b / a)) - (b / a)
     psi = torch.where(cond, x1, x2)
     return psi
 
+# TODO: REMOVE
 def get_hit_time_DEPRECATED(x, theta, params):
     A, r = get_affine(x, theta, params)
 
@@ -142,11 +145,11 @@ def get_phi_numeric(x, t, theta, params):
 
 # %% INTEGRATION
 
-def integrate_numeric(x, theta, params):
+def integrate_numeric(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
     n_batch = theta.shape[0]
-    t = 1
+    t = time
     params = precompute_affine(x, theta, params)
 
     # computation
@@ -162,6 +165,7 @@ def integrate_numeric(x, theta, params):
         xPrev = torch.where(c == cTemp, xTemp, xNum)
     return xPrev.reshape((n_batch, -1))
 
+# TODO: REMOVE
 def integrate_closed_form_DEPRECATED(x, theta, params):
     # setup
     x = batch_effect(x, theta)
@@ -203,10 +207,10 @@ def integrate_closed_form_DEPRECATED(x, theta, params):
             raise BaseException
     return None
 
-def integrate_closed_form(x, theta, params):
+def integrate_closed_form(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
-    t = torch.ones_like(x)
+    t = torch.ones_like(x)*time
     params = precompute_affine(x, theta, params)
     n_batch = theta.shape[0]
 
@@ -239,7 +243,7 @@ def integrate_closed_form(x, theta, params):
 
 # %% DERIVATIVE
 
-def derivative_numeric(x, theta, params, h=1e-3):
+def derivative_numeric(x, theta, params, time=1.0, h=1e-3):
     # setup
     n_points = x.shape[-1]
     n_batch = theta.shape[0]
@@ -248,24 +252,24 @@ def derivative_numeric(x, theta, params, h=1e-3):
     # computation
     der = torch.empty((n_batch, n_points, d), device=x.device)
 
-    phi_1 = integrate_numeric(x, theta, params)
+    phi_1 = integrate_numeric(x, theta, params, time)
     for k in range(d):
         theta[:,k] += h
-        phi_2 = integrate_numeric(x, theta, params)
+        phi_2 = integrate_numeric(x, theta, params, time)
         theta[:,k] -= h
 
         der[:,:,k] = (phi_2 - phi_1)/h
 
     return phi_1, der
 
-def derivative_closed_form(x, theta, params):
+def derivative_closed_form(x, theta, params, time=1.0):
     # setup
     n_points = x.shape[-1]
     n_batch = theta.shape[0]
     d = theta.shape[1]
 
     # computation
-    result = integrate_closed_form_trace(x, theta, params)
+    result = integrate_closed_form_trace(x, theta, params, time)
     phi = result[:,0].reshape((n_batch, -1))
     tm = result[:,1]
     cm = result[:,2]
@@ -355,6 +359,7 @@ def derivative_thit_theta(x, theta, k, params):
 
 # %% TRANSFORMATION
 
+# TODO: REMOVE
 def integrate_closed_form_trace_DEPRECATED(x, theta, params):
     # setup
     n_batch = theta.shape[0]
@@ -396,10 +401,10 @@ def integrate_closed_form_trace_DEPRECATED(x, theta, params):
             raise BaseException
     return None
 
-def integrate_closed_form_trace(x, theta, params):
+def integrate_closed_form_trace(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
-    t = torch.ones_like(x)
+    t = torch.ones_like(x)*time
     params = precompute_affine(x, theta, params)
     n_batch = theta.shape[0]
 
@@ -437,7 +442,7 @@ def derivative_closed_form_trace(result, x, theta, params):
     d = theta.shape[1]
 
     # computation
-    # result = integrate_closed_form_trace(x, theta, params)
+    # result = integrate_closed_form_trace(x, theta, params, time)
     phi = result[:,0].reshape((n_batch, -1))
     tm = result[:,1]
     cm = result[:,2]
@@ -468,7 +473,7 @@ def derivative_closed_form_trace(result, x, theta, params):
     
     return der  
 
-def derivative_numeric_trace(phi_1, x, theta, params, h=1e-3):
+def derivative_numeric_trace(phi_1, x, theta, params, time=1.0, h=1e-3):
     # setup
     n_points = x.shape[-1]
     n_batch = theta.shape[0]
@@ -480,7 +485,7 @@ def derivative_numeric_trace(phi_1, x, theta, params, h=1e-3):
     # phi_1 = integrate_numeric(x, theta, params)
     for k in range(d):
         theta[:,k] += h
-        phi_2 = integrate_numeric(x, theta, params)
+        phi_2 = integrate_numeric(x, theta, params, time)
         theta[:,k] -= h
 
         der[:,:,k] = (phi_2 - phi_1)/h
