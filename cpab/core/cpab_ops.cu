@@ -298,12 +298,11 @@ __global__ void kernel_get_velocity(
 
 __global__ void kernel_integrate_numeric(
     const int n_points, const int n_batch, const float* x, const float* A, 
-    const float xmin, const float xmax, const int nc, 
+    const float t, const float xmin, const float xmax, const int nc, 
     const int nSteps1, const int nSteps2, float* newpoints){
 
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
-    float t = 1.0;
     if(point_index < n_points && batch_index < n_batch) {
         newpoints[batch_index * n_points + point_index] = integrate_numeric(x[point_index], t, A, n_batch, batch_index, xmin, xmax, nc, nSteps1, nSteps2);
     }
@@ -312,11 +311,10 @@ __global__ void kernel_integrate_numeric(
 
 __global__ void kernel_integrate_closed_form(
     const int n_points, const int n_batch, const float* x, const float* A, 
-    const float xmin, const float xmax, const int nc, float* newpoints){
+    const float t, const float xmin, const float xmax, const int nc, float* newpoints){
 
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
-    float t = 1.0;
     if(point_index < n_points && batch_index < n_batch) {
         newpoints[batch_index * n_points + point_index] = integrate_closed_form(x[point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
     }
@@ -326,12 +324,11 @@ __global__ void kernel_integrate_closed_form(
 __global__ void kernel_derivative_closed_form(
     const int n_points, const int n_batch, const int d,
     const float* x, const float* A, const float* B, 
-    const int xmin, const int xmax, const int nc, double* gradpoints){
+    const float t, const int xmin, const int xmax, const int nc, double* gradpoints){
 
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
     
-    float t = 1.0;
     const int e = 3;
 
     if(point_index < n_points && batch_index < n_batch){ 
@@ -349,12 +346,11 @@ __global__ void kernel_derivative_closed_form(
 
 __global__ void kernel_integrate_closed_form_trace(
     const int n_points, const int n_batch, const float* x, const float* A, 
-    const float xmin, const float xmax, const int nc, float* newpoints){
+    const float t, const float xmin, const float xmax, const int nc, float* newpoints){
 
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
     
-    float t = 1.0;
     const int e = 3;
 
     if(point_index < n_points && batch_index < n_batch) {
