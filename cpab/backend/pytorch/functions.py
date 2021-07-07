@@ -1,6 +1,6 @@
 import torch
 
-from .interpolation import interpolate
+from .interpolation import interpolate, interpolate_grid
 from .transformer import transformer, gradient
 from .transformer import get_cell, calc_velocity
 
