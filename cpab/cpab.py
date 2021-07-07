@@ -176,7 +176,7 @@ class Cpab:
         """
         return self.backend.identity(self.params.d, n_sample, epsilon, self.device)
 
-    def transform_grid(self, grid, theta, method=None):
+    def transform_grid(self, grid, theta, method=None, time=1.0):
         """ Main method of the class. Integrates the grid using the parametrization
             in theta.
         Arguments:
@@ -194,10 +194,34 @@ class Cpab:
         self._check_device(grid)
         self._check_type(theta)
         self._check_device(theta)
-        transformed_grid = self.backend.transformer(grid, theta, self.params, method)
+        transformed_grid = self.backend.transformer(grid, theta, self.params, method, time)
         return transformed_grid
 
-    def gradient_grid(self, grid, theta, method=None):
+    def transform_grid_ss(self, grid, theta, method=None, time=1.0, N=0):
+        """ Main method of the class. Integrates the grid using the parametrization
+            in theta.
+        Arguments:
+            grid: [n_points] vector or [n_batch, n_points] tensor i.e.
+                either a single grid for all theta values, or a grid for each theta
+                value
+            theta: [n_batch, d] matrix,
+            method: one of {"closed_form", "numeric"}
+        Output:
+            transformed_grid: [n_batch, n_points] tensor, with the transformed
+                grid. The slice transformed_grid[i] corresponds to the grid being
+                transformed by theta[i]
+        """
+        self._check_type(grid)
+        self._check_device(grid)
+        self._check_type(theta)
+        self._check_device(theta)
+        time = time / 2**N
+        transformed_grid = self.backend.transformer(grid, theta, self.params, method, time)
+        for i in range(N):
+            transformed_grid = self.backend.interpolate_grid(transformed_grid)
+        return transformed_grid
+
+    def gradient_grid(self, grid, theta, method=None, time=1.0):
         """ Integrates and return the gradient of the transformation
         using the parametrization in theta.
         Arguments:
@@ -217,7 +241,7 @@ class Cpab:
         self._check_device(grid)
         self._check_type(theta)
         self._check_device(theta)
-        transformed_grid = self.backend.gradient(grid, theta, self.params, method)
+        transformed_grid = self.backend.gradient(grid, theta, self.params, method, time)
         return transformed_grid
 
     def interpolate(self, data, grid, outsize):
@@ -239,7 +263,7 @@ class Cpab:
         self._check_device(grid)
         return self.backend.interpolate(data, grid, outsize)
 
-    def transform_data(self, data, theta, outsize, method=None):
+    def transform_data(self, data, theta, outsize, method=None, time=1.0):
         """ Combination of the transform_grid and interpolate methods for easy
             transformation of data.
         Arguments:
@@ -262,7 +286,7 @@ class Cpab:
             data.shape[0] == theta.shape[0]
         ), """Batch sizes should be the same on arguments data and theta"""
         grid = self.uniform_meshgrid(outsize)
-        grid_t = self.transform_grid(grid, theta, method)
+        grid_t = self.transform_grid(grid, theta, method, time)
         data_t = self.interpolate(data, grid_t, outsize)
         return data_t
 
@@ -319,7 +343,7 @@ class Cpab:
         ax.grid(alpha=0.3)
         return ax
 
-    def visualize_deformgrid(self, theta, method=None, n_points=100, fig=None):
+    def visualize_deformgrid(self, theta, method=None, time=1.0, n_points=100, fig=None):
         """ Utility function that helps visualize a deformation
         Arguments:
             theta: [n_batch, d] single parametrization vector
@@ -334,7 +358,7 @@ class Cpab:
 
         # Transform grid and convert to numpy
         grid = self.uniform_meshgrid(n_points)
-        grid_t = self.transform_grid(grid, theta, method)
+        grid_t = self.transform_grid(grid, theta, method, time)
         grid = self.backend.tonumpy(grid)
         grid_t = self.backend.tonumpy(grid_t)
 
@@ -379,7 +403,7 @@ class Cpab:
         return plot
         
 
-    def visualize_gradient(self, theta, method=None, n_points=100, fig=None):
+    def visualize_gradient(self, theta, method=None, time=1.0, n_points=100, fig=None):
         """ Utility function that helps visualize the gradient
         Arguments:
             theta: [n_batch, d] single parametrization vector
@@ -393,7 +417,7 @@ class Cpab:
 
         # Gradient grid and convert to numpy
         grid = self.uniform_meshgrid(n_points)
-        grad = self.gradient_grid(grid, theta, method)
+        grad = self.gradient_grid(grid, theta, method, time)
         grid = self.backend.tonumpy(grid)
         grad = self.backend.tonumpy(grad)
 
