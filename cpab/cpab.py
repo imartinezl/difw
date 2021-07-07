@@ -147,16 +147,18 @@ class Cpab:
             self._check_type(mean)
             self._check_device(mean)
 
-        # Smoothness priors on CPA
-        s = output_variance  # 0.01
-        l = length_scale  # 0.1
-        kernel = lambda x, y: (s ** 2) * self.backend.exp(-((x - y) ** 2) / (2 * l ** 2))
+
+        centers = self.backend.to(self.tess.cell_centers(), device=self.device)
+        dist = self.backend.pdist(centers)
+
+        cov_init = self.backend.ones((self.params.D, self.params.D))*100*self.backend.max(dist)
+        cov_init[::2,::2] = dist
+        cov_init[1::2,1::2] = dist
+
+        # Squared exponential kernel + Smoothness priors on CPA
+        cov_pa = output_variance**2 * self.backend.exp(-(cov_init / (2*length_scale**2)))       
 
         B = self.params.B
-        grid = self.backend.linspace(0, 1, self.params.D)
-        X, Y = self.backend.meshgrid(grid, grid)
-        cov_pa = kernel(X, Y)
-
         cov_cpa = self.backend.matmul(self.backend.matmul(B.T, cov_pa), B)
 
         samples = self.backend.sample_transformation(
