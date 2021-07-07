@@ -50,7 +50,7 @@ at::Tensor cuda_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor At,
    return output; 
 }
 
-at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, const int nSteps1, const int nSteps2, at::Tensor output){
+at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, const int nSteps1, const int nSteps2, at::Tensor output){
    // Problem size
    const int n_points = points.size(0);
    const int n_batch = theta.size(0);
@@ -62,14 +62,14 @@ at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tenso
 
    // Launch kernel
    kernel_integrate_numeric<<<bc, tpb>>>(n_points, n_batch, 
-      points.data_ptr<float>(), At.data_ptr<float>(), xmin, xmax, nc, nSteps1, nSteps2, output.data_ptr<float>());
+      points.data_ptr<float>(), At.data_ptr<float>(), t, xmin, xmax, nc, nSteps1, nSteps2, output.data_ptr<float>());
 
    
    gpuErrchk( cudaPeekAtLastError() );                           
    return output; 
 }
 
-at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output){
+at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor output){
    // Problem size
    const int n_points = points.size(0);
    const int n_batch = theta.size(0);
@@ -81,7 +81,7 @@ at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::T
 
    // Launch kernel
    kernel_integrate_closed_form<<<bc, tpb>>>(n_points, n_batch, 
-      points.data_ptr<float>(), At.data_ptr<float>(), xmin, xmax, nc, output.data_ptr<float>());
+      points.data_ptr<float>(), At.data_ptr<float>(), t, xmin, xmax, nc, output.data_ptr<float>());
 
    
    gpuErrchk( cudaPeekAtLastError() );                           
@@ -90,7 +90,7 @@ at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::T
 
 
 
-at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float xmin, const float xmax, const int nc, at::Tensor gradient){
+at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient){
    // Problem size
    const int n_points = points.size(0);
    const int n_batch = theta.size(0);
@@ -102,13 +102,13 @@ at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::
 
    // Launch kernel
    kernel_derivative_closed_form<<<bc, tpb>>>(n_points, n_batch, d,
-      points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), xmin, xmax, nc, gradient.data_ptr<double>());
+      points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), t, xmin, xmax, nc, gradient.data_ptr<double>());
 
    gpuErrchk( cudaPeekAtLastError() );                           
    return gradient; 
 }
 
-at::Tensor cuda_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output){
+at::Tensor cuda_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor output){
    // Problem size
    const int n_points = points.size(0);
    const int n_batch = theta.size(0);
@@ -119,7 +119,7 @@ at::Tensor cuda_integrate_closed_form_trace(at::Tensor points, at::Tensor theta,
 
    // Launch kernel
    kernel_integrate_closed_form_trace<<<bc, tpb>>>(n_points, n_batch, 
-      points.data_ptr<float>(), At.data_ptr<float>(), xmin, xmax, nc, output.data_ptr<float>());
+      points.data_ptr<float>(), At.data_ptr<float>(), t, xmin, xmax, nc, output.data_ptr<float>());
 
    
    gpuErrchk( cudaPeekAtLastError() );                           
