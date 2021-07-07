@@ -54,7 +54,9 @@ float get_psi(const float& x, const float& t, const float& a, const float& b){
         return x + t*b;
     }
     else{
-        return std::exp(t*a) * (x + (b/a)) - (b/a);
+        const float eta = std::exp(t*a);
+        return eta * x + (b/a) * (eta - 1.0);
+        // return std::exp(t*a) * (x + (b/a)) - (b/a);
     }
 }
 
