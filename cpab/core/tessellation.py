@@ -30,6 +30,10 @@ class Tessellation:
 
         self.D, self.d = self.B.shape
 
+    def cell_centers(self):
+        h = self.xr / self.nc
+        return np.linspace(self.xmin, self.xmax-h, self.nc) + h/2
+
     def constrain_matrix(self):
         vertices = np.linspace(self.xmin, self.xmax, self.nv)
         shared_vertices = vertices[1:-1]
