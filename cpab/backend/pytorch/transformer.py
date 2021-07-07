@@ -171,7 +171,7 @@ def gradient_fast_gpu(grid, theta, params, method=None, time=1.0):
         return cpab_gpu.derivative_closed_form(grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
     elif method == methods.numeric:
         h = 1e-2
-        return cpab_gpu.derivative_numeric(grid, theta, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
+        return cpab_gpu.derivative_numeric(grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
 
 # %% TRANSFORMER
 def transformer(grid, theta, params, method=None, time=1.0):
