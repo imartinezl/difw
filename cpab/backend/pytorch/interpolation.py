@@ -41,9 +41,9 @@ def interpolate_grid(data):
     n_batch, width = data.shape
 
     # Rescale to interval [0-1] per batch
-    xmin, xmax = data[:,0].view(-1,1), data[:,-1].view(-1,1)
-    xdelta = xmax - xmin
-    data = (data - xmin) / xdelta
+    # xmin, xmax = data[:,0].view(-1,1), data[:,-1].view(-1,1)
+    # xdelta = xmax - xmin
+    # data = (data - xmin) / xdelta
 
     # Extract points
     x = data.flatten()
@@ -68,12 +68,12 @@ def interpolate_grid(data):
     y1 = data[r, x1]
 
     # Interpolation weights
-    xd = (x - x0)#.to(torch.float32))
+    xd = (x - x0).to(torch.float32)
 
     # Do interpolation
     y = y0 * (1 - xd) + y1 * xd
 
     newdata = torch.reshape(y, (n_batch, width))
 
-    newdata = xmin + newdata * xdelta
+    # newdata = xmin + newdata * xdelta
     return newdata
