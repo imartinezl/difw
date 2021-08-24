@@ -272,6 +272,143 @@ at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, a
     return gradient;
 }
 
+float clip(int num, int lower, int upper) {
+  return std::max(lower, std::min(num, upper));
+}
+
+// Interpolate
+at::Tensor torch_interpolate_grid_forward(at::Tensor data){
+    const int n_batch = data.size(0);
+    const int width = data.size(1);
+
+    auto output = torch::zeros({6, n_batch, width}, at::kCPU);//.contiguous();
+    // auto output = torch::empty_like(data, at::kCPU).contiguous();
+    float* y = output.data_ptr<float>();
+
+    float* x = data.data_ptr<float>();
+    
+    for (int i = 0; i < n_batch; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            float xc = x[i*width + j]*(width - 1);
+            int x0 = (int) std::floor(xc);
+            int x1 = x0 + 1;
+            x0 = clip(x0, 0, width-1);
+            x1 = clip(x1, 0, width-1);
+            float y0 = x[i*width + x0];
+            float y1 = x[i*width + x1];
+            float xd = (float) xc - x0;
+
+            y[0*(n_batch*width) + width*i + j] = y0 * (1 - xd) + y1 * xd;
+            y[1*(n_batch*width) + width*i + j] = y0;
+            y[2*(n_batch*width) + width*i + j] = y1;
+            y[3*(n_batch*width) + width*i + j] = x0;
+            y[4*(n_batch*width) + width*i + j] = x1;
+            y[5*(n_batch*width) + width*i + j] = xd;
+        }
+        
+    }
+    return output;
+}
+
+at::Tensor torch_interpolate_grid_backward(at::Tensor y, at::Tensor y0, at::Tensor y1, at::Tensor x0, at::Tensor x1, at::Tensor xd){
+    const int n_batch = x0.size(0);
+    const int width = x0.size(1);
+
+    auto output = torch::empty({3*n_batch*width, 4}, at::kCPU).contiguous();
+    float* grad = output.data_ptr<float>();
+
+    float* y0_arr = y0.data_ptr<float>();
+    float* y1_arr = y1.data_ptr<float>();
+    float* x0_arr = x0.data_ptr<float>();
+    float* x1_arr = x1.data_ptr<float>();
+    float* xd_arr = xd.data_ptr<float>();
+    
+    int k = 0;
+    for (int i = 0; i < n_batch; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            int pos = width*i + j;
+            grad[k+0] = i; // batch
+            grad[k+1] = x0_arr[pos]; // row
+            grad[k+2] = j; // col
+            grad[k+3] = 1-xd_arr[pos]; // value
+            k+=4;
+
+            grad[k+0] = i; // batch
+            grad[k+1] = x1_arr[pos]; // row
+            grad[k+2] = j; // col
+            grad[k+3] = xd_arr[pos]; // value
+            k+=4;
+
+            grad[k+0] = i; // batch
+            grad[k+1] = j; // row
+            grad[k+2] = j; // col
+            grad[k+3] = (width-1)*(y1_arr[pos]-y0_arr[pos]); // value
+            k+=4;
+        }
+    }
+    return output;
+}
+
+at::Tensor torch_interpolate_grid_backward_new(at::Tensor g, at::Tensor y, at::Tensor y0, at::Tensor y1, at::Tensor x0, at::Tensor x1, at::Tensor xd){
+    const int n_batch = x0.size(0);
+    const int width = x0.size(1);
+
+    auto output = torch::zeros({n_batch, width}, at::kCPU).contiguous();
+    float* grad = output.data_ptr<float>();
+
+    float* y0_arr = y0.data_ptr<float>();
+    float* y1_arr = y1.data_ptr<float>();
+    float* x0_arr = x0.data_ptr<float>();
+    float* x1_arr = x1.data_ptr<float>();
+    float* xd_arr = xd.data_ptr<float>();
+    float* g_arr = g.data_ptr<float>();
+    
+    for (int i = 0; i < n_batch; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            int pos = width*i + j;
+
+            int row = x0_arr[pos];
+            float value = 1-xd_arr[pos];
+            grad[width*i + row] += value * g_arr[pos];
+
+            row = x1_arr[pos];
+            value = xd_arr[pos];
+            grad[width*i + row] += value * g_arr[pos];
+
+            row = x0_arr[pos];
+            value = (width-1)*(y1_arr[pos]-y0_arr[pos]);
+            grad[width*i + row] += value * g_arr[pos];
+        }
+    }
+    return output;
+}
+
+// def interpolate_grid(data):
+//     n_batch, width = data.shape
+//     x = data.flatten()
+//     x = x * (width - 1)
+//     x0 = torch.floor(x).to(torch.int64)
+//     x1 = x0 + 1
+//     x0 = torch.clamp(x0, 0, width - 1)
+//     x1 = torch.clamp(x1, 0, width - 1)
+//     # r = torch.arange(n_batch).repeat_interleave(width)
+//     r = torch.arange(n_batch).view(-1,1).repeat(1,width).flatten()
+//     y0 = data[r, x0]
+//     y1 = data[r, x1]
+
+//     xd = (x - x0)#.to(torch.float32))
+
+//     y = y0 * (1 - xd) + y1 * xd
+//     newdata = torch.reshape(y, (n_batch, width))
+
+//     return newdata
+
 
 // Binding
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
@@ -284,6 +421,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("integrate_closed_form_trace", &torch_integrate_closed_form_trace, "Integrate closed form trace");
     m.def("derivative_closed_form_trace", &torch_derivative_closed_form_trace, "Derivative closed form trace");
     m.def("derivative_numeric_trace", &torch_derivative_numeric_trace, "Derivative numeric trace");
+    m.def("interpolate_grid_forward", &torch_interpolate_grid_forward, "Interpolate grid forward");
+    m.def("interpolate_grid_backward", &torch_interpolate_grid_backward, "Interpolate grid backward");
+    m.def("interpolate_grid_backward_new", &torch_interpolate_grid_backward_new, "Interpolate grid backward");
 }
 
 

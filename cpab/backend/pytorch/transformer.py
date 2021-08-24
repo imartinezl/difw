@@ -359,3 +359,54 @@ class Transformer_fast_gpu_numeric(torch.autograd.Function):
         return None, grad, None, None # [n_batch, d]
 
 
+
+
+# %% INTERPOLATE
+from .interpolation import interpolate, interpolate_grid
+
+def interpolate_test(data, params):
+    if data.is_cuda:
+        if not params.use_slow and _gpu_success:
+            if _verbose: print('using fast gpu implementation')
+            # return cpab_gpu.get_cell(grid, params.xmin, params.xmax, params.nc)
+        else:
+            if _verbose: print('using slow gpu implementation')
+            return interpolate_grid(data)
+    else:
+        if not params.use_slow and _cpu_success:
+            if _verbose: print('using fast cpu implementation')
+            return Interpolate_fast_cpu.apply(data)
+        else:
+            if _verbose: print('using slow cpu implementation')
+            return interpolate_grid(data)
+
+
+# %% INTERPOLATE: FAST / CPU 
+class Interpolate_fast_cpu(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, data):
+        output = cpab_cpu.interpolate_grid_forward(data)
+        ctx.save_for_backward(output)
+        y = output[0,:,:].contiguous()
+        return y
+
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, grad_output): # grad [n_batch, n_points]
+
+        output, = ctx.saved_tensors
+        y, y0, y1, x0, x1, xd = torch.unbind(output)
+        grad = cpab_cpu.interpolate_grid_backward_new(grad_output, y, y0, y1, x0, x1, xd)
+        return grad
+        
+        output = cpab_cpu.interpolate_grid_backward(y, y0, y1, x0, x1, xd)
+        
+        indices = output[:,:3]
+        values = output[:,3]
+        n_batch, width = y.shape
+        m = torch.sparse_coo_tensor(indices.T, values, (n_batch, width, width))
+        
+        grad = torch.bmm(m, grad_output.unsqueeze(2)).squeeze(2)
+        # print(y, y0, y1, x0, x1, xd, m.to_dense(), grad)
+        return grad
+        return grad_output # [n_batch, d]
