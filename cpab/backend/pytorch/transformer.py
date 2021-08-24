@@ -213,7 +213,7 @@ class Transformer_slow_closed_form(torch.autograd.Function):
         ctx.params = params
         output = integrate_closed_form_trace(grid, theta, params, time)
         n_batch = theta.shape[0]
-        grid_t = output[:,0].reshape((n_batch, -1))
+        grid_t = output[:,0].reshape((n_batch, -1)).contiguous()
         ctx.save_for_backward(output, grid, theta)
         return grid_t
 
@@ -269,7 +269,7 @@ class Transformer_fast_cpu_closed_form(torch.autograd.Function):
     def forward(ctx, grid, theta, params, time=1.0):
         ctx.params = params
         output = cpab_cpu.integrate_closed_form_trace(grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
-        grid_t = output[:,:,0]
+        grid_t = output[:,:,0].contiguous()
         ctx.save_for_backward(output, grid, theta)
         return grid_t
 
@@ -321,7 +321,7 @@ class Transformer_fast_gpu_closed_form(torch.autograd.Function):
     def forward(ctx, grid, theta, params, time=1.0):
         ctx.params = params
         output = cpab_gpu.integrate_closed_form_trace(grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
-        grid_t = output[:,:,0]
+        grid_t = output[:,:,0].contiguous()
         ctx.save_for_backward(output, grid, theta)
         return grid_t
 
