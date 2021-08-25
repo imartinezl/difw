@@ -7,6 +7,8 @@ at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::T
 at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
 at::Tensor cuda_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float xmin, const float xmax, const int nc, at::Tensor gradient);
+at::Tensor cuda_interpolate_grid_forward(at::Tensor points, at::Tensor output);
+at::Tensor cuda_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor points, at::Tensor output);
 
 // Shortcuts for checking
 #define CHECK_CUDA(x) AT_ASSERTM(x.is_cuda(), #x " must be a CUDA tensor")
@@ -222,6 +224,39 @@ at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, a
 }
 
 
+at::Tensor torch_interpolate_grid_forward(at::Tensor points){
+    // Do input checking
+    CHECK_INPUT(points);
+    
+    // Problem size
+    const int n_batch = data.size(0);
+    const int n_points = data.size(1);
+
+    // Allocate output
+    auto output = torch::zeros({n_batch, n_points}, at::kCUDA);
+
+    // Call kernel launcher
+    return cuda_interpolate_grid_forward(data, output);
+}
+
+at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor points){
+    // Do input checking
+    CHECK_INPUT(grad_prev);
+    CHECK_INPUT(points);
+    
+    // Problem size
+    const int n_batch = data.size(0);
+    const int n_points = data.size(1);
+
+    // Allocate output
+    auto output = torch::zeros({n_batch, n_points}, at::kCUDA);
+
+    // Call kernel launcher
+    return cuda_interpolate_grid_backward(grad_prev, points, output);
+}
+
+
+
 
 // Binding
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
@@ -234,4 +269,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("integrate_closed_form_trace", &torch_integrate_closed_form_trace, "Integrate closed form trace");
     m.def("derivative_closed_form_trace", &torch_derivative_closed_form_trace, "Derivative closed form trace");
     m.def("derivative_numeric_trace", &torch_derivative_numeric_trace, "Derivative numeric trace");
+    m.def("interpolate_grid_forward", &torch_interpolate_grid_forward, "Interpolate grid forward");
+    m.def("interpolate_grid_backward", &torch_interpolate_grid_backward, "Interpolate grid backward");
 }

@@ -382,3 +382,66 @@ __global__ void kernel_derivative_closed_form_trace(
     }
     return;
 }
+
+
+
+// INTERPOLATE
+__device__ float clip(int num, int lower, int upper) {
+    return max(lower, min(num, upper));
+}
+  
+__device__ float interpolate_grid_forward(const float* x, const int& n_points, const int& batch_index, const int& point_index){
+    
+    float xc = x[batch_index*n_points + point_index]*(n_points - 1);
+    int x0 = (int) std::floor(xc);
+    int x1 = x0 + 1;
+    x0 = clip(x0, 0, n_points-1);
+    x1 = clip(x1, 0, n_points-1);
+    float y0 = x[batch_index*n_points + x0];
+    float y1 = x[batch_index*n_points + x1];
+    float xd = (float) xc - x0;
+
+    return y0 * (1 - xd) + y1 * xd;
+}
+
+
+__global__ void kernel_interpolate_grid_forward(
+    const int n_points, const int n_batch, const float* x, float* y){
+
+    int point_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
+    if(point_index < n_points && batch_index < n_batch) {
+        y[batch_index * n_points + point_index] = interpolate_grid_forward(x, n_points, batch_index, point_index);
+    }
+    return;
+}
+
+__device__ float interpolate_grid_backward(float* gradient, const float* g, const float* x, const int& n_points, const int& batch_index, const int& point_index){
+    
+    int pos = n_points*batch_index + point_index;
+            
+    float xc = x[pos]*(n_points - 1);
+    int x0 = (int) std::floor(xc);
+    int x1 = x0 + 1;
+    x0 = clip(x0, 0, n_points-1);
+    x1 = clip(x1, 0, n_points-1);
+    float y0 = x[batch_index*n_points + x0];
+    float y1 = x[batch_index*n_points + x1];
+    float xd = (float) xc - x0;
+
+    gradient[n_points*batch_index + x0] += (1-xd) * g[pos];
+    gradient[n_points*batch_index + x1] += xd * g[pos];
+    gradient[n_points*batch_index + point_index] += (n_points-1)*(y1-y0) * g[pos];
+}
+
+
+__global__ void kernel_interpolate_grid_backward(
+    const int n_points, const int n_batch, const float* g, const float* x, float* gradient){
+
+    int point_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
+    if(point_index < n_points && batch_index < n_batch) {
+        interpolate_grid_backward(gradient, g, x, n_points, batch_index, point_index);
+    }
+    return;
+}
