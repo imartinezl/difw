@@ -416,7 +416,7 @@ __global__ void kernel_interpolate_grid_forward(
     return;
 }
 
-__device__ float interpolate_grid_backward(float* gradient, const float* g, const float* x, const int& n_points, const int& batch_index, const int& point_index){
+__device__ void interpolate_grid_backward(float* gradient, const float* g, const float* x, const int& n_points, const int& batch_index, const int& point_index){
     
     int pos = n_points*batch_index + point_index;
             

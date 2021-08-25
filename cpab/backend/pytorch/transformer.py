@@ -406,6 +406,8 @@ class Interpolate_fast_cpu(torch.autograd.Function):
 class Interpolate_fast_gpu(torch.autograd.Function):
     @staticmethod
     def forward(ctx, data):
+        ctx.save_for_backward(data)
+        return cpab_gpu.interpolate_grid_forward(data)
         output = cpab_gpu.interpolate_grid_forward(data)
         ctx.save_for_backward(output)
         y = output[0,:,:].contiguous()
@@ -414,6 +416,9 @@ class Interpolate_fast_gpu(torch.autograd.Function):
     @staticmethod
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad_output): # grad [n_batch, n_points]
+        data, = ctx.saved_tensors
+        return cpab_gpu.interpolate_grid_backward(grad_output, data)
+
         output, = ctx.saved_tensors
         y, y0, y1, x0, x1, xd = torch.unbind(output)
         return cpab_gpu.interpolate_grid_backward(grad_output, y, y0, y1, x0, x1, xd)

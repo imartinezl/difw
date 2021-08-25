@@ -229,14 +229,14 @@ at::Tensor torch_interpolate_grid_forward(at::Tensor points){
     CHECK_INPUT(points);
     
     // Problem size
-    const int n_batch = data.size(0);
-    const int n_points = data.size(1);
+    const int n_batch = points.size(0);
+    const int n_points = points.size(1);
 
     // Allocate output
     auto output = torch::zeros({n_batch, n_points}, at::kCUDA);
 
     // Call kernel launcher
-    return cuda_interpolate_grid_forward(data, output);
+    return cuda_interpolate_grid_forward(points, output);
 }
 
 at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor points){
@@ -245,8 +245,8 @@ at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor poin
     CHECK_INPUT(points);
     
     // Problem size
-    const int n_batch = data.size(0);
-    const int n_points = data.size(1);
+    const int n_batch = points.size(0);
+    const int n_points = points.size(1);
 
     // Allocate output
     auto output = torch::zeros({n_batch, n_points}, at::kCUDA);
