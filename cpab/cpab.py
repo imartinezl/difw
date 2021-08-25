@@ -217,10 +217,10 @@ class Cpab:
         self._check_device(grid)
         self._check_type(theta)
         self._check_device(theta)
-        time = time / 2**N
+        # time = time / 2**N
         transformed_grid = self.backend.transformer(grid, theta, self.params, method, time)
         for i in range(N):
-            transformed_grid = self.backend.interpolate_grid(transformed_grid)
+            transformed_grid = self.backend.interpolate_grid(transformed_grid, self.params)
         return transformed_grid
 
     def gradient_grid(self, grid, theta, method=None, time=1.0):
