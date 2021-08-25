@@ -1,6 +1,6 @@
 import torch
 
-from .interpolation import interpolate, interpolate_grid as interpolate_grid_slow
+from .interpolation import interpolate
 from .transformer import transformer, gradient
 from .transformer import get_cell, calc_velocity
 from .transformer import interpolate_grid
