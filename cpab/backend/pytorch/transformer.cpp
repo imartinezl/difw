@@ -349,14 +349,14 @@ at::Tensor torch_interpolate_grid_backward(at::Tensor g, at::Tensor y, at::Tenso
 }
 
 // Interpolate
-at::Tensor torch_interpolate_grid_forward_new(at::Tensor data){
-    const int n_batch = data.size(0);
-    const int n_points = data.size(1);
+at::Tensor torch_interpolate_grid_forward_new(at::Tensor points){
+    const int n_batch = points.size(0);
+    const int n_points = points.size(1);
 
     auto output = torch::zeros({n_batch, n_points}, at::kCPU);
     float* y = output.data_ptr<float>();
 
-    float* x = data.data_ptr<float>();
+    float* x = points.data_ptr<float>();
     
     for (int i = 0; i < n_batch; i++)
     {
@@ -378,15 +378,15 @@ at::Tensor torch_interpolate_grid_forward_new(at::Tensor data){
     return output;
 }
 
-at::Tensor torch_interpolate_grid_backward_new(at::Tensor g, at::Tensor data){
-    const int n_batch = g.size(0);
-    const int n_points = g.size(1);
+at::Tensor torch_interpolate_grid_backward_new(at::Tensor grad_prev, at::Tensor points){
+    const int n_batch = points.size(0);
+    const int n_points = points.size(1);
 
     auto output = torch::zeros({n_batch, n_points}, at::kCPU).contiguous();
-    float* grad = output.data_ptr<float>();
+    float* gradient = output.data_ptr<float>();
 
-    float* x = data.data_ptr<float>();
-    float* g_arr = g.data_ptr<float>();
+    float* x = points.data_ptr<float>();
+    float* g = grad_prev.data_ptr<float>();
     
     for (int i = 0; i < n_batch; i++)
     {
@@ -403,9 +403,9 @@ at::Tensor torch_interpolate_grid_backward_new(at::Tensor g, at::Tensor data){
             float y1 = x[i*n_points + x1];
             float xd = (float) xc - x0;
 
-            grad[n_points*i + x0] += (1-xd) * g_arr[pos];
-            grad[n_points*i + x1] += xd * g_arr[pos];
-            grad[n_points*i + j] += (n_points-1)*(y1-y0) * g_arr[pos];
+            gradient[n_points*i + x0] += (1-xd) * g[pos];
+            gradient[n_points*i + x1] += xd * g[pos];
+            gradient[n_points*i + j] += (n_points-1)*(y1-y0) * g[pos];
         }
     }
     return output;
