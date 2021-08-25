@@ -1,8 +1,9 @@
 import torch
 
-from .interpolation import interpolate, interpolate_grid
+from .interpolation import interpolate, interpolate_grid as interpolate_grid_slow
 from .transformer import transformer, gradient
 from .transformer import get_cell, calc_velocity
+from .transformer import interpolate_grid
 
 # %%
 def assert_version():
