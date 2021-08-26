@@ -386,13 +386,13 @@ class Interpolate_fast_cpu(torch.autograd.Function):
     @staticmethod
     def forward(ctx, data):
         ctx.save_for_backward(data)
-        return cpab_cpu.interpolate_grid_forward_new(data)
+        return cpab_cpu.interpolate_grid_forward(data)
 
     @staticmethod
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad_output): # grad [n_batch, n_points]
         data, = ctx.saved_tensors
-        return cpab_cpu.interpolate_grid_backward_new(grad_output, data)
+        return cpab_cpu.interpolate_grid_backward(grad_output, data)
 
 # %% INTERPOLATE: FAST / GPU 
 class Interpolate_fast_gpu(torch.autograd.Function):
