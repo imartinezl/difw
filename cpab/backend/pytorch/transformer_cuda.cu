@@ -33,7 +33,7 @@ at::Tensor cuda_get_cell(at::Tensor points, const float xmin, const float xmax, 
 
 at::Tensor cuda_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output){
    // Problem size
-   const int n_points = points.size(0);
+   const int n_points = points.size(1);
    const int n_batch = theta.size(0);
    const int d = theta.size(1);
 
@@ -52,7 +52,7 @@ at::Tensor cuda_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor At,
 
 at::Tensor cuda_derivative_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, at::Tensor output){
    // Problem size
-   const int n_points = points.size(0);
+   const int n_points = points.size(1);
    const int d = Bt.size(1);
 
    // Kernel configuration
@@ -70,7 +70,7 @@ at::Tensor cuda_derivative_velocity(at::Tensor points, at::Tensor theta, at::Ten
 
 at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, const int nSteps1, const int nSteps2, at::Tensor output){
    // Problem size
-   const int n_points = points.size(0);
+   const int n_points = points.size(1);
    const int n_batch = theta.size(0);
    const int d = theta.size(1);
 
@@ -89,7 +89,7 @@ at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tenso
 
 at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor output){
    // Problem size
-   const int n_points = points.size(0);
+   const int n_points = points.size(1);
    const int n_batch = theta.size(0);
    const int d = theta.size(1);
 
@@ -110,7 +110,7 @@ at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::T
 
 at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient){
    // Problem size
-   const int n_points = points.size(0);
+   const int n_points = points.size(1);
    const int n_batch = theta.size(0);
    const int d = theta.size(1);
 
@@ -128,7 +128,7 @@ at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::
 
 at::Tensor cuda_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor output){
    // Problem size
-   const int n_points = points.size(0);
+   const int n_points = points.size(1);
    const int n_batch = theta.size(0);
 
    // Kernel configuration
@@ -147,7 +147,7 @@ at::Tensor cuda_integrate_closed_form_trace(at::Tensor points, at::Tensor theta,
 
 at::Tensor cuda_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float xmin, const float xmax, const int nc, at::Tensor gradient){
    // Problem size
-   const int n_points = points.size(0);
+   const int n_points = points.size(1);
    const int n_batch = theta.size(0);
    const int d = theta.size(1);
 

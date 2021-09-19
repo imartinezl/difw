@@ -291,7 +291,7 @@ __global__ void kernel_get_velocity(
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
     if(point_index < n_points && batch_index < n_batch) {
-        newpoints[batch_index * n_points + point_index] = get_velocity(x[point_index], A, n_batch, batch_index, xmin, xmax, nc);
+        newpoints[batch_index * n_points + point_index] = get_velocity(x[batch_index * n_points + point_index], A, n_batch, batch_index, xmin, xmax, nc);
     }
     return;
 }
@@ -304,7 +304,7 @@ __global__ void kernel_integrate_numeric(
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
     if(point_index < n_points && batch_index < n_batch) {
-        newpoints[batch_index * n_points + point_index] = integrate_numeric(x[point_index], t, A, n_batch, batch_index, xmin, xmax, nc, nSteps1, nSteps2);
+        newpoints[batch_index * n_points + point_index] = integrate_numeric(x[batch_index * n_points + point_index], t, A, n_batch, batch_index, xmin, xmax, nc, nSteps1, nSteps2);
     }
     return;
 }
@@ -316,7 +316,7 @@ __global__ void kernel_integrate_closed_form(
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
     if(point_index < n_points && batch_index < n_batch) {
-        newpoints[batch_index * n_points + point_index] = integrate_closed_form(x[point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
+        newpoints[batch_index * n_points + point_index] = integrate_closed_form(x[batch_index * n_points + point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
     }
     return;
 }
@@ -333,12 +333,12 @@ __global__ void kernel_derivative_closed_form(
 
     if(point_index < n_points && batch_index < n_batch){ 
         float result[e];
-        integrate_closed_form_trace(result, x[point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
+        integrate_closed_form_trace(result, x[batch_index * n_points + point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
             
         // float phi = result[0];
         float tm = result[1];
         int cm = result[2];
-        derivative_phi_theta(gradpoints, x[point_index], tm, cm, d, B, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
+        derivative_phi_theta(gradpoints, x[batch_index * n_points + point_index], tm, cm, d, B, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
         
     }
     return;
@@ -355,7 +355,7 @@ __global__ void kernel_integrate_closed_form_trace(
 
     if(point_index < n_points && batch_index < n_batch) {
         float result[e];
-        integrate_closed_form_trace(result, x[point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
+        integrate_closed_form_trace(result, x[batch_index * n_points + point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
         for(int p = 0; p < e; p++){
             newpoints[batch_index*(n_points * e) + point_index*e + p] = result[p];
         }
@@ -378,7 +378,7 @@ __global__ void kernel_derivative_closed_form_trace(
         float tm = newpoints[batch_index*(n_points * e) + point_index*e + 1];
         int cm = newpoints[batch_index*(n_points * e) + point_index*e + 2];
         
-        derivative_phi_theta(gradpoints, x[point_index], tm, cm, d, B, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
+        derivative_phi_theta(gradpoints, x[batch_index * n_points + point_index], tm, cm, d, B, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
     }
     return;
 }

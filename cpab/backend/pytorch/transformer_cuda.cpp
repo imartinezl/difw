@@ -2,6 +2,7 @@
 
 at::Tensor cuda_get_cell(at::Tensor points, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output);
+at::Tensor cuda_derivative_velocity(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, const int nSteps1, const int nSteps2, at::Tensor output);
 at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
@@ -36,13 +37,16 @@ at::Tensor torch_get_cell(at::Tensor points, const float xmin, const float xmax,
 }
 
 at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+        
     // Do input checking
     CHECK_INPUT(points);
     CHECK_INPUT(theta);
     CHECK_INPUT(Bt);
     
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
 
     // Allocate output
@@ -56,13 +60,16 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 }
 
 at::Tensor torch_derivative_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(1), points.size(0)}).contiguous();
+        
     // Do input checking
     CHECK_INPUT(points);
     CHECK_INPUT(theta);
     CHECK_INPUT(Bt);
     
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -77,13 +84,16 @@ at::Tensor torch_derivative_velocity(at::Tensor points, at::Tensor theta, at::Te
 // INTEGRATION
 
 at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+        
     // Do input checking
     CHECK_INPUT(points);
     CHECK_INPUT(theta);
     CHECK_INPUT(Bt);
 
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
 
     // Allocate output
@@ -97,13 +107,16 @@ at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, const fl
 }
 
 at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+        
     // Do input checking
     CHECK_INPUT(points);
     CHECK_INPUT(theta);
     CHECK_INPUT(Bt);
 
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
 
     // Allocate output
@@ -119,13 +132,16 @@ at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, cons
 // DERIVATIVE
 
 at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Do input checking
     CHECK_INPUT(points);
     CHECK_INPUT(theta);
     CHECK_INPUT(Bt);
 
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -146,13 +162,16 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, const f
 }
 
 at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Do input checking
     CHECK_INPUT(points);
     CHECK_INPUT(theta);
     CHECK_INPUT(Bt);
 
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -170,13 +189,16 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, con
 // TRANSFORMATION
 
 at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Do input checking
     CHECK_INPUT(points);
     CHECK_INPUT(theta);
     CHECK_INPUT(Bt);
 
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int e = 3;
 
@@ -191,6 +213,9 @@ at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta
 }
 
 at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Do input checking
     CHECK_INPUT(output);
     CHECK_INPUT(points);
@@ -198,7 +223,7 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
     CHECK_INPUT(Bt);
 
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -214,6 +239,9 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
 
 
 at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Do input checking
     CHECK_INPUT(phi_1);
     CHECK_INPUT(points);
@@ -221,7 +249,7 @@ at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, a
     CHECK_INPUT(Bt);
     
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
