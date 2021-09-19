@@ -12,12 +12,12 @@ from tqdm import tqdm
 
 # %%
 
-tess_size = 5
+tess_size = 10
 backend = "pytorch" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
 use_slow = False
-outsize = 1000
+outsize = 100
 batch_size = 1
 basis = "svd"
 
@@ -34,8 +34,8 @@ grid_t1 = T.transform_grid(grid, theta_1)
 theta_2 = torch.autograd.Variable(T.identity(batch_size, epsilon=0.0), requires_grad=True)
 
 lr = 1e-3
-# optimizer = torch.optim.Adam([theta_2], lr=lr)
-optimizer = torch.optim.SGD([theta_2], lr=lr, momentum=0)
+optimizer = torch.optim.Adam([theta_2], lr=lr)
+# optimizer = torch.optim.SGD([theta_2], lr=lr, momentum=0)
 # for the same step size => faster convergence with increasing N, due to smaller theta norm
 
 # torch.set_num_threads(1)
@@ -50,13 +50,19 @@ with tqdm(desc='Alignment of samples', unit='iters', total=maxiter,  position=0,
         t = 1.0
         # grid_t2 = T.transform_grid_ss(grid, theta_2, method="closed_form", time=1.0, N=N)
         
-        # t = t / 2**N
+        ## t = t / 2**N
         grid_t2 = T.transform_grid(grid, theta_2, method="closed_form")
+        grid_t2 = T.transform_grid(grid_t2, theta_2, method="closed_form")
+        # v = T.calc_velocity(grid, theta_2)
+        # grid_t2 = grid + v
         for i in range(N):
             # grid_t2 = T.backend.interpolate_grid_slow(grid_t2)
             grid_t2 = T.backend.interpolate_grid(grid_t2, T.params)
         
-        loss = torch.norm(grid_t2 - grid_t1, dim=1)
+        loss = torch.norm(grid_t2 - grid_t1, dim=1).sum()
+        v.retain_grad()
+        theta_2.retain_grad()
+        loss.retain_grad()
         loss.backward()
         optimizer.step()
 
@@ -79,10 +85,11 @@ plt.plot(grid_t2.detach().numpy().T)
 # plt.figure()
 # plt.plot(grid_t1.T - grid_t2.detach().numpy().T)
 
-# plt.figure()
-# plt.plot(loss_values)
+plt.figure()
+plt.plot(loss_values)
 
-(stop_time-start_time) * 1e-6, loss_values[-1]#, theta_2
+(stop_time-start_time) * 1e-6, loss_values[-1]
+
 
 # %%
 # %%timeit -r 20 -n 10
@@ -92,8 +99,8 @@ backend = "pytorch" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
 use_slow = False
-outsize = 5
-batch_size = 2
+outsize = 1000
+batch_size = 1
 basis = "rref"
 
 T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
@@ -112,12 +119,12 @@ theta_2 = torch.autograd.Variable(theta_1, requires_grad=True)
 optimizer = torch.optim.SGD([theta_2], lr=1e-2)
 optimizer.zero_grad()
 
-N = 4
+N = 0
 t = 1.0
 # grid_t2 = T.transform_grid_ss(grid, theta_2, method="closed_form", time=1.0, N=N)       
 # t = t / 2**N
 
-# grid_t2 = T.transform_grid(grid, theta_2 / 2**N, method="closed_form", time=1.0)
+# grid_t2 = T.transform_grid(grid, theta_2, method="closed_form", time=1.0)
 grid_t2 = T.transform_grid(grid, theta_2, method="closed_form", time = t / 2**N )
 grid_t3 = grid_t2
 for i in range(N):
@@ -169,10 +176,9 @@ from torch.profiler import profile, record_function, ProfilerActivity
 
 with profile(activities=[ProfilerActivity.CPU], record_shapes=False) as prof:
     with record_function("record function"):
-        for i in range(1):
-            # grid_t3 = T.backend.interpolate_grid_slow(grid_t1)
+        for i in range(100):
             grid_t3 = T.backend.interpolate_grid(grid_t1, T.params)
-            loss = grid_t3.norm()
+            loss = grid_t3.norm().mean()
             loss.backward()
 
 print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
