@@ -292,6 +292,33 @@ class Cpab:
         data_t = self.interpolate(data, grid_t, outsize)
         return data_t
 
+    def transform_data_ss(self, data, theta, outsize, method=None, time=1.0, N=0):
+        """ Combination of the transform_grid and interpolate methods for easy
+            transformation of data.
+        Arguments:
+            data: [n_batch, *data_shape] tensor, with input data. The format of
+                the data_shape depends on the backend that is being used. 
+                In tensorflow and numpy: [n_batch, number_of_features, n_channels]
+                In pytorch: [n_batch, n_channels, number_of_features]
+            theta: [n_batch, d] matrix with transformation parameters. Each row
+                correspond to a transformation.
+            outsize: number of points that is transformed and interpolated
+        Output:
+            data_t: [n_batch, outsize, n_channels] tensor, transformed and interpolated data
+        """
+
+        self._check_type(data)
+        self._check_device(data)
+        self._check_type(theta)
+        self._check_device(theta)
+        assert (
+            data.shape[0] == theta.shape[0]
+        ), """Batch sizes should be the same on arguments data and theta"""
+        grid = self.uniform_meshgrid(outsize)
+        grid_t = self.transform_grid_ss(grid, theta, method, time, N)
+        data_t = self.interpolate(data, grid_t, outsize)
+        return data_t
+
     def calc_velocity(self, grid, theta):
         """ For each point in grid, calculate the velocity of the point based
             on the parametrization in theta
