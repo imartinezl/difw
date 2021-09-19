@@ -104,17 +104,57 @@ def calc_velocity(grid, theta, params):
     if grid.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            return cpab_gpu.get_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+            return Velocity_gpu.apply(grid, theta, params)
         else:
             if _verbose: print('using slow gpu implementation')
             return calc_velocity_slow(grid, theta, params)
     else:
         if not params.use_slow and _cpu_success:
             if _verbose: print('using fast cpu implementation')
-            return cpab_cpu.get_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+            return Velocity_cpu.apply(grid, theta, params)
         else:
             if _verbose: print('using slow cpu implementation')
             return calc_velocity_slow(grid, theta, params)
+
+#%% VELOCITY: CPU 
+
+class Velocity_cpu(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, grid, theta, params):
+        v = cpab_cpu.get_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+        ctx.params = params
+        ctx.save_for_backward(grid, theta)
+        return v
+
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, grad_output): # grad_output [n_batch, n_points]
+        grid, theta = ctx.saved_tensors
+        params = ctx.params
+        g = cpab_cpu.derivative_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc).t()
+        grad = grad_output.matmul(g)
+        return None, grad, None # [n_batch, d]
+
+#%% VELOCITY: GPU
+
+class Velocity_gpu(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, grid, theta, params):
+        v = cpab_gpu.get_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+        ctx.params = params
+        ctx.save_for_backward(grid, theta)
+        return v
+
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, grad_output): # grad_output [n_batch, n_points]
+        grid, theta = ctx.saved_tensors
+        params = ctx.params
+        g = cpab_gpu.derivative_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc).t()
+        grad = grad_output.matmul(g)
+        return None, grad, None # [n_batch, d]
+
+
 
 
 # %% GRADIENT
@@ -364,45 +404,45 @@ class Transformer_fast_gpu_numeric(torch.autograd.Function):
 # %% INTERPOLATE
 from .interpolation import interpolate_grid as interpolate_grid_slow
 
-def interpolate_grid(data, params):
-    if data.is_cuda:
+def interpolate_grid(transformed_grid, params):
+    if transformed_grid.is_cuda:
         if not params.use_slow and _gpu_success:
             if _verbose: print('using fast gpu implementation')
-            return Interpolate_fast_gpu.apply(data)
+            return Interpolate_fast_gpu.apply(transformed_grid)
         else:
             if _verbose: print('using slow gpu implementation')
-            return interpolate_grid_slow(data)
+            return interpolate_grid_slow(transformed_grid)
     else:
         if not params.use_slow and _cpu_success:
             if _verbose: print('using fast cpu implementation')
-            return Interpolate_fast_cpu.apply(data)
+            return Interpolate_fast_cpu.apply(transformed_grid)
         else:
             if _verbose: print('using slow cpu implementation')
-            return interpolate_grid_slow(data)
+            return interpolate_grid_slow(transformed_grid)
 
 
 # %% INTERPOLATE: FAST / CPU 
 class Interpolate_fast_cpu(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, data):
-        ctx.save_for_backward(data)
-        return cpab_cpu.interpolate_grid_forward(data)
+    def forward(ctx, transformed_grid):
+        ctx.save_for_backward(transformed_grid)
+        return cpab_cpu.interpolate_grid_forward(transformed_grid)
 
     @staticmethod
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad_output): # grad [n_batch, n_points]
-        data, = ctx.saved_tensors
-        return cpab_cpu.interpolate_grid_backward(grad_output, data)
+        transformed_grid, = ctx.saved_tensors
+        return cpab_cpu.interpolate_grid_backward(grad_output, transformed_grid)
 
 # %% INTERPOLATE: FAST / GPU 
 class Interpolate_fast_gpu(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, data):
-        ctx.save_for_backward(data)
-        return cpab_gpu.interpolate_grid_forward(data)
+    def forward(ctx, transformed_grid):
+        ctx.save_for_backward(transformed_grid)
+        return cpab_gpu.interpolate_grid_forward(transformed_grid)
 
     @staticmethod
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad_output): # grad [n_batch, n_points]
-        data, = ctx.saved_tensors
-        return cpab_gpu.interpolate_grid_backward(grad_output, data)
+        transformed_grid, = ctx.saved_tensors
+        return cpab_gpu.interpolate_grid_backward(grad_output, transformed_grid)
