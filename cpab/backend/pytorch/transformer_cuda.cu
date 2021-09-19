@@ -50,6 +50,24 @@ at::Tensor cuda_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor At,
    return output; 
 }
 
+at::Tensor cuda_derivative_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc, at::Tensor output){
+   // Problem size
+   const int n_points = points.size(0);
+   const int d = Bt.size(1);
+
+   // Kernel configuration
+   dim3 bc((int)ceil(n_points/256.0), d);
+   dim3 tpb(256, 1);
+
+   // Launch kernel
+   kernel_get_velocity<<<bc, tpb>>>(n_points, d, 
+      points.data_ptr<float>(), Bt.data_ptr<float>(), xmin, xmax, nc, output.data_ptr<float>());
+
+   
+   gpuErrchk( cudaPeekAtLastError() );                           
+   return output; 
+}
+
 at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, const int nSteps1, const int nSteps2, at::Tensor output){
    // Problem size
    const int n_points = points.size(0);

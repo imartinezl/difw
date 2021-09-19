@@ -55,6 +55,24 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
     return cuda_get_velocity(points, theta, At, xmin, xmax, nc, output);
 }
 
+at::Tensor torch_derivative_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Do input checking
+    CHECK_INPUT(points);
+    CHECK_INPUT(theta);
+    CHECK_INPUT(Bt);
+    
+    // Problem size
+    const int n_points = points.size(0);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    // Allocate output
+    auto output = torch::zeros({d, n_points}, at::kCUDA);
+
+    // Call kernel launcher
+    return cuda_derivative_velocity(points, theta, Bt, xmin, xmax, nc, output);
+}
+
 
 // INTEGRATION
 
@@ -262,6 +280,7 @@ at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor poin
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("get_cell", &torch_get_cell, "Get cell");
     m.def("get_velocity", &torch_get_velocity, "Get Velocity");
+    m.def("derivative_velocity", &torch_derivative_velocity, "Derivative Velocity");
     m.def("integrate_closed_form", &torch_integrate_closed_form, "Integrate closed form");
     m.def("integrate_numeric", &torch_integrate_numeric, "Integrate numeric");
     m.def("derivative_closed_form", &torch_derivative_closed_form, "Derivative closed form");
