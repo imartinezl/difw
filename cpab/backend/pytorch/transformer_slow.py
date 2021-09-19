@@ -14,10 +14,11 @@ def cmpf0(x):
 # %% BATCH EFFECT
 
 def batch_effect(x, theta):
-    n_batch = theta.shape[0]
-    n_points = x.shape[-1]
-    x = torch.broadcast_to(x, (n_batch, n_points)).flatten()
-    return x
+    if x.ndim == 1:
+        n_batch = theta.shape[0]
+        n_points = x.shape[-1]
+        x = torch.broadcast_to(x, (n_batch, n_points))#.flatten()
+    return x.flatten()
 
 # %% FUNCTIONS
 
