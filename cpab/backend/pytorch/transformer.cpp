@@ -22,8 +22,11 @@ at::Tensor torch_get_cell(at::Tensor points, const float xmin, const float xmax,
 }
 
 at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
 
     // Allocate output
@@ -42,7 +45,39 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 
         // For all points
         for(int j = 0; j < n_points; j++) {
-            newpoints[i*n_points + j] = get_velocity(x[j], A, xmin, xmax, nc);
+            newpoints[i*n_points + j] = get_velocity(x[i*n_points + j], A, xmin, xmax, nc);
+        }
+    }
+    return output;
+}
+
+
+at::Tensor torch_derivative_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    // Allocate output
+    auto output = torch::zeros({d, n_points}, at::kCPU).contiguous();
+    float* newpoints = output.data_ptr<float>();
+
+    // Convert to pointers
+    float* x = points.data_ptr<float>();
+
+    // For all theta dimensions
+    for(int k = 0; k < d; k++){
+        
+        // Precompute affine velocity field
+        at::Tensor At = Bt.index({torch::indexing::Slice(), k}).contiguous();
+        float* A = At.data_ptr<float>();
+
+        // For all points
+        for(int j = 0; j < n_points; j++) {
+            newpoints[k*n_points + j] = get_velocity(x[k*n_points + j], A, xmin, xmax, nc);
         }
     }
     return output;
@@ -51,8 +86,11 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 
 // INTEGRATION
 at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
 
     // Allocate output
@@ -71,15 +109,18 @@ at::Tensor torch_integrate_numeric(at::Tensor points, at::Tensor theta, const fl
 
         // For all points
         for(int j = 0; j < n_points; j++) {
-            newpoints[i*n_points + j] = integrate_numeric(x[j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
+            newpoints[i*n_points + j] = integrate_numeric(x[i*n_points + j], t, A, xmin, xmax, nc, nSteps1, nSteps2);
         }
     }
     return output;
 }
 
 at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
 
     // Allocate output
@@ -98,7 +139,7 @@ at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, cons
 
         // For all points
         for(int j = 0; j < n_points; j++) {
-            newpoints[i*n_points + j] = integrate_closed_form(x[j], t, A, xmin, xmax, nc);
+            newpoints[i*n_points + j] = integrate_closed_form(x[i*n_points + j], t, A, xmin, xmax, nc);
         }
     }
     return output;
@@ -108,8 +149,11 @@ at::Tensor torch_integrate_closed_form(at::Tensor points, at::Tensor theta, cons
 // DERIVATIVE
 
 at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -130,8 +174,11 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, const f
 }
 
 at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -156,13 +203,13 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, con
         // For all points
         for(int j = 0; j < n_points; j++) { 
             float result[e];
-            integrate_closed_form_trace(result, x[j], t, A, xmin, xmax, nc);
+            integrate_closed_form_trace(result, x[i*n_points + j], t, A, xmin, xmax, nc);
             // float phi = result[0];
             float tm = result[1];
             int cm = result[2];
             // NEW METHOD
             float dphi_dtheta[d];
-            derivative_phi_theta(dphi_dtheta, x[j], tm, cm, d, B, A, xmin, xmax, nc);
+            derivative_phi_theta(dphi_dtheta, x[i*n_points + j], tm, cm, d, B, A, xmin, xmax, nc);
 
             // For all parameters theta
             for(int k = 0; k < d; k++){ 
@@ -175,8 +222,11 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, con
 
 // TRANSFORMATION
 at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -199,7 +249,7 @@ at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta
         // For all points
         for(int j = 0; j < n_points; j++) {
             float result[e];
-            integrate_closed_form_trace(result, x[j], t, A, xmin, xmax, nc);
+            integrate_closed_form_trace(result, x[i*n_points + j], t, A, xmin, xmax, nc);
             for(int p = 0; p < e; p++){
                 newpoints[i*(n_points * e) + j*e + p] = result[p];
             }
@@ -209,8 +259,11 @@ at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta
 }
 
 at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -239,7 +292,7 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
             int cm = newpoints[i*(n_points * e) + j*e + 2];
 
             float dphi_dtheta[d];
-            derivative_phi_theta(dphi_dtheta, x[j], tm, cm, d, B, A, xmin, xmax, nc);
+            derivative_phi_theta(dphi_dtheta, x[i*n_points + j], tm, cm, d, B, A, xmin, xmax, nc);
 
             // For all parameters theta
             for(int k = 0; k < d; k++){
@@ -251,8 +304,11 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
 }
 
 at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
     // Problem size
-    const int n_points = points.size(0);
+    const int n_points = points.size(1);
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
@@ -343,6 +399,7 @@ at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor poin
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("get_cell", &torch_get_cell, "Get cell");
     m.def("get_velocity", &torch_get_velocity, "Get Velocity");
+    m.def("derivative_velocity", &torch_derivative_velocity, "Derivative Velocity");
     m.def("integrate_closed_form", &torch_integrate_closed_form, "Integrate closed form");
     m.def("integrate_numeric", &torch_integrate_numeric, "Integrate numeric");
     m.def("derivative_closed_form", &torch_derivative_closed_form, "Derivative closed form");
