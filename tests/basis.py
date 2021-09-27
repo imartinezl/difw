@@ -28,6 +28,11 @@ def plot_basis_velocity(T, B=None):
 
         # Plot
         plt.plot(grid, v.T)
+        plt.grid()
+        plt.title("CPA Velocity basis with: " + T.params.basis)
+        plt.xlabel("x")
+        plt.ylabel("v(x)")
+        plt.savefig("basis_" + T.params.basis + ".png", dpi=300)
 
 def sparsity(sparse):
     return (sparse == 0).sum() / sparse.size
@@ -48,7 +53,7 @@ def orthogonal(A):
 # %% 
 # The Sparse Null Space Basis Problem
 
-tess_size = 50
+tess_size = 5
 backend = "numpy" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
 zero_boundary = True
@@ -82,7 +87,7 @@ sparsity(L)
 def properties_table(results):
     header = ["basis", "sparsity", "cond num", "orth", "orthnorm", "norm", "norm inv"]
     print(" | ".join(header))
-    print("-"*90)
+    print("-"*70)
     for v in results:
         name = v[0]
         B = v[1]
@@ -170,14 +175,14 @@ plt.spy(metric(B_sparse), precision=1e-7)
 
 # %%
 
-plt.figure()
-plt.spy(B_svd)
-
-plt.figure()
-plt.spy(B_rref)
-
-plt.figure()
-plt.spy(B_sparse)
+names = ["svd", "qr", "rref", "sparse"]
+k = 0
+fig, ax = plt.subplots(ncols=4, figsize=(8,4), sharex=True, sharey=True)
+for B in [B_svd, B_qr, B_rref, B_sparse]:
+    ax[k].spy(B)
+    ax[k].set_title("Basis " + names[k])
+    k += 1
+plt.savefig("basis_spy.png", dpi=300)
 
 # %%
 
@@ -230,3 +235,4 @@ A = np.array([
 ])
 Ap = null_space(A)
 Ap
+
