@@ -22,7 +22,8 @@ copyright = '2021, Iñigo Martinez'
 author = 'Iñigo Martinez'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+import cpab
+release = cpab.__version__
 
 
 # -- General configuration ---------------------------------------------------
