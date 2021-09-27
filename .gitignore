@@ -1,7 +1,4 @@
 # Specify filepatterns you want git to ignore.
-cpab-diffeo-julia
-cpabDiffeo
-dtan
-libcpab
 __pycache__
 *.egg-info
+docs/build
