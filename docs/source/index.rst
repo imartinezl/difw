@@ -22,7 +22,7 @@
     :target: https://github.com/imartinezl/cpab/blob/master/LICENSE
     :alt: License
 
-.. image:: https://img.shields.io/github/workflow/status/imartinezl/cpab/Build%20&%20publish%20to%20Pypi?style=flat-square
+.. image:: https://img.shields.io/github/workflow/status/imartinezl/cpab/Workflow?style=flat-square
     :target: https://github.com/imartinezl/cpab/actions
     :alt: Actions
 
