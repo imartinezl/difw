@@ -20,7 +20,9 @@ def interpolate(data, grid, outsize):
     x1 = torch.clamp(x1, 0, width - 1)
 
     # Batch effect
-    r = torch.arange(n_batch).repeat(outsize)
+    # r = torch.arange(n_batch).repeat(outsize)
+    # r = torch.arange(n_batch).repeat(outsize, 1).t().flatten()
+    r = torch.arange(n_batch).repeat_interleave(outsize)
 
     # Index
     y0 = data[r, x0, :]
