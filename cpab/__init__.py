@@ -1,5 +1,4 @@
 #%%
-from .cpab import Cpab
+__version__ = "0.0.1"
 
-# from .alignment import CpabAligner
-# from .sequential import CpabSequential
+from .cpab import Cpab

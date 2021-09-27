@@ -2,17 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import setuptools
+import pathlib
 
-# from distutils.core import setup, Extension
-# module1 = Extension('libcpab', sources = ['libcpab/core/cpab_ops.cpp'])
+here = pathlib.Path(__file__).parent.resolve()
 
-
-with open("README.md", "r") as fh:
-    README = fh.read()
+LONG_DESCRIPTION = (here / 'README.md').read_text(encoding='utf-8')
 
 NAME = "cpab"
-DESCRIPTION = "Diffeomorphism"
-URL = "https://github.com/imartinezl/diffeomorphism"
+DESCRIPTION = "CPAB Transformations: finite-dimensional spaces of simple, fast, and highly-expressive diffeomorphisms derived from parametric, continuously-defined, velocity fields in Numpy and Pytorch"
+URL = "https://github.com/imartinezl/cpab"
 AUTHOR = "Iñigo Martinez"
 AUTHOR_EMAIL = "inigomlap@gmail.com"
 CLASSIFIERS = [
@@ -28,9 +26,7 @@ CLASSIFIERS = [
     "Programming Language :: Python :: 3.9",
 ]
 ENTRY_POINTS = {
-    "console_scripts": [
-        #'tsclust=tsclust:main',
-    ],
+    "console_scripts": [],
 }
 PROJECT_URLS = {
     "Bug Reports": URL + "/issues",
@@ -43,11 +39,14 @@ KEYWORDS = [
     "diffeomorphisms",
     "tessellations",
     "transformations",
-    "continuous piecewise-affine velocity fields",
+    "continuous piecewise-affine",
+    "velocity fields",
+    "numpy",
+    "pytorch"
 ]
 LICENSE = "MIT license"
 TEST_SUITE = "tests"
-REQUIREMENTS = ["numpy", "torch", "scipy", "matplotlib"]
+REQUIREMENTS = ["numpy>=1.20", "matplotlib>=3.4.0", "scipy", "torch>=1.8.0", "ninja"]
 SETUP_REQUIREMENTS = []
 TEST_REQUIREMENTS = ["pytest", "pytest-cov"]
 
@@ -58,15 +57,15 @@ setuptools.setup(
     description=DESCRIPTION,
     entry_points=ENTRY_POINTS,
     extras_require=EXTRAS_REQUIRE,
-    # ext_modules = [module1]
     include_package_data=False,
     install_requires=REQUIREMENTS,
     keywords=KEYWORDS,
     license=LICENSE,
-    long_description=README,
+    long_description=LONG_DESCRIPTION,
+    long_description_content_type="text/markdown",
     name=NAME,
     package_data={},
-    # packages = setuptools.find_packages(),
+    packages = setuptools.find_packages(exclude=("tests",)),
     project_urls=PROJECT_URLS,
     python_requires=REQUIRES_PYTHON,
     setup_requires=SETUP_REQUIREMENTS,

@@ -3,16 +3,16 @@
 import numpy as np
 
 eps = np.finfo(np.float32).eps
-# eps = 1e-12
 np.seterr(divide="ignore", invalid="ignore")
 
 # %% BATCH EFFECT
 
 def batch_effect(x, theta):
-    n_batch = theta.shape[0]
-    n_points = x.shape[-1]
-    x = np.broadcast_to(x, (n_batch, n_points)).flatten()
-    return x
+    if x.ndim == 1:
+        n_batch = theta.shape[0]
+        n_points = x.shape[-1]
+        x = np.broadcast_to(x, (n_batch, n_points))#.flatten()
+    return x.flatten()
 
 # %% FUNCTIONS
 
@@ -24,7 +24,7 @@ def get_affine(x, theta, params):
         n_points = x.shape[-1]
 
         # r = np.broadcast_to(np.arange(n_batch), [n_points, n_batch]).T
-        # TODO: here we suppose batch effect has been already executed
+        # NOTE: here we suppose batch effect has been already executed
         r = np.arange(n_batch).repeat(n_points / n_batch)
 
         A = params.B.dot(theta.T).T.reshape(n_batch, -1, 2)
@@ -68,7 +68,9 @@ def get_psi(x, t, theta, params):
 
     cond = a == 0
     x1 = x + t * b
-    x2 = np.exp(t * a) * (x + (b / a)) - (b / a)
+    eta = np.exp(t * a)
+    x2 = eta * x + (b / a) * (eta-1.0)
+    # x2 = np.exp(t * a) * (x + (b / a)) - (b / a)
     psi = np.where(cond, x1, x2)
     return psi
 
@@ -104,11 +106,11 @@ def get_phi_numeric(x, t, theta, params):
 # %% INTEGRATION
 
 
-def integrate_numeric(x, theta, params):
+def integrate_numeric(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
     n_batch = theta.shape[0]
-    t = 1
+    t = time
     params = precompute_affine(x, theta, params)
 
     # computation
@@ -124,10 +126,10 @@ def integrate_numeric(x, theta, params):
         c = get_cell(xPrev, params)
     return xPrev.reshape((n_batch, -1))
 
-def integrate_closed_form(x, theta, params):
+def integrate_closed_form(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
-    t = np.ones_like(x)
+    t = np.ones_like(x)*time
     params = precompute_affine(x, theta, params)
     n_batch = theta.shape[0]
 
@@ -163,10 +165,10 @@ def integrate_closed_form(x, theta, params):
             raise BaseException
     return None
 
-def integrate_closed_form_trace(x, theta, params):
+def integrate_closed_form_trace(x, theta, params, time=1.0):
 
     x = batch_effect(x, theta)
-    t = np.ones_like(x)
+    t = np.ones_like(x)*time
     params = precompute_affine(x, theta, params)
 
     result = np.empty((*x.shape, 3))
@@ -188,7 +190,7 @@ def integrate_closed_form_trace(x, theta, params):
         result[~done] = np.array([psi, t, c]).T
         done[~done] = valid
         if np.alltrue(valid):
-            return result#.reshape((n_batch, -1, 3))
+            return result
 
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
@@ -202,7 +204,7 @@ def integrate_closed_form_trace(x, theta, params):
 
 # %% DERIVATIVE
 
-def derivative_numeric(x, theta, params, h=1e-3):
+def derivative_numeric(x, theta, params, time=1.0, h=1e-3):
     # setup
     n_points = x.shape[-1]
     n_batch = theta.shape[0]
@@ -211,28 +213,27 @@ def derivative_numeric(x, theta, params, h=1e-3):
     # computation
     der = np.empty((n_batch, n_points, d))
 
-    phi_1 = integrate_numeric(x, theta, params)
+    phi_1 = integrate_numeric(x, theta, params, time)
     for k in range(d):
         theta2 = theta.copy()
         theta2[:,k] += h
-        phi_2 = integrate_numeric(x, theta2, params)
+        phi_2 = integrate_numeric(x, theta2, params, time)
 
         der[:,:,k] = (phi_2 - phi_1)/h
 
-    # return der # TODO: also return phi just in case
     return phi_1, der
 
-def derivative_closed_form(x, theta, params):
+def derivative_closed_form(x, theta, params, time=1.0):
     # setup
     n_points = x.shape[-1]
     n_batch = theta.shape[0]
     d = theta.shape[1]
 
     # computation
-    result = integrate_closed_form_trace(x, theta, params)
-    phi = result[:,0].reshape((n_batch, -1))#.flatten()
-    tm = result[:,1]#.flatten()
-    cm = result[:,2]#.flatten()
+    result = integrate_closed_form_trace(x, theta, params, time)
+    phi = result[:,0].reshape((n_batch, -1))
+    tm = result[:,1]
+    cm = result[:,2]
 
     # setup
     x = batch_effect(x, theta)
