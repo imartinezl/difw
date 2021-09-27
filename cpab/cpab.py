@@ -99,6 +99,39 @@ class Cpab:
             self.params.xmin, self.params.xmax, n_points, self.device
         )
 
+    def covariance_cpa(self, length_scale=0.1, output_variance=1):
+        """ Function for sampling smooth transformations. The smoothness is determined
+            by the distance between cell centers. The closer the cells are to each other,
+            the more the cell parameters should correlate -> smooth transistion in
+            parameters. The covariance in the D-space is calculated using the
+            squared exponential kernel.
+                
+        Arguments:
+            n_sample: integer, number of transformation to sample
+            mean: [d,] vector, mean of multivariate gaussian
+            length_scale: float>0, determines how fast the covariance declines 
+                between the cells 
+            output_variance: float>0, determines the overall variance from the mean
+        Output:
+            samples: [n_sample, d] matrix. Each row is a independent sample from
+                a multivariate gaussian
+        """
+
+        centers = self.backend.to(self.tess.cell_centers(), device=self.device)
+        dist = self.backend.pdist(centers)
+
+        cov_init = self.backend.ones((self.params.D, self.params.D))*100*self.backend.max(dist)
+        cov_init[::2,::2] = dist
+        cov_init[1::2,1::2] = dist
+
+        # Squared exponential kernel + Smoothness priors on CPA
+        cov_pa = output_variance**2 * self.backend.exp(-(cov_init / (2*length_scale**2)))       
+
+        B = self.params.B
+        cov_cpa = self.backend.matmul(self.backend.matmul(B.T, cov_pa), B)
+
+        return self.backend.to(cov_cpa, device=self.device)
+
     def sample_transformation(self, n_sample, mean=None, cov=None):
         """ Method for sampling transformation from simply multivariate gaussian
             As default the method will sample from a standard normal
@@ -461,7 +494,7 @@ class Cpab:
         ax.grid(alpha=0.3)
         return ax
 
-    def visualize_deformdata(self, data, theta, method=None, outsize=100, fig=None):
+    def visualize_deformdata(self, data, theta, method=None, outsize=100, target=None, fig=None):
         """ Utility function that helps visualize a deformation
         Arguments:
             theta: [n_batch, d] single parametrization vector
@@ -481,13 +514,15 @@ class Cpab:
         batch_size, width, channels = data.shape
         x = np.linspace(0,1,width)
         xt = np.linspace(0,1,outsize)
-        alpha = max(0.01, 1/np.sqrt(channels))
+        alpha = max(0.01, 1/np.sqrt(batch_size))
 
         # Plot
         plt.suptitle("Data Deformation with " + r'$\phi(x,t)$')
         for i in range(channels):
             ax = fig.add_subplot(channels, 1, i+1)
             ax.plot(x, data[:,:,i].T, c="red", ls="dashed", alpha=alpha, label="Data")
+            if target is not None:
+                ax.plot(xt, target[:,:,i].T, c="green", ls="dashdot", alpha=alpha, label="Target")
             ax.plot(xt, data_t[:,:,i].T, alpha=alpha, label="Transformed")
             ax.set_title("Ch " + str(i), rotation=-90, loc='right', y=0.5, ha="left", va="center")
             ax.set_ylabel(r"$x'$", rotation='horizontal')
