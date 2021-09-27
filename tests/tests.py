@@ -10,12 +10,12 @@ import matplotlib.pyplot as plt
 import cpab
 from tqdm import tqdm 
 
-# % TEST 
+# %% TEST 
 
 tess_size = 10
 backend = "pytorch" # ["pytorch", "numpy"]
 device = "cpu" # ["cpu", "gpu"]
-zero_boundary = True
+zero_boundary = False
 use_slow = False
 outsize = 100
 batch_size = 2
@@ -54,29 +54,104 @@ plt.plot(grid_t2.T)
 plt.plot(grid_t3.T)
 
 # %%
-channels = 1
+channels = 3
 width = 100
 a = np.zeros((batch_size, channels))
 b = np.ones((batch_size, channels)) * 2 * np.pi
 noise = np.random.normal(0, 0.1, (batch_size, width, channels))
 x = np.linspace(a, b, width, axis=1)
-data = 0.5 + np.sin(x)
+data = 0.5 + np.sin(x-noise)
+data = torch.tensor(data)
 
-data_t = T.transform_data(data, theta, width)
-data_t2 = T.transform_data(data_t, theta, width)
-data_t3 = T.transform_data(data_t2, theta, width)
+N = 0
+data_t = T.transform_data_ss(data, theta / 2**N, width, N=N)
+print(data.shape, data_t.shape)
+# data_t2 = T.transform_data(data_t, theta, width)
+# data_t3 = T.transform_data(data_t2, theta, width)
 # data_t4 = T.interpolate(data, grid_t3, width)
 
 plt.figure()
-plt.plot(data[:,:,0].T)
-plt.plot(data_t[:,:,0].T)
-plt.plot(data_t2[:,:,0].T)
-plt.plot(data_t3[:,:,0].T)
+plt.plot(data[:,:,1].T)
+plt.plot(data_t[:,:,1].T)
+# plt.plot(data_t2[:,:,0].T)
+# plt.plot(data_t3[:,:,0].T)
 # plt.plot(data_t4[:,:,0].T)
 
 # T.visualize_velocity(theta)
 # T.visualize_deformgrid(theta)
 # T.visualize_gradient(theta)
+
+T.visualize_deformdata(data, 2**N * theta)
+
+# %%
+
+batch_size = 3
+channels = 4
+outsize = 100
+
+a = np.zeros((batch_size, channels))
+b = np.ones((batch_size, channels)) * 2 * np.pi
+noise = np.random.normal(0, 0.1, (batch_size, outsize, channels))
+x = np.linspace(a, b, outsize, axis=1)
+dataA = np.sin(x)
+dataB = np.sin(x + 0.3)
+
+dataA = torch.tensor(dataA)
+dataB = torch.tensor(dataB)
+
+tess_size = 10
+backend = "pytorch" # ["pytorch", "numpy"]
+device = "cpu" # ["cpu", "gpu"]
+zero_boundary = False
+use_slow = True
+method = "closed_form"
+basis = "svd"
+basis = "sparse"
+basis = "rref"
+
+T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T.params.use_slow = use_slow
+
+grid = T.uniform_meshgrid(outsize)
+theta = T.identity(batch_size, epsilon=0)
+theta = torch.autograd.Variable(theta, requires_grad=True)
+
+lr = 1e-3
+optimizer = torch.optim.Adam([theta], lr=lr)
+# optimizer = torch.optim.SGD([theta_2], lr=1e1)
+
+# torch.set_num_threads(1)
+loss_values = []
+maxiter = 50
+with tqdm(desc='Alignment of samples', unit='iters', total=maxiter,  position=0, leave=True) as pb:
+    for i in range(maxiter):
+        optimizer.zero_grad()
+        
+        N = 4
+        dataT = T.transform_data_ss(dataA, theta, outsize, N=N)
+        loss = torch.norm(dataT - dataB, dim=1).mean()
+        loss.backward()
+        optimizer.step()
+
+        if torch.any(torch.isnan(theta)):
+            print("AHSDASD")
+            break
+
+        loss_values.append(loss.item())
+        pb.update()
+        pb.set_postfix({'loss': loss.item()})
+    pb.close()
+
+plt.figure()
+plt.plot(loss_values)
+
+plt.figure()
+
+plt.plot(dataA[:,:,0].T)
+plt.plot(dataB[:,:,0].T)
+plt.plot(dataT.detach()[:,:,0].T)
+
+T.visualize_deformgrid(2**N*theta.detach())
 
 # %%
 %%timeit -r 20 -n 1
@@ -483,7 +558,7 @@ def gradient_custom(f, axis=1, edge_order = 1):
 def curve2srvf(f):
     eps = np.finfo(np.double).eps
     g = np.gradient(f, axis=1, edge_order=2)
-    g = gradient_custom(f, axis=1, edge_order=2)
+    # g = gradient_custom(f, axis=1, edge_order=2)
     q = g / np.sqrt(np.fabs(g) + eps)
     return q
 
@@ -534,6 +609,9 @@ def srvf2curve(q, f0=0.0):
 #     return f0 + torch.cumsum(integrand, dim=1)
 
 # Generation
+batch_size = 1
+channels = 1
+width = 100
 a = np.zeros((batch_size, channels))
 b = np.ones((batch_size, channels)) * 2 * np.pi
 noise = np.random.normal(0, 0.1, (batch_size, width, channels))
