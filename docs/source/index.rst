@@ -50,7 +50,7 @@ This documentation contains a `user-guide`_ (including
 `installation`_ procedure and
 `basic usage`_ of the simulator),
 a complete :ref:`API Reference<API>`, as well as a detailed :ref:`example<example>`.
-**archABM** is released under the MIT License. 
+**cpab** is released under the MIT License. 
 
 Finally, if you use **cpab** in a scientific publication, we would appreciate :ref:`citations<citing>`. 
 
