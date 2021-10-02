@@ -48,6 +48,7 @@ Getting Started
 Use the following template to run a simulation with `cpab`:
 
 .. code-block:: python
+
     import cpab
 
 
