@@ -5,10 +5,7 @@
 
 |
 
-.. figure:: docs/source/_static/logo.png
-  :width: 300
-  :align: center
-
+<img src="https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/logo.png" width="300"/>
 
 |
 
