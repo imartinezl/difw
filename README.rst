@@ -5,10 +5,13 @@
 
 
 .. figure:: docs/source/_static/logo.png
-  :width: 400
+  :width: 300
   :align: center
 
-  Finite-dimensional spaces of simple, fast, and highly-expressive diffeomorphisms derived from parametric, continuously-defined, velocity fields in Numpy and Pytorch
+
+|
+
+Finite-dimensional spaces of simple, fast, and highly-expressive diffeomorphisms derived from parametric, continuously-defined, velocity fields in Numpy and Pytorch
 
 .. image:: https://img.shields.io/pypi/status/cpab?style=flat-square
     :target: https://pypi.python.org/pypi/cpab
@@ -37,35 +40,14 @@
     :target: https://github.com/imartinezl/cpab
     :alt: Github Issues
 
-----
-
-.. _user-guide:
-
-User Guide
-==========
-
-**cpab** is a fast and open source library to.
-
-This documentation contains a `user-guide`_ (including
-`installation`_ procedure and
-`basic usage`_ of the simulator),
-a complete :ref:`API Reference<API>`, as well as a detailed :ref:`example<example>`.
-**cpab** is released under the MIT License. 
-
-Finally, if you use **cpab** in a scientific publication, we would appreciate :ref:`citations<citing>`. 
-
-.. _basic usage:
 
 Getting Started
 ---------------
 
-Use the following template to run a simulation with *cpab*:
+Use the following template to run a simulation with `cpab`:
 
 .. code-block:: python
     import cpab
-
-
-----
 
 
 
@@ -91,10 +73,6 @@ repository hosted at github:
 .. code-block:: shell-session
 
     python -m pip install https://github.com/imartinezl/cpab/archive/master.zip
-
-
-----
-
 
 Environment Setup
 -----------------
@@ -137,7 +115,6 @@ Before you can start installing or using packages in your virtual environment yo
 
     $ source env/bin/activate
 
-----
 
 Source Code
 -----------
