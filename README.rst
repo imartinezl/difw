@@ -30,7 +30,7 @@ Finite-dimensional spaces of simple, fast, and highly-expressive diffeomorphisms
     :target: https://github.com/imartinezl/cpab/actions
     :alt: Actions
 
-.. image:: https://img.shields.io/pypi/dd/cpab?style=flat-square
+.. image:: https://img.shields.io/pypi/dm/cpab?style=flat-square
     :target: https://pepy.tech/project/cpab
 
 .. image:: https://img.shields.io/github/languages/top/imartinezl/cpab?style=flat-square
