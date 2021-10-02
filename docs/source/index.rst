@@ -120,7 +120,7 @@ If you have ``python3`` on your machine, then this command should respond with a
 Pip
 ^^^
 
-``pip`` is the reference Python package manager. It’s used to install and update packages. In case ``pip`` is not installed in your OS, follow these `instructions <https://pip.pypa.io/en/stable/installation/>`_.
+``pip`` is the reference Python package manager. It’s used to install and update packages. In case ``pip`` is not installed in your OS, follow these `procedure <https://pip.pypa.io/en/stable/installation/>`_.
 
 
 Virtual Environment
