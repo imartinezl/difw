@@ -120,7 +120,8 @@ class Cpab:
         centers = self.backend.to(self.tess.cell_centers(), device=self.device)
         dist = self.backend.pdist(centers)
 
-        cov_init = self.backend.ones((self.params.D, self.params.D))*100*self.backend.max(dist)
+        cov_init = self.backend.ones((self.params.D, self.params.D))
+        cov_init = self.backend.to(cov_init, device=self.device)*100*self.backend.max(dist)
         cov_init[::2,::2] = dist
         cov_init[1::2,1::2] = dist
 
@@ -184,7 +185,8 @@ class Cpab:
         centers = self.backend.to(self.tess.cell_centers(), device=self.device)
         dist = self.backend.pdist(centers)
 
-        cov_init = self.backend.ones((self.params.D, self.params.D))*100*self.backend.max(dist)
+        cov_init = self.backend.ones((self.params.D, self.params.D))
+        cov_init = self.backend.to(cov_init, device=self.device)*100*self.backend.max(dist)
         cov_init[::2,::2] = dist
         cov_init[1::2,1::2] = dist
 
