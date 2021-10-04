@@ -1,31 +1,28 @@
 # %%
 
-"""
-Continous piecewise-affine based transformations
-
-    Typical usage example:
-        
-    T = Cpab(tess_size=10, backend="numpy", device="cpu", zero_boundary=True, basis="rref")
-    T.visualize_tesselation()
-
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 from .core.utility import Parameters
 from .core.tessellation import Tessellation
+from types import ModuleType
 
 
 class Cpab:
-    """ Continous piecewise-affine based transformations
+    """Continous piecewise-affine based transformations. Package main class.
 
     Args:
         tess_size (int): tesselation size, with the number of vertices.
-        backend (str, optional): computational backend to use. Choose between "numpy", or "pytorch". Defaults to "numpy".
-        device (str, optional): device to use. Choose between "cpu" or "gpu". For the numpy backend only the "cpu" option is valid. Defaults to "cpu".
+        backend (str, optional): computational backend to use. Choose between "*numpy*", or "*pytorch*". Defaults to "*numpy*".
+        device (str, optional): device to use. Choose between "*cpu*" or "*gpu*". For the numpy backend only the "*cpu*" option is valid. Defaults to "*cpu*".
         zero_boundary (bool, optional): determines if the velocity at the boundary is zero 
-        basis (str, optional): constrain basis to use. Choose between "rref", "svd", or "sparse". Defaults to "rref".
+        basis (str, optional): constrain basis to use. Choose between "*rref*", "*svd*", or "*sparse*". Defaults to "*rref*".
     """
+
+    params: Parameters
+    tess: Tessellation
+    backend_name: str
+    backend: ModuleType
 
     def __init__(
         self,
@@ -66,9 +63,6 @@ class Cpab:
         self.backend_name = backend
         if self.backend_name == "numpy":
             from .backend.numpy import functions as backend
-        # elif self.backend_name == "numba":
-        #     pass
-        #     from .tensorflow import functions as backend
         elif self.backend_name == "pytorch":
             from .backend.pytorch import functions as backend
 
@@ -79,31 +73,28 @@ class Cpab:
         # Assert that we have a recent version of the backend
         self.backend.assert_version()
 
-    def uniform_meshgrid(self, n_points):
-        """ Constructs a meshgrid 
-        Arguments:
-            n_points: number of points
-        Output:
-            grid: vector of points
+    def uniform_meshgrid(self, n_points: int):
+        """Generates a uniformly separated, one-dimensional meshgrid 
+
+        Args:
+            n_points (int): number of points
+
+        Returns:
+            numpy.ndarray or torch.Tensor: vector of points
         """
         return self.backend.uniform_meshgrid(self.params.xmin, self.params.xmax, n_points, self.device)
 
-    def covariance_cpa(self, length_scale=0.1, output_variance=1):
-        """ Function for sampling smooth transformations. The smoothness is determined
-            by the distance between cell centers. The closer the cells are to each other,
-            the more the cell parameters should correlate -> smooth transistion in
-            parameters. The covariance in the D-space is calculated using the
-            squared exponential kernel.
-                
-        Arguments:
-            n_sample: integer, number of transformation to sample
-            mean: [d,] vector, mean of multivariate gaussian
-            length_scale: float>0, determines how fast the covariance declines 
-                between the cells 
-            output_variance: float>0, determines the overall variance from the mean
-        Output:
-            samples: [n_sample, d] matrix. Each row is a independent sample from
-                a multivariate gaussian
+    def covariance_cpa(self, length_scale: float = 0.1, output_variance: float = 1):
+        """Generates the covariance matrix for a continuous piecewise-affine space. 
+        This function uses the squared exponential kernel with parameters 
+        :math:`\lambda_s`: *length_scale* and :math:`\lambda_v`: *output_variance*
+        
+        Args:
+            length_scale (float,>0): how fast the covariance declines between the cells 
+            output_variance (float,>0): overall variance from the mean
+        
+        Returns:
+            numpy.ndarray or torch.Tensor: [d, d] matrix. 
         """
 
         centers = self.backend.to(self.tess.cell_centers(), device=self.device)
@@ -122,16 +113,16 @@ class Cpab:
 
         return self.backend.to(cov_cpa, device=self.device)
 
-    def sample_transformation(self, n_sample, mean=None, cov=None):
-        """ Method for sampling transformation from simply multivariate gaussian
-            As default the method will sample from a standard normal
-        Arguments:
-            n_sample: integer, number of transformations to sample
-            mean: [d,] vector, mean of multivariate gaussian
-            cov: [d,d] matrix, covariance of multivariate gaussian
-        Output:
-            samples: [n_sample, d] matrix. Each row is a independent sample from
-                a multivariate gaussian
+    def sample_transformation(self, n_sample: int, mean=None, cov=None):
+        """Generates samples of a random transformation vector. By default the method samples from a standard Gaussian distribution.
+        
+        Args:
+            n_sample (int): number of transformations to sample
+            mean (numpy.ndarray or torch.Tensor): [d,] vector, mean of multivariate gaussian
+            cov (numpy.ndarray or torch.Tensor): [d,d] matrix, covariance of multivariate gaussian
+
+        Returns:
+            numpy.ndarray or torch.Tensor: [n_sample, d] matrix, where each row is a independent sample from a multivariate gaussian
         """
         if mean is not None:
             self._check_type(mean)
@@ -144,22 +135,21 @@ class Cpab:
 
         return self.backend.to(samples, device=self.device)
 
-    def sample_transformation_with_prior(self, n_sample, mean=None, length_scale=0.1, output_variance=1):
-        """ Function for sampling smooth transformations. The smoothness is determined
-            by the distance between cell centers. The closer the cells are to each other,
-            the more the cell parameters should correlate -> smooth transistion in
-            parameters. The covariance in the D-space is calculated using the
-            squared exponential kernel.
-                
-        Arguments:
-            n_sample: integer, number of transformation to sample
-            mean: [d,] vector, mean of multivariate gaussian
-            length_scale: float>0, determines how fast the covariance declines 
-                between the cells 
-            output_variance: float>0, determines the overall variance from the mean
-        Output:
-            samples: [n_sample, d] matrix. Each row is a independent sample from
-                a multivariate gaussian
+    def sample_transformation_with_prior(
+        self, n_sample: int, mean=None, length_scale: float = 0.1, output_variance: float = 1
+    ):
+        """Generates samples of smooth transitions. Covariance matrix for the continuous piecewise-affine space. 
+        This function uses the squared exponential kernel with parameters 
+        :math:`\lambda_s`: *length_scale* and :math:`\lambda_v`: *output_variance*
+        
+        Args:
+            n_sample (int): number of transformations to sample
+            mean (numpy.ndarray or torch.Tensor): [d,] vector, mean of multivariate gaussian
+            length_scale (float,>0): how fast the covariance declines between the cells 
+            output_variance (float,>0): overall variance from the mean
+
+        Returns:
+            numpy.ndarray or torch.Tensor: [d, d] matrix. 
         """
 
         if mean is not None:
@@ -183,31 +173,31 @@ class Cpab:
         samples = self.backend.sample_transformation(self.params.d, n_sample, mean, cov_cpa, self.device)
         return self.backend.to(samples, device=self.device)
 
-    def identity(self, n_sample=1, epsilon=0):
-        """ Method for getting the parameters for the identity 
-            transformation (vector of zeros) 
-        Arguments:
-            n_sample: integer, number of transformations to sample
-            epsilon: float>0, small number to add to the identity transformation
-                for stability during training
-        Output:
-            samples: [n_sample, d] matrix. Each row is a sample    
+    def identity(self, n_sample: int = 1, epsilon: float = 0):
+        """Generates the parameters for the identity transformation (vector of zeros)
+
+        Args:
+            n_sample (int): number of transformations to sample
+            epsilon (float, >0): number to add to the identity transformation for stability 
+        
+        Returns:
+            numpy.ndarray or torch.Tensor: [n_sample, d] matrix, where each row is a sample
         """
         return self.backend.identity(self.params.d, n_sample, epsilon, self.device)
 
     def transform_grid(self, grid, theta, method=None, time=1.0):
-        """ Main method of the class. Integrates the grid using the parametrization
-            in theta.
-        Arguments:
-            grid: [n_points] vector or [n_batch, n_points] tensor i.e.
-                either a single grid for all theta values, or a grid for each theta
-                value
-            theta: [n_batch, d] matrix,
-            method: one of {"closed_form", "numeric"}
-        Output:
-            transformed_grid: [n_batch, n_points] tensor, with the transformed
-                grid. The slice transformed_grid[i] corresponds to the grid being
-                transformed by theta[i]
+        """Integrates a grid using the parametrization in theta.
+
+        Args:
+            grid (numpy.ndarray or torch.Tensor): [n_points] vector or [n_batch, n_points] tensor i.e.
+                either a single grid for all theta values, or a grid for each theta value
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+            method (str): integration method, one of "*closed_form*", "*numeric*".
+            time (float): integration time. Defaults to 1.0
+        
+        Returns:
+            numpy.ndarray or torch.Tensor: [n_batch, n_points] tensor, with the transformed grid.
+            The slice transformed_grid[i] corresponds to the grid being transformed by theta[i]
         """
         self._check_type(grid)
         self._check_device(grid)
@@ -217,19 +207,21 @@ class Cpab:
         return transformed_grid
 
     def transform_grid_ss(self, grid, theta, method=None, time=1.0, N=0):
-        """ Main method of the class. Integrates the grid using the parametrization
-            in theta.
-        Arguments:
-            grid: [n_points] vector or [n_batch, n_points] tensor i.e.
-                either a single grid for all theta values, or a grid for each theta
-                value
-            theta: [n_batch, d] matrix,
-            method: one of {"closed_form", "numeric"}
-        Output:
-            transformed_grid: [n_batch, n_points] tensor, with the transformed
-                grid. The slice transformed_grid[i] corresponds to the grid being
-                transformed by theta[i]
+        """Integrates a grid using the scaling-squaring method and the parametrization in theta.
+
+        Args:
+            grid (numpy.ndarray or torch.Tensor): [n_points] vector or [n_batch, n_points] tensor i.e.
+                either a single grid for all theta values, or a grid for each theta value
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+            method (str): integration method, one of "*closed_form*", "*numeric*".
+            time (float): integration time. Defaults to 1.0
+            N (int): number of scaling iterations. Defaults to 0
+        
+        Returns:
+            numpy.ndarray or torch.Tensor: [n_batch, n_points] tensor, with the transformed grid.
+            The slice transformed_grid[i] corresponds to the grid being transformed by theta[i]
         """
+
         self._check_type(grid)
         self._check_device(grid)
         self._check_type(theta)
@@ -241,40 +233,37 @@ class Cpab:
         return transformed_grid
 
     def gradient_grid(self, grid, theta, method=None, time=1.0):
-        """ Integrates and return the gradient of the transformation
-        using the parametrization in theta.
-        Arguments:
-            grid: [n_points] vector or [n_batch, n_points] tensor i.e.
-                either a single grid for all theta values, or a grid for each theta
-                value
-            theta: [n_batch, d] matrix,
-        Output:
-            transformed_grid: [n_batch, n_points] tensor, with the transformed
-                grid. The slice transformed_grid[i] corresponds to the grid being
-                transformed by theta[i]
-            gradient_grid: [n_batch, n_points, d] tensor, with the gradient grid.
-                The slice gradient_grid[i, :, j] corresponds to the gradient of grid being
-                transformed by theta[i] and with respect to the parameter theta[i,j]
+        """ Integrates and returns the gradient of the transformation w.r.t. the parametrization in theta.
+
+        Args:
+            grid (numpy.ndarray or torch.Tensor): [n_points] vector or [n_batch, n_points] tensor i.e.
+                either a single grid for all theta values, or a grid for each theta value
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+        
+        Returns:
+            tuple: tuple containing
+                - **transformed_grid** (numpy.ndarray or torch.Tensor): [n_batch, n_points] tensor, with the transformed grid. The slice transformed_grid[i] corresponds to the grid being transformed by theta[i]
+                
+                - **gradient_grid** (numpy.ndarray or torch.Tensor): [n_batch, n_points, d] tensor, with the gradient grid. The slice gradient_grid[i, j] corresponds to the gradient of grid being transformed by theta[i] and with respect to the parameter theta[j]
+            
         """
         self._check_type(grid)
         self._check_device(grid)
         self._check_type(theta)
         self._check_device(theta)
-        transformed_grid = self.backend.gradient(grid, theta, self.params, method, time)
-        return transformed_grid
+        transformed_grid, gradient_grid = self.backend.gradient(grid, theta, self.params, method, time)
+        return transformed_grid, gradient_grid
 
-    def interpolate(self, data, grid, outsize):
+    def interpolate(self, data, grid, outsize: int):
         """ Linear interpolation method
-        Arguments:
-            data: [n_batch, *data_shape] tensor, with input data. The format of
-                the data_shape depends on the backend that is being used. 
-                In tensorflow and numpy: [n_batch, number_of_features, n_channels]
-                In pytorch: [n_batch, n_channels, number_of_features]
-            grid: [n_batch, n_points] tensor with grid points that are 
-                used to interpolate the data
+
+        Args:
+            data (numpy.ndarray or torch.Tensor): [n_batch, n_points, n_channels] tensor with input data.
+            grid (numpy.ndarray or torch.Tensor): [n_batch, n_points] tensor with grid points that are used to interpolate the data
             outsize: number of points in the output
-        Output:
-            interpolated: [n_batch, outsize, n_channels] tensor with the interpolated data
+        
+        Returns:
+            interpolated(numpy.ndarray or torch.Tensor): [n_batch, outsize, n_channels] tensor with the interpolated data
         """
         self._check_type(data)
         self._check_device(data)
@@ -282,19 +271,18 @@ class Cpab:
         self._check_device(grid)
         return self.backend.interpolate(data, grid, outsize)
 
-    def transform_data(self, data, theta, outsize, method=None, time=1.0):
-        """ Combination of the transform_grid and interpolate methods for easy
-            transformation of data.
-        Arguments:
-            data: [n_batch, *data_shape] tensor, with input data. The format of
-                the data_shape depends on the backend that is being used. 
-                In tensorflow and numpy: [n_batch, number_of_features, n_channels]
-                In pytorch: [n_batch, n_channels, number_of_features]
-            theta: [n_batch, d] matrix with transformation parameters. Each row
-                correspond to a transformation.
+    def transform_data(self, data, theta, outsize: int, method=None, time=1.0):
+        """ Combines the transform_grid and interpolate methods
+
+        Args:
+            data (numpy.ndarray or torch.Tensor): [n_batch, n_points, n_channels] tensor with input data.
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
             outsize: number of points that is transformed and interpolated
-        Output:
-            data_t: [n_batch, outsize, n_channels] tensor, transformed and interpolated data
+            method (str): integration method, one of "*closed_form*", "*numeric*".
+            time (float): integration time. Defaults to 1.0
+        
+        Returns:
+            numpy.ndarray or torch.Tensor: [n_batch, outsize, n_channels] tensor, transformed and interpolated data
         """
 
         self._check_type(data)
@@ -308,18 +296,18 @@ class Cpab:
         return data_t
 
     def transform_data_ss(self, data, theta, outsize, method=None, time=1.0, N=0):
-        """ Combination of the transform_grid and interpolate methods for easy
-            transformation of data.
-        Arguments:
-            data: [n_batch, *data_shape] tensor, with input data. The format of
-                the data_shape depends on the backend that is being used. 
-                In tensorflow and numpy: [n_batch, number_of_features, n_channels]
-                In pytorch: [n_batch, n_channels, number_of_features]
-            theta: [n_batch, d] matrix with transformation parameters. Each row
-                correspond to a transformation.
-            outsize: number of points that is transformed and interpolated
-        Output:
-            data_t: [n_batch, outsize, n_channels] tensor, transformed and interpolated data
+        """ Combines the transform_grid with scaling-squaring and interpolate methods
+
+        Args:
+            data (numpy.ndarray or torch.Tensor): [n_batch, n_points, n_channels] tensor with input data
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+            outsize: number of points that is transformed (with scaling and squaring) and interpolated
+            method (str): integration method, one of "*closed_form*", "*numeric*"
+            time (float): integration time. Defaults to 1.0
+            N (int): number of scaling iterations. Defaults to 0
+        
+        Returns:
+            numpy.ndarray or torch.Tensor: [n_batch, outsize, n_channels] tensor, transformed and interpolated data
         """
 
         self._check_type(data)
@@ -333,13 +321,14 @@ class Cpab:
         return data_t
 
     def calc_velocity(self, grid, theta):
-        """ For each point in grid, calculate the velocity of the point based
-            on the parametrization in theta
-        Arguments:
-            grid: [n_points] vector
-            theta: [1, d] single parametrization vector
-        Output:    
-            v: [n_points] vector with velocity vectors for each point
+        """ Calculates the velocity for each point in grid based on the theta parametrization
+
+        Args:
+            grid (numpy.ndarray or torch.Tensor): [n_batch, n_points] tensor with grid points that are used to interpolate the data
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+        
+        Returns:    
+            numpy.ndarray or torch.Tensor: [n_points] vector with velocity values
         """
         self._check_type(grid)
         self._check_device(grid)
@@ -348,15 +337,16 @@ class Cpab:
         v = self.backend.calc_velocity(grid, theta, self.params)
         return v
 
-    def visualize_velocity(self, theta, n_points=None, fig=None):
-        """ Utility function that helps visualize the vectorfield for a specific
-            parametrization vector theta 
-        Arguments:    
-            theta: [n_batch, d] single parametrization vector
-            n_points: number of points to plot
-            fig: matplotlib figure handle
-        Output:
-            plot: handle to lines plot
+    def visualize_velocity(self, theta, n_points: int = None, fig: matplotlib.figure.Figure = None):
+        """ Visualizes the vectorfield for a specific parametrization vector theta 
+
+        Args:    
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+            n_points (int): number of points to plot
+            fig (matplotlib.figure.Figure): matplotlib figure handle
+        
+        Returns:
+            matplotlib.axes.Axes: handle to lines plot
         """
         self._check_type(theta)
         if fig is None:
@@ -385,16 +375,22 @@ class Cpab:
         ax.grid(alpha=0.3)
         return ax
 
-    def visualize_deformgrid(self, theta, method=None, time=1.0, n_points=100, fig=None):
-        """ Utility function that helps visualize a deformation
-        Arguments:
-            theta: [n_batch, d] single parametrization vector
-            n_points: int, number of points
-            fig: matplotlib figure handle
-        Output:
-            plot: handle to lineplot
+    def visualize_deformgrid(
+        self, theta, method=None, time: float = 1.0, n_points: int = 100, fig: matplotlib.figure.Figure = None
+    ):
+        """ Visualizes the deformation for a specific parametrization vector theta 
+
+        Args:    
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+            method (str): integration method, one of "*closed_form*", "*numeric*"
+            time (float): integration time. Defaults to 1.0
+            n_points (int): number of points to plot
+            fig (matplotlib.figure.Figure): matplotlib figure handle
+        
+        Returns:
+            matplotlib.axes.Axes: handle to lines plot
         """
-        pass
+
         if fig is None:
             fig = plt.figure()
 
@@ -416,14 +412,18 @@ class Cpab:
 
         return ax
 
-    def visualize_tesselation(self, n_points=50, fig=None):
-        """ Utility function that helps visualize the tesselation.
-        Arguments:
-            n_points: number of points in each dimension
-            fig: matplotlib figure handle
-        Output:
-            plot: handle to tesselation plot
+    def visualize_tesselation(self, n_points: int = 50, fig: matplotlib.figure.Figure = None):
+        """ Visualizes the tesselation for a specific parametrization vector theta 
+
+        Args:    
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+            n_points (int): number of points to plot
+            fig (matplotlib.figure.Figure): matplotlib figure handle
+        
+        Returns:
+            matplotlib.axes.Axes: handle to tesselation plot
         """
+
         if fig is None:
             fig = plt.figure()
 
@@ -444,14 +444,20 @@ class Cpab:
         ax.grid(alpha=0.3)
         return plot
 
-    def visualize_gradient(self, theta, method=None, time=1.0, n_points=100, fig=None):
-        """ Utility function that helps visualize the gradient
-        Arguments:
-            theta: [n_batch, d] single parametrization vector
-            n_points: int, number of points
-            fig: matplotlib figure handle
-        Output:
-            plot: handle to lineplot
+    def visualize_gradient(
+        self, theta, method=None, time: float = 1.0, n_points: int = 100, fig: matplotlib.figure.Figure = None
+    ):
+        """ Visualizes the gradient for a specific parametrization vector theta 
+
+        Args:    
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+            method (str): integration method, one of "*closed_form*", "*numeric*"
+            time (float): integration time. Defaults to 1.0
+            n_points (int): number of points to plot
+            fig (matplotlib.figure.Figure): matplotlib figure handle
+        
+        Returns:
+            matplotlib.axes.Axes: handle to gradient plot
         """
         if fig is None:
             fig = plt.figure()
@@ -475,16 +481,24 @@ class Cpab:
         ax.grid(alpha=0.3)
         return ax
 
-    def visualize_deformdata(self, data, theta, method=None, outsize=100, target=None, fig=None):
-        """ Utility function that helps visualize a deformation
-        Arguments:
-            theta: [n_batch, d] single parametrization vector
-            n_points: int, number of points
-            fig: matplotlib figure handle
-        Output:
-            plot: handle to lineplot
+    def visualize_deformdata(
+        self, data, theta, method=None, outsize: int = 100, target=None, fig: matplotlib.figure.Figure = None
+    ):
+        """ Visualizes the transformed data for a specific parametrization vector theta 
+
+        Args:    
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+            method (str): integration method, one of "*closed_form*", "*numeric*"
+            outsize (int): number of points that is transformed and interpolated
+            target (numpy.ndarray or torch.Tensor): [n_batch, n_points, n_channels] tensor with target data.
+            time (float): integration time. Defaults to 1.0
+            n_points (int): number of points to plot
+            fig (matplotlib.figure.Figure): matplotlib figure handle
+        
+        Returns:
+            matplotlib.axes.Axes: handle to gradient plot
         """
-        pass
+
         if fig is None:
             fig = plt.figure()
 
@@ -517,9 +531,17 @@ class Cpab:
 
         return ax
 
-    def _check_input(self, tess_size, backend, device, zero_boundary, basis):
-        """ Utility function used to check the input to the class.
-            Not meant to be called by the user. """
+    def _check_input(self, tess_size: int, backend: str, device: str, zero_boundary: bool, basis: str):
+        """ Checks the input to the class
+
+            tess_size (int): tesselation size, with the number of vertices.
+            backend (str, optional): computational backend to use. Choose between "*numpy*", or "*pytorch*". Defaults to "*numpy*".
+            device (str, optional): device to use. Choose between "*cpu*" or "*gpu*". For the numpy backend only the "*cpu*" option is valid. Defaults to "*cpu*".
+            zero_boundary (bool, optional): determines if the velocity at the boundary is zero 
+            basis (str, optional): constrain basis to use. Choose between "*rref*", "*svd*", or "*sparse*". Defaults to "*rref*".
+            
+        """
+
         assert tess_size > 1, """tess size must be > 1"""
         assert backend in ["numpy", "pytorch",], """Unknown backend, choose between 'numpy' or 'pytorch' """
         assert device in ["cpu", "gpu",], """Unknown device, choose between 'cpu' or 'gpu' """
@@ -534,17 +556,16 @@ class Cpab:
         ], """Unknown basis, choose between 'svd', 'rref' 'qr', or 'sparse' """
 
     def _check_type(self, x):
-        """ Assert that the type of x is compatible with the class i.e
+        """ Asserts that the type of x is compatible with the class i.e
                 numpy backend expects np.array
                 pytorch backend expects torch.tensor
-                tensorflow backend expects tf.tensor
         """
         assert isinstance(x, self.backend.backend_type()), """ Input has type {0} but expected type {1} """.format(
             type(x), self.backend.backend_type()
         )
 
     def _check_device(self, x):
-        """ Assert that x is on the same device (cpu or gpu) as the class """
+        """ Asserts that x is on the same device (cpu or gpu) as the class """
         assert self.backend.check_device(
             x, self.device
         ), """Input is placed on 

@@ -105,8 +105,14 @@ master_doc = "contents"
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'http://docs.python.org/3/': None,
+    'python': ('http://docs.python.org/3/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'pytorch': ('https://pytorch.org/docs/master/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
+    'matplotlib': ('https://matplotlib.org/stable/', None),
+    'pandas': ('https://pandas.pydata.org/docs/', None)
 }
+
 
 # Autodoc
 autosummary_generate = True

@@ -13,12 +13,15 @@ most important right here and provide links to the canonical documentation.
     
     cpab/cpab
 
+.. autosummary::
+    ~cpab.cpab.Cpab
+
 .. automodule:: cpab.cpab
     :members:
     :undoc-members:
 
-.. autosummary::
-    ~cpab.cpab.Cpab
+
+
 
 
    
