@@ -99,25 +99,6 @@ def get_psi(x, t, theta, params):
     return psi
 
 
-# TODO: REMOVE
-def get_hit_time_DEPRECATED(x, theta, params):
-    A, r = get_affine(x, theta, params)
-
-    c = get_cell(x, params)
-    v = get_velocity(x, theta, params)
-    xc = torch.where(v >= 0, right_boundary(c, params), left_boundary(c, params))
-
-    a = A[r, c, 0]
-    b = A[r, c, 1]
-
-    cond = cmpf0(a)
-    x1 = (xc - x) / b
-    x2 = torch.log((xc + b / a) / (x + b / a)) / a
-    thit = torch.where(cond, x1, x2)
-
-    return thit
-
-
 def get_hit_time(x, theta, params):
 
     thit = torch.empty_like(x)
@@ -182,49 +163,6 @@ def integrate_numeric(x, theta, params, time=1.0):
         xNum = get_phi_numeric(xPrev, deltaT, theta, params)
         xPrev = torch.where(c == cTemp, xTemp, xNum)
     return xPrev.reshape((n_batch, -1))
-
-
-# TODO: REMOVE
-def integrate_closed_form_DEPRECATED(x, theta, params):
-    # setup
-    x = batch_effect(x, theta)
-    t = torch.ones_like(x)
-    params = precompute_affine(x, theta, params)
-    n_batch = theta.shape[0]
-
-    # computation
-    phi = torch.empty_like(x)
-    done = torch.full_like(x, False, dtype=bool)
-    c = get_cell(x, params)
-
-    cont = 0
-    while True:
-        left = left_boundary(c, params)
-        right = right_boundary(c, params)
-        v = get_velocity(x, theta, params)
-        psi = get_psi(x, t, theta, params)
-
-        cond1 = torch.logical_and(left <= psi, psi <= right)
-        cond2 = torch.logical_and(v >= 0, c == params.nc - 1)
-        cond3 = torch.logical_and(v <= 0, c == 0)
-        valid = torch.any(torch.stack((cond1, cond2, cond3)), dim=0)
-
-        phi[~done] = psi
-        done[~done] = valid
-        if torch.all(valid):
-            return phi.reshape((n_batch, -1))
-
-        x, t, params.r = x[~valid], t[~valid], params.r[~valid]
-        t -= get_hit_time(x, theta, params)
-        psi = torch.where(psi > right, right, psi)
-        psi = torch.where(psi < left, left, psi)
-        x = psi[~valid]
-        c = torch.where(v >= 0, c + 1, c - 1)[~valid]
-
-        cont += 1
-        if cont > params.nc:
-            raise BaseException
-    return None
 
 
 def integrate_closed_form(x, theta, params, time=1.0):
@@ -381,48 +319,6 @@ def derivative_thit_theta(x, theta, k, params):
 
 
 # %% TRANSFORMATION
-
-# TODO: REMOVE
-def integrate_closed_form_trace_DEPRECATED(x, theta, params):
-    # setup
-    n_batch = theta.shape[0]
-    x = batch_effect(x, theta)
-    t = torch.ones_like(x)
-    params = precompute_affine(x, theta, params)
-
-    # computation
-    result = torch.empty((*x.shape, 3), device=x.device)
-    done = torch.full_like(x, False, dtype=bool)
-
-    c = get_cell(x, params)
-    cont = 0
-    while True:
-        left = left_boundary(c, params)
-        right = right_boundary(c, params)
-        v = get_velocity(x, theta, params)
-        psi = get_psi(x, t, theta, params)
-
-        cond1 = torch.logical_and(left <= psi, psi <= right)
-        cond2 = torch.logical_and(v >= 0, c == params.nc - 1)
-        cond3 = torch.logical_and(v <= 0, c == 0)
-        valid = torch.any(torch.stack((cond1, cond2, cond3)), dim=0)
-
-        result[~done] = torch.stack((psi, t, c)).T
-        done[~done] = valid
-        if torch.all(valid):
-            return result
-
-        x, t, params.r = x[~valid], t[~valid], params.r[~valid]
-        t -= get_hit_time(x, theta, params)
-        psi = torch.where(psi < left, left, psi)
-        psi = torch.where(psi > right, right, psi)
-        x = psi[~valid]
-        c = torch.where(v >= 0, c + 1, c - 1)[~valid]
-
-        cont += 1
-        if cont > params.nc:
-            raise BaseException
-    return None
 
 
 def integrate_closed_form_trace(x, theta, params, time=1.0):
