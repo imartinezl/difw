@@ -32,7 +32,7 @@ class Tessellation:
 
     def cell_centers(self):
         h = self.xr / self.nc
-        return np.linspace(self.xmin, self.xmax-h, self.nc) + h/2
+        return np.linspace(self.xmin, self.xmax - h, self.nc) + h / 2
 
     def constrain_matrix(self):
         vertices = np.linspace(self.xmin, self.xmax, self.nv)
@@ -72,10 +72,10 @@ class Tessellation:
         # B = B / np.linalg.norm(B, ord=self.ord, axis=0)
         return B
 
-
     def qr_null(self, A, tol=None):
         from scipy.linalg import qr
-        Q, R, P = qr(A.T, mode='full', pivoting=True)
+
+        Q, R, P = qr(A.T, mode="full", pivoting=True)
         tol = np.max(A) * np.finfo(R.dtype).eps if tol is None else tol
         rnk = min(A.shape) - np.abs(np.diag(R))[::-1].searchsorted(tol)
         return Q[:, rnk:].conj()
@@ -137,7 +137,7 @@ class Tessellation:
         s = (b - a) / n
 
         B[0, 0] = -1
-        B[0, 1] = (a + s)
+        B[0, 1] = a + s
         B[-2, ::2] = 1
         # B[-1, :-2:2] = 1
         B[-1, -2] = 1
@@ -152,7 +152,7 @@ class Tessellation:
         # normalize
         B = B.T / np.linalg.norm(B, ord=self.ord, axis=1)
         if self.ord == np.inf:
-            B[::2, -2] = 1/n
+            B[::2, -2] = 1 / n
         return B
 
     # with zero boundary
@@ -169,9 +169,7 @@ class Tessellation:
         for k in range(1, self.nc):
             B[k - 1, 2 : 2 * k : 2] = b - a
             B[k - 1, 2 * k] = -((n - k) * a + k * b)
-            B[k - 1, 2 * k + 1] = (
-                ((n - k) * a + k * b) * ((n - k - 1) * a + (k + 1) * b) / n
-            )
+            B[k - 1, 2 * k + 1] = ((n - k) * a + k * b) * ((n - k - 1) * a + (k + 1) * b) / n
 
         # normalize
         B = B.T / np.linalg.norm(B, axis=1)
@@ -195,9 +193,7 @@ class Tessellation:
         for k in range(1, n - 1):
             B[k, : 2 * k : 2] = b - a
             B[k, 2 * k] = -((n - k) * a + k * b)
-            B[k, 2 * k + 1] = (
-                ((n - k) * a + k * b) * ((n - k - 1) * a + (k + 1) * b) / n
-            )
+            B[k, 2 * k + 1] = ((n - k) * a + k * b) * ((n - k - 1) * a + (k + 1) * b) / n
 
         # normalize
         B = B.T / np.linalg.norm(B, axis=1)
@@ -217,16 +213,16 @@ class Tessellation:
         s = (self.xmax - self.xmin) / self.nc
 
         r = np.arange(0, rows, 2)
-        c = np.arange(cols-1)
+        c = np.arange(cols - 1)
 
         B[r, c] = -1
-        B[r, c+1] = 1
-        B[r+1, c] = np.arange(self.xmin + s, self.xmax + s, s)
-        B[r+1, c+1] = -np.arange(self.xmin, self.xmax, s)
+        B[r, c + 1] = 1
+        B[r + 1, c] = np.arange(self.xmin + s, self.xmax + s, s)
+        B[r + 1, c + 1] = -np.arange(self.xmin, self.xmax, s)
 
         B = B / s
         B = B / np.linalg.norm(B, ord=self.ord, axis=0)
-        
+
         return B
 
     def basis_sparse_zb(self):

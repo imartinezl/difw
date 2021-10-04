@@ -5,22 +5,28 @@ import torch
 # %% COMPARE EQUAL TO ZERO
 eps = torch.finfo(torch.float32).eps
 
+
 def cmpf(x, y):
-    return torch.abs(x-y) < eps
+    return torch.abs(x - y) < eps
+
 
 def cmpf0(x):
     return torch.abs(x) < eps
 
+
 # %% BATCH EFFECT
+
 
 def batch_effect(x, theta):
     if x.ndim == 1:
         n_batch = theta.shape[0]
         n_points = x.shape[-1]
-        x = torch.broadcast_to(x, (n_batch, n_points))#.flatten()
+        x = torch.broadcast_to(x, (n_batch, n_points))  # .flatten()
     return x.flatten()
 
+
 # %% FUNCTIONS
+
 
 def get_affine(x, theta, params):
     if params.precomputed:
@@ -37,6 +43,7 @@ def get_affine(x, theta, params):
         A = params.B.mm(theta.T).T.reshape(n_batch, -1, 2).to(x.device)
         return A, r
 
+
 def precompute_affine(x, theta, params):
     params = params.copy()
     params.precomputed = False
@@ -44,13 +51,16 @@ def precompute_affine(x, theta, params):
     params.precomputed = True
     return params
 
+
 def right_boundary(c, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
     return xmin + (c + 1) * (xmax - xmin) / nc + eps
 
+
 def left_boundary(c, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
     return xmin + c * (xmax - xmin) / nc - eps
+
 
 def get_cell(x, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
@@ -59,6 +69,7 @@ def get_cell(x, params):
     c = torch.clamp(c, 0, nc - 1).long()
     return c
 
+
 def get_velocity(x, theta, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
@@ -66,10 +77,12 @@ def get_velocity(x, theta, params):
     b = A[r, c, 1]
     return a * x + b
 
+
 def calc_velocity(grid, theta, params):
     grid = batch_effect(grid, theta)
     v = get_velocity(grid, theta, params)
     return v.reshape(theta.shape[0], -1)
+
 
 def get_psi(x, t, theta, params):
     A, r = get_affine(x, theta, params)
@@ -84,6 +97,7 @@ def get_psi(x, t, theta, params):
     # x2 = torch.exp(t * a) * (x + (b / a)) - (b / a)
     psi = torch.where(cond, x1, x2)
     return psi
+
 
 # TODO: REMOVE
 def get_hit_time_DEPRECATED(x, theta, params):
@@ -103,6 +117,7 @@ def get_hit_time_DEPRECATED(x, theta, params):
 
     return thit
 
+
 def get_hit_time(x, theta, params):
 
     thit = torch.empty_like(x)
@@ -110,10 +125,10 @@ def get_hit_time(x, theta, params):
 
     c = get_cell(x, params)
     A, r = get_affine(x, theta, params)
-    
+
     a = A[r, c, 0]
     b = A[r, c, 1]
-    
+
     v = a * x + b
     cond1 = cmpf0(v)
 
@@ -128,11 +143,11 @@ def get_hit_time(x, theta, params):
 
     cond = cond1 | cond2 | cond3 | cond4 | cond5
     thit[~cond] = torch.where(
-        cmpf0(a[~cond]), 
-        (xc[~cond] - x[~cond])/b[~cond], 
-        torch.log(vc[~cond] / v[~cond]) / a[~cond])
+        cmpf0(a[~cond]), (xc[~cond] - x[~cond]) / b[~cond], torch.log(vc[~cond] / v[~cond]) / a[~cond],
+    )
     thit[cond] = float("inf")
     return thit, xc, cc
+
 
 def get_phi_numeric(x, t, theta, params):
     nSteps2 = params.nSteps2
@@ -144,7 +159,9 @@ def get_phi_numeric(x, t, theta, params):
         yn = yn + deltaT * get_velocity(midpoint, theta, params)
     return yn
 
+
 # %% INTEGRATION
+
 
 def integrate_numeric(x, theta, params, time=1.0):
     # setup
@@ -165,6 +182,7 @@ def integrate_numeric(x, theta, params, time=1.0):
         xNum = get_phi_numeric(xPrev, deltaT, theta, params)
         xPrev = torch.where(c == cTemp, xTemp, xNum)
     return xPrev.reshape((n_batch, -1))
+
 
 # TODO: REMOVE
 def integrate_closed_form_DEPRECATED(x, theta, params):
@@ -187,10 +205,10 @@ def integrate_closed_form_DEPRECATED(x, theta, params):
         psi = get_psi(x, t, theta, params)
 
         cond1 = torch.logical_and(left <= psi, psi <= right)
-        cond2 = torch.logical_and(v >= 0, c == params.nc-1)
+        cond2 = torch.logical_and(v >= 0, c == params.nc - 1)
         cond3 = torch.logical_and(v <= 0, c == 0)
         valid = torch.any(torch.stack((cond1, cond2, cond3)), dim=0)
-                
+
         phi[~done] = psi
         done[~done] = valid
         if torch.all(valid):
@@ -201,24 +219,25 @@ def integrate_closed_form_DEPRECATED(x, theta, params):
         psi = torch.where(psi > right, right, psi)
         psi = torch.where(psi < left, left, psi)
         x = psi[~valid]
-        c = torch.where(v >= 0, c+1, c-1)[~valid]
+        c = torch.where(v >= 0, c + 1, c - 1)[~valid]
 
         cont += 1
         if cont > params.nc:
             raise BaseException
     return None
 
+
 def integrate_closed_form(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
-    t = torch.ones_like(x)*time
+    t = torch.ones_like(x) * time
     params = precompute_affine(x, theta, params)
     n_batch = theta.shape[0]
 
     # computation
     phi = torch.empty_like(x)
     done = torch.full_like(x, False, dtype=bool)
-    
+
     c = get_cell(x, params)
     cont = 0
     while True:
@@ -242,7 +261,9 @@ def integrate_closed_form(x, theta, params, time=1.0):
             raise BaseException
     return None
 
+
 # %% DERIVATIVE
+
 
 def derivative_numeric(x, theta, params, time=1.0, h=1e-3):
     # setup
@@ -255,13 +276,14 @@ def derivative_numeric(x, theta, params, time=1.0, h=1e-3):
 
     phi_1 = integrate_numeric(x, theta, params, time)
     for k in range(d):
-        theta[:,k] += h
+        theta[:, k] += h
         phi_2 = integrate_numeric(x, theta, params, time)
-        theta[:,k] -= h
+        theta[:, k] -= h
 
-        der[:,:,k] = (phi_2 - phi_1)/h
+        der[:, :, k] = (phi_2 - phi_1) / h
 
     return phi_1, der
+
 
 def derivative_closed_form(x, theta, params, time=1.0):
     # setup
@@ -271,9 +293,9 @@ def derivative_closed_form(x, theta, params, time=1.0):
 
     # computation
     result = integrate_closed_form_trace(x, theta, params, time)
-    phi = result[:,0].reshape((n_batch, -1))
-    tm = result[:,1]
-    cm = result[:,2]
+    phi = result[:, 0].reshape((n_batch, -1))
+    tm = result[:, 1]
+    cm = result[:, 2]
 
     # setup
     x = batch_effect(x, theta)
@@ -283,14 +305,13 @@ def derivative_closed_form(x, theta, params, time=1.0):
     for k in range(d):
         dthit_dtheta_cum = torch.zeros_like(x)
 
-        
         xm = x.clone()
         c = get_cell(x, params)
         while True:
             valid = c == cm
             if torch.all(valid):
                 break
-            step = torch.sign(cm-c)
+            step = torch.sign(cm - c)
             dthit_dtheta_cum[~valid] -= derivative_thit_theta(xm, theta, k, params)[~valid]
             xm[~valid] = torch.where(step == 1, right_boundary(c, params), left_boundary(c, params))[~valid]
             c = c + step
@@ -298,13 +319,14 @@ def derivative_closed_form(x, theta, params, time=1.0):
         dpsi_dtheta = derivative_psi_theta(xm, tm, theta, k, params)
         dpsi_dtime = derivative_phi_time(xm, tm, theta, k, params)
         dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
-        der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
-    
+        der[:, :, k] = dphi_dtheta.reshape(n_batch, n_points)
+
     return phi, der
+
 
 def derivative_psi_theta(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
-    A = A.double() # NOTE: double precision is necessary
+    A = A.double()  # NOTE: double precision is necessary
 
     c = get_cell(x, params)
     a = A[r, c, 0]
@@ -315,14 +337,12 @@ def derivative_psi_theta(x, t, theta, k, params):
 
     cond = cmpf0(a)
     d1 = t * (x * ak + bk)
-    d2 = (
-        ak * t * torch.exp(t * a) * (x + b / a)
-        + (torch.exp(t * a) - 1) * (bk * a - ak * b) / a ** 2
-    )
+    d2 = ak * t * torch.exp(t * a) * (x + b / a) + (torch.exp(t * a) - 1) * (bk * a - ak * b) / a ** 2
     d1 = d1.double()
     d2 = d2.double()
     dpsi_dtheta = torch.where(cond, d1, d2)
     return dpsi_dtheta
+
 
 def derivative_phi_time(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
@@ -336,9 +356,10 @@ def derivative_phi_time(x, t, theta, k, params):
     dpsi_dtime = torch.where(cond, d1, d2)
     return dpsi_dtime
 
+
 def derivative_thit_theta(x, theta, k, params):
     A, r = get_affine(x, theta, params)
-    A = A.double() # NOTE: double precision is necessary
+    A = A.double()  # NOTE: double precision is necessary
 
     c = get_cell(x, params)
     a = A[r, c, 0]
@@ -358,6 +379,7 @@ def derivative_thit_theta(x, theta, k, params):
     dthit_dtheta = torch.where(cond, d1, d2 + d3)
     return dthit_dtheta
 
+
 # %% TRANSFORMATION
 
 # TODO: REMOVE
@@ -371,7 +393,7 @@ def integrate_closed_form_trace_DEPRECATED(x, theta, params):
     # computation
     result = torch.empty((*x.shape, 3), device=x.device)
     done = torch.full_like(x, False, dtype=bool)
-    
+
     c = get_cell(x, params)
     cont = 0
     while True:
@@ -381,7 +403,7 @@ def integrate_closed_form_trace_DEPRECATED(x, theta, params):
         psi = get_psi(x, t, theta, params)
 
         cond1 = torch.logical_and(left <= psi, psi <= right)
-        cond2 = torch.logical_and(v >= 0, c == params.nc-1)
+        cond2 = torch.logical_and(v >= 0, c == params.nc - 1)
         cond3 = torch.logical_and(v <= 0, c == 0)
         valid = torch.any(torch.stack((cond1, cond2, cond3)), dim=0)
 
@@ -395,24 +417,25 @@ def integrate_closed_form_trace_DEPRECATED(x, theta, params):
         psi = torch.where(psi < left, left, psi)
         psi = torch.where(psi > right, right, psi)
         x = psi[~valid]
-        c = torch.where(v >= 0, c+1, c-1)[~valid]
+        c = torch.where(v >= 0, c + 1, c - 1)[~valid]
 
         cont += 1
         if cont > params.nc:
             raise BaseException
     return None
 
+
 def integrate_closed_form_trace(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
-    t = torch.ones_like(x)*time
+    t = torch.ones_like(x) * time
     params = precompute_affine(x, theta, params)
     n_batch = theta.shape[0]
 
     # computation
     result = torch.empty((*x.shape, 3), device=x.device)
     done = torch.full_like(x, False, dtype=bool)
-    
+
     c = get_cell(x, params)
     cont = 0
     while True:
@@ -436,6 +459,7 @@ def integrate_closed_form_trace(x, theta, params, time=1.0):
             raise BaseException
     return None
 
+
 def derivative_closed_form_trace(result, x, theta, params):
     # setup
     n_points = x.shape[-1]
@@ -444,9 +468,9 @@ def derivative_closed_form_trace(result, x, theta, params):
 
     # computation
     # result = integrate_closed_form_trace(x, theta, params, time)
-    phi = result[:,0].reshape((n_batch, -1))
-    tm = result[:,1]
-    cm = result[:,2]
+    phi = result[:, 0].reshape((n_batch, -1))
+    tm = result[:, 1]
+    cm = result[:, 2]
 
     # setup
     x = batch_effect(x, theta)
@@ -455,14 +479,14 @@ def derivative_closed_form_trace(result, x, theta, params):
     der = torch.empty((n_batch, n_points, d), device=x.device)
     for k in range(d):
         dthit_dtheta_cum = torch.zeros_like(x)
-        
+
         xm = x.clone()
         c = get_cell(x, params)
         while True:
             valid = c == cm
             if torch.all(valid):
                 break
-            step = torch.sign(cm-c)
+            step = torch.sign(cm - c)
             dthit_dtheta_cum[~valid] -= derivative_thit_theta(xm, theta, k, params)[~valid]
             xm[~valid] = torch.where(step == 1, right_boundary(c, params), left_boundary(c, params))[~valid]
             c = c + step
@@ -470,9 +494,10 @@ def derivative_closed_form_trace(result, x, theta, params):
         dpsi_dtheta = derivative_psi_theta(xm, tm, theta, k, params)
         dpsi_dtime = derivative_phi_time(xm, tm, theta, k, params)
         dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
-        der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
-    
-    return der  
+        der[:, :, k] = dphi_dtheta.reshape(n_batch, n_points)
+
+    return der
+
 
 def derivative_numeric_trace(phi_1, x, theta, params, time=1.0, h=1e-3):
     # setup
@@ -485,11 +510,9 @@ def derivative_numeric_trace(phi_1, x, theta, params, time=1.0, h=1e-3):
 
     # phi_1 = integrate_numeric(x, theta, params)
     for k in range(d):
-        theta[:,k] += h
+        theta[:, k] += h
         phi_2 = integrate_numeric(x, theta, params, time)
-        theta[:,k] -= h
+        theta[:, k] -= h
 
-        der[:,:,k] = (phi_2 - phi_1)/h
+        der[:, :, k] = (phi_2 - phi_1) / h
     return der
-
-    

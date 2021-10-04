@@ -7,14 +7,17 @@ np.seterr(divide="ignore", invalid="ignore")
 
 # %% BATCH EFFECT
 
+
 def batch_effect(x, theta):
     if x.ndim == 1:
         n_batch = theta.shape[0]
         n_points = x.shape[-1]
-        x = np.broadcast_to(x, (n_batch, n_points))#.flatten()
+        x = np.broadcast_to(x, (n_batch, n_points))  # .flatten()
     return x.flatten()
 
+
 # %% FUNCTIONS
+
 
 def get_affine(x, theta, params):
     if params.precomputed:
@@ -31,6 +34,7 @@ def get_affine(x, theta, params):
 
         return A, r
 
+
 def precompute_affine(x, theta, params):
     params = params.copy()
     params.precomputed = False
@@ -38,13 +42,16 @@ def precompute_affine(x, theta, params):
     params.precomputed = True
     return params
 
+
 def right_boundary(c, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
     return xmin + (c + 1) * (xmax - xmin) / nc + eps
 
+
 def left_boundary(c, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
     return xmin + c * (xmax - xmin) / nc - eps
+
 
 def get_cell(x, params):
     xmin, xmax, nc = params.xmin, params.xmax, params.nc
@@ -53,12 +60,14 @@ def get_cell(x, params):
     c = np.clip(c, 0, nc - 1).astype(np.int32)
     return c
 
+
 def get_velocity(x, theta, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
     a = A[r, c, 0]
     b = A[r, c, 1]
     return a * x + b
+
 
 def get_psi(x, t, theta, params):
     A, r = get_affine(x, theta, params)
@@ -69,10 +78,11 @@ def get_psi(x, t, theta, params):
     cond = a == 0
     x1 = x + t * b
     eta = np.exp(t * a)
-    x2 = eta * x + (b / a) * (eta-1.0)
+    x2 = eta * x + (b / a) * (eta - 1.0)
     # x2 = np.exp(t * a) * (x + (b / a)) - (b / a)
     psi = np.where(cond, x1, x2)
     return psi
+
 
 def get_hit_time(x, theta, params):
     A, r = get_affine(x, theta, params)
@@ -89,6 +99,7 @@ def get_hit_time(x, theta, params):
     x2 = np.log((xc + b / a) / (x + b / a)) / a
     thit = np.where(cond, x1, x2)
     return thit
+
 
 def get_phi_numeric(x, t, theta, params):
     nSteps2 = params.nSteps2
@@ -126,10 +137,11 @@ def integrate_numeric(x, theta, params, time=1.0):
         c = get_cell(xPrev, params)
     return xPrev.reshape((n_batch, -1))
 
+
 def integrate_closed_form(x, theta, params, time=1.0):
     # setup
     x = batch_effect(x, theta)
-    t = np.ones_like(x)*time
+    t = np.ones_like(x) * time
     params = precompute_affine(x, theta, params)
     n_batch = theta.shape[0]
 
@@ -146,7 +158,7 @@ def integrate_closed_form(x, theta, params, time=1.0):
         psi = get_psi(x, t, theta, params)
 
         cond1 = np.logical_and(left <= psi, psi <= right)
-        cond2 = np.logical_and(v >= 0, c == params.nc-1)
+        cond2 = np.logical_and(v >= 0, c == params.nc - 1)
         cond3 = np.logical_and(v <= 0, c == 0)
         valid = np.any((cond1, cond2, cond3), axis=0)
 
@@ -158,22 +170,23 @@ def integrate_closed_form(x, theta, params, time=1.0):
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
         x = np.clip(psi, left, right)[~valid]
-        c = np.where(v >= 0, c+1, c-1)[~valid]
+        c = np.where(v >= 0, c + 1, c - 1)[~valid]
 
         cont += 1
         if cont > params.nc:
             raise BaseException
     return None
 
+
 def integrate_closed_form_trace(x, theta, params, time=1.0):
 
     x = batch_effect(x, theta)
-    t = np.ones_like(x)*time
+    t = np.ones_like(x) * time
     params = precompute_affine(x, theta, params)
 
     result = np.empty((*x.shape, 3))
     done = np.full_like(x, False, dtype=bool)
-    
+
     c = get_cell(x, params)
     cont = 0
     while True:
@@ -183,7 +196,7 @@ def integrate_closed_form_trace(x, theta, params, time=1.0):
         psi = get_psi(x, t, theta, params)
 
         cond1 = np.logical_and(left <= psi, psi <= right)
-        cond2 = np.logical_and(v >= 0, c == params.nc-1)
+        cond2 = np.logical_and(v >= 0, c == params.nc - 1)
         cond3 = np.logical_and(v <= 0, c == 0)
         valid = np.any((cond1, cond2, cond3), axis=0)
 
@@ -195,14 +208,16 @@ def integrate_closed_form_trace(x, theta, params, time=1.0):
         x, t, params.r = x[~valid], t[~valid], params.r[~valid]
         t -= get_hit_time(x, theta, params)
         x = np.clip(psi, left, right)[~valid]
-        c = np.where(v >= 0, c+1, c-1)[~valid]
+        c = np.where(v >= 0, c + 1, c - 1)[~valid]
 
         cont += 1
         if cont > params.nc:
             raise BaseException
     return None
 
+
 # %% DERIVATIVE
+
 
 def derivative_numeric(x, theta, params, time=1.0, h=1e-3):
     # setup
@@ -216,12 +231,13 @@ def derivative_numeric(x, theta, params, time=1.0, h=1e-3):
     phi_1 = integrate_numeric(x, theta, params, time)
     for k in range(d):
         theta2 = theta.copy()
-        theta2[:,k] += h
+        theta2[:, k] += h
         phi_2 = integrate_numeric(x, theta2, params, time)
 
-        der[:,:,k] = (phi_2 - phi_1)/h
+        der[:, :, k] = (phi_2 - phi_1) / h
 
     return phi_1, der
+
 
 def derivative_closed_form(x, theta, params, time=1.0):
     # setup
@@ -231,9 +247,9 @@ def derivative_closed_form(x, theta, params, time=1.0):
 
     # computation
     result = integrate_closed_form_trace(x, theta, params, time)
-    phi = result[:,0].reshape((n_batch, -1))
-    tm = result[:,1]
-    cm = result[:,2]
+    phi = result[:, 0].reshape((n_batch, -1))
+    tm = result[:, 1]
+    cm = result[:, 2]
 
     # setup
     x = batch_effect(x, theta)
@@ -242,14 +258,14 @@ def derivative_closed_form(x, theta, params, time=1.0):
     der = np.empty((n_batch, n_points, d))
     for k in range(d):
         dthit_dtheta_cum = np.zeros_like(x)
- 
+
         xm = x.copy()
         c = get_cell(x, params)
         while True:
             valid = c == cm
             if np.alltrue(valid):
                 break
-            step = np.sign(cm-c)
+            step = np.sign(cm - c)
             dthit_dtheta_cum[~valid] -= derivative_thit_theta(xm, theta, k, params)[~valid]
             xm[~valid] = np.where(step == 1, right_boundary(c, params), left_boundary(c, params))[~valid]
             c = c + step
@@ -257,9 +273,10 @@ def derivative_closed_form(x, theta, params, time=1.0):
         dpsi_dtheta = derivative_psi_theta(xm, tm, theta, k, params)
         dpsi_dtime = derivative_phi_time(xm, tm, theta, k, params)
         dphi_dtheta = dpsi_dtheta + dpsi_dtime * dthit_dtheta_cum
-        der[:,:,k] = dphi_dtheta.reshape(n_batch, n_points)
-    
+        der[:, :, k] = dphi_dtheta.reshape(n_batch, n_points)
+
     return phi, der
+
 
 def derivative_psi_theta(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
@@ -272,12 +289,10 @@ def derivative_psi_theta(x, t, theta, k, params):
 
     cond = a == 0
     d1 = t * (x * ak + bk)
-    d2 = (
-        ak * t * np.exp(a * t) * (x + b / a)
-        + (np.exp(t * a) - 1) * (bk * a - ak * b) / a ** 2
-    )
+    d2 = ak * t * np.exp(a * t) * (x + b / a) + (np.exp(t * a) - 1) * (bk * a - ak * b) / a ** 2
     dpsi_dtheta = np.where(cond, d1, d2)
     return dpsi_dtheta
+
 
 def derivative_phi_time(x, t, theta, k, params):
     A, r = get_affine(x, theta, params)
@@ -290,6 +305,7 @@ def derivative_phi_time(x, t, theta, k, params):
     d2 = np.exp(t * a) * (a * x + b)
     dpsi_dtime = np.where(cond, d1, d2)
     return dpsi_dtime
+
 
 def derivative_thit_theta(x, theta, k, params):
     A, r = get_affine(x, theta, params)

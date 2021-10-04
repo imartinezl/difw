@@ -38,6 +38,7 @@ def interpolate(data, grid, outsize):
 
     return newdata
 
+
 def interpolate_grid(data):
     # Problem size
     n_batch, width = data.shape
@@ -63,7 +64,7 @@ def interpolate_grid(data):
 
     # Batch effect
     # r = torch.arange(n_batch).repeat_interleave(width)
-    r = torch.arange(n_batch).view(-1,1).repeat(1,width).flatten()
+    r = torch.arange(n_batch).view(-1, 1).repeat(1, width).flatten()
 
     # Index
     y0 = data[r, x0]

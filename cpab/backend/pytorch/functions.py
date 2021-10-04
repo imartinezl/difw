@@ -20,6 +20,7 @@ half = torch.float16
 single = torch.float32
 double = torch.float64
 
+
 def to(x, dtype=torch.float32, device=None):
     if type(device) == str:
         device = torch.device("cuda") if device == "gpu" else torch.device("cpu")
@@ -64,25 +65,32 @@ def uniform_meshgrid(xmin, xmax, n_points, device="cpu"):
     device = torch.device("cpu") if device == "cpu" else torch.device("cuda")
     return torch.linspace(xmin, xmax, n_points, dtype=torch.float32, device=device)
 
+
 # %%
 def exp(*args, **kwargs):
     return torch.exp(*args, **kwargs)
 
+
 def linspace(*args, **kwargs):
     return torch.linspace(*args, **kwargs)
+
 
 def meshgrid(*args, **kwargs):
     return torch.meshgrid(*args, **kwargs)
 
+
 def matmul(*args, **kwargs):
     return torch.matmul(*args, **kwargs)
+
 
 def max(*args, **kwargs):
     return torch.max(*args, **kwargs)
 
+
 def ones(*args, **kwargs):
     return torch.ones(*args, **kwargs)
 
+
 def pdist(c):
     x, y = torch.meshgrid(c, c)
-    return torch.abs(x-y)
+    return torch.abs(x - y)

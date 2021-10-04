@@ -35,6 +35,7 @@ def interpolate(data, grid, outsize):
     newdata = np.reshape(y, (n_batch, outsize, n_channels))
     return newdata
 
+
 def interpolate_grid(data):
     # Problem size
     n_batch, width = data.shape
@@ -61,7 +62,7 @@ def interpolate_grid(data):
     y1 = data[r, x1]
 
     # Interpolation weights
-    xd = (x - x0.astype(np.float32))
+    xd = x - x0.astype(np.float32)
 
     # Do interpolation
     y = y0 * (1 - xd) + y1 * xd

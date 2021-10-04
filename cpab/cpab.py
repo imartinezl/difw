@@ -1,46 +1,40 @@
 # %%
 
+"""
+Continous piecewise-affine based transformations
+
+    Typical usage example:
+        
+    T = Cpab(tess_size=10, backend="numpy", device="cpu", zero_boundary=True, basis="rref")
+    T.visualize_tesselation()
+
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from .core.utility import Parameters
 from .core.tessellation import Tessellation
 
 
-
 class Cpab:
-    """ Core class for this library. This class contains all the information
-        about the tesselation, transformation etc. The user is not meant to
-        use anything else than this specific class.
-        
-    Arguments:
-        tess_size: list, with the number of cells in each dimension
-        
-        backend: string, computational backend to use. Choose between 
-            "numpy" (default), or "pytorch"
-        
-        device: string, either "cpu" (default) or "gpu". For the numpy backend
-            only the "cpu" option is valid
-        
-        zero_boundary: bool, determines is the velocity at the boundary is zero 
-        
-        basis: string, constrain basis to use. Choose between 
-            "rref" (default), "svd", or "sparse"
-        
-    Methods:
-        @uniform_meshgrid
-        @sample_transformation
-        @sample_transformation_with_prior
-        @identity
-        @transform_grid
-        @interpolate
-        @transform_data
-        @get_velocity
-        @visualize_velocity
-        @visualize_deformgrid
-        @visualize_tesselation
+    """ Continous piecewise-affine based transformations
+
+    Args:
+        tess_size (int): tesselation size, with the number of vertices.
+        backend (str, optional): computational backend to use. Choose between "numpy", or "pytorch". Defaults to "numpy".
+        device (str, optional): device to use. Choose between "cpu" or "gpu". For the numpy backend only the "cpu" option is valid. Defaults to "cpu".
+        zero_boundary (bool, optional): determines if the velocity at the boundary is zero 
+        basis (str, optional): constrain basis to use. Choose between "rref", "svd", or "sparse". Defaults to "rref".
     """
 
-    def __init__(self, tess_size, backend="numpy", device="cpu", zero_boundary=True, basis="rref"):
+    def __init__(
+        self,
+        tess_size: int,
+        backend: str = "numpy",
+        device: str = "cpu",
+        zero_boundary: bool = True,
+        basis: str = "rref",
+    ):
         # Check input
         self._check_input(tess_size, backend, device, zero_boundary, basis)
 
@@ -58,11 +52,7 @@ class Cpab:
 
         # Initialize tesselation
         self.tess = Tessellation(
-            self.params.nc,
-            self.params.xmin,
-            self.params.xmax,
-            self.params.zero_boundary,
-            basis=self.params.basis,
+            self.params.nc, self.params.xmin, self.params.xmax, self.params.zero_boundary, basis=self.params.basis,
         )
 
         # Extract parameters from tesselation
@@ -81,6 +71,7 @@ class Cpab:
         #     from .tensorflow import functions as backend
         elif self.backend_name == "pytorch":
             from .backend.pytorch import functions as backend
+
             self.params.B = backend.to(self.params.B, device=self.device)
             self.params.B = self.params.B.contiguous()
         self.backend = backend
@@ -95,9 +86,7 @@ class Cpab:
         Output:
             grid: vector of points
         """
-        return self.backend.uniform_meshgrid(
-            self.params.xmin, self.params.xmax, n_points, self.device
-        )
+        return self.backend.uniform_meshgrid(self.params.xmin, self.params.xmax, n_points, self.device)
 
     def covariance_cpa(self, length_scale=0.1, output_variance=1):
         """ Function for sampling smooth transformations. The smoothness is determined
@@ -121,12 +110,12 @@ class Cpab:
         dist = self.backend.pdist(centers)
 
         cov_init = self.backend.ones((self.params.D, self.params.D))
-        cov_init = self.backend.to(cov_init, device=self.device)*100*self.backend.max(dist)
-        cov_init[::2,::2] = dist
-        cov_init[1::2,1::2] = dist
+        cov_init = self.backend.to(cov_init, device=self.device) * 100 * self.backend.max(dist)
+        cov_init[::2, ::2] = dist
+        cov_init[1::2, 1::2] = dist
 
         # Squared exponential kernel + Smoothness priors on CPA
-        cov_pa = output_variance**2 * self.backend.exp(-(cov_init / (2*length_scale**2)))       
+        cov_pa = output_variance ** 2 * self.backend.exp(-(cov_init / (2 * length_scale ** 2)))
 
         B = self.params.B
         cov_cpa = self.backend.matmul(self.backend.matmul(B.T, cov_pa), B)
@@ -151,15 +140,11 @@ class Cpab:
             self._check_type(cov)
             self._check_device(cov)
 
-        samples = self.backend.sample_transformation(
-            self.params.d, n_sample, mean, cov, self.device
-        )
+        samples = self.backend.sample_transformation(self.params.d, n_sample, mean, cov, self.device)
 
         return self.backend.to(samples, device=self.device)
 
-    def sample_transformation_with_prior(
-        self, n_sample, mean=None, length_scale=0.1, output_variance=1
-    ):
+    def sample_transformation_with_prior(self, n_sample, mean=None, length_scale=0.1, output_variance=1):
         """ Function for sampling smooth transformations. The smoothness is determined
             by the distance between cell centers. The closer the cells are to each other,
             the more the cell parameters should correlate -> smooth transistion in
@@ -181,24 +166,21 @@ class Cpab:
             self._check_type(mean)
             self._check_device(mean)
 
-
         centers = self.backend.to(self.tess.cell_centers(), device=self.device)
         dist = self.backend.pdist(centers)
 
         cov_init = self.backend.ones((self.params.D, self.params.D))
-        cov_init = self.backend.to(cov_init, device=self.device)*100*self.backend.max(dist)
-        cov_init[::2,::2] = dist
-        cov_init[1::2,1::2] = dist
+        cov_init = self.backend.to(cov_init, device=self.device) * 100 * self.backend.max(dist)
+        cov_init[::2, ::2] = dist
+        cov_init[1::2, 1::2] = dist
 
         # Squared exponential kernel + Smoothness priors on CPA
-        cov_pa = output_variance**2 * self.backend.exp(-(cov_init / (2*length_scale**2)))       
+        cov_pa = output_variance ** 2 * self.backend.exp(-(cov_init / (2 * length_scale ** 2)))
 
         B = self.params.B
         cov_cpa = self.backend.matmul(self.backend.matmul(B.T, cov_pa), B)
 
-        samples = self.backend.sample_transformation(
-            self.params.d, n_sample, mean, cov_cpa, self.device
-        )
+        samples = self.backend.sample_transformation(self.params.d, n_sample, mean, cov_cpa, self.device)
         return self.backend.to(samples, device=self.device)
 
     def identity(self, n_sample=1, epsilon=0):
@@ -319,9 +301,7 @@ class Cpab:
         self._check_device(data)
         self._check_type(theta)
         self._check_device(theta)
-        assert (
-            data.shape[0] == theta.shape[0]
-        ), """Batch sizes should be the same on arguments data and theta"""
+        assert data.shape[0] == theta.shape[0], """Batch sizes should be the same on arguments data and theta"""
         grid = self.uniform_meshgrid(outsize)
         grid_t = self.transform_grid(grid, theta, method, time)
         data_t = self.interpolate(data, grid_t, outsize)
@@ -346,9 +326,7 @@ class Cpab:
         self._check_device(data)
         self._check_type(theta)
         self._check_device(theta)
-        assert (
-            data.shape[0] == theta.shape[0]
-        ), """Batch sizes should be the same on arguments data and theta"""
+        assert data.shape[0] == theta.shape[0], """Batch sizes should be the same on arguments data and theta"""
         grid = self.uniform_meshgrid(outsize)
         grid_t = self.transform_grid_ss(grid, theta, method, time, N)
         data_t = self.interpolate(data, grid_t, outsize)
@@ -385,7 +363,7 @@ class Cpab:
             fig = plt.figure()
 
         if n_points is None:
-            n_points = self.params.nc+1
+            n_points = self.params.nc + 1
 
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid(n_points)
@@ -397,13 +375,13 @@ class Cpab:
         # Plot
         ax = fig.add_subplot(1, 1, 1)
         ax.axhline(color="black", ls="dashed")
-        alpha = max(0.01, 1/np.sqrt(len(theta)))
+        alpha = max(0.01, 1 / np.sqrt(len(theta)))
         ax.plot(grid, v.T, color="blue", alpha=alpha)
-        ax.plot(grid, v.T, marker='o', linestyle="None", color="orange", alpha=alpha)
+        ax.plot(grid, v.T, marker="o", linestyle="None", color="orange", alpha=alpha)
         ax.set_xlim(self.params.xmin, self.params.xmax)
-        ax.set_title("Velocity Field " + r'$v(x)$')
-        ax.set_xlabel(r'$x$', rotation='horizontal')
-        ax.set_ylabel(r'$v(x)$', rotation='horizontal')
+        ax.set_title("Velocity Field " + r"$v(x)$")
+        ax.set_xlabel(r"$x$", rotation="horizontal")
+        ax.set_ylabel(r"$v(x)$", rotation="horizontal")
         ax.grid(alpha=0.3)
         return ax
 
@@ -429,13 +407,13 @@ class Cpab:
         # Plot
         ax = fig.add_subplot(1, 1, 1)
         ax.axline((0, 0), (1, 1), color="black", ls="dashed")
-        alpha = max(0.01, 1/np.sqrt(len(theta))) 
+        alpha = max(0.01, 1 / np.sqrt(len(theta)))
         ax.plot(grid, grid_t.T, c="blue", alpha=alpha)
-        ax.set_title("Grid Deformation " + r'$\phi(x,t)$')
-        ax.set_xlabel(r'$x$', rotation='horizontal')
-        ax.set_ylabel(r'$\phi(x,t)$', rotation='horizontal')
+        ax.set_title("Grid Deformation " + r"$\phi(x,t)$")
+        ax.set_xlabel(r"$x$", rotation="horizontal")
+        ax.set_ylabel(r"$\phi(x,t)$", rotation="horizontal")
         ax.grid(alpha=0.3)
-        
+
         return ax
 
     def visualize_tesselation(self, n_points=50, fig=None):
@@ -459,13 +437,12 @@ class Cpab:
         # Plot
         ax = fig.add_subplot(1, 1, 1)
         plot = ax.scatter(grid.flatten(), idx, c=idx)
-        ax.set_title("Tesselation " + r'$N_\mathcal{P}=$' + str(self.params.nc))
-        ax.set_xlabel(r'$x$')
+        ax.set_title("Tesselation " + r"$N_\mathcal{P}=$" + str(self.params.nc))
+        ax.set_xlabel(r"$x$")
         ax.set_ylabel("Cell Index")
-        ax.set_yticks(np.arange(np.max(idx)+1))
+        ax.set_yticks(np.arange(np.max(idx) + 1))
         ax.grid(alpha=0.3)
         return plot
-        
 
     def visualize_gradient(self, theta, method=None, time=1.0, n_points=100, fig=None):
         """ Utility function that helps visualize the gradient
@@ -490,9 +467,11 @@ class Cpab:
         ax.axhline(color="black", ls="dashed")
         for g in grad:
             ax.plot(grid, g)
-        ax.set_title("Gradient " + r'$\dfrac{\partial \phi(x,t)}{\partial \theta}$')
-        ax.set_xlabel(r'$x$', rotation='horizontal')
-        ax.set_ylabel(r'$\dfrac{\partial \phi(x,t)}{\partial \theta}$', rotation='horizontal', labelpad=10)
+        ax.set_title("Gradient " + r"$\dfrac{\partial \phi(x,t)}{\partial \theta}$")
+        ax.set_xlabel(r"$x$", rotation="horizontal")
+        ax.set_ylabel(
+            r"$\dfrac{\partial \phi(x,t)}{\partial \theta}$", rotation="horizontal", labelpad=10,
+        )
         ax.grid(alpha=0.3)
         return ax
 
@@ -514,61 +493,53 @@ class Cpab:
         data_t = self.backend.tonumpy(data_t)
 
         batch_size, width, channels = data.shape
-        x = np.linspace(0,1,width)
-        xt = np.linspace(0,1,outsize)
-        alpha = max(0.01, 1/np.sqrt(batch_size))
+        x = np.linspace(0, 1, width)
+        xt = np.linspace(0, 1, outsize)
+        alpha = max(0.01, 1 / np.sqrt(batch_size))
 
         # Plot
-        plt.suptitle("Data Deformation with " + r'$\phi(x,t)$')
+        plt.suptitle("Data Deformation with " + r"$\phi(x,t)$")
         for i in range(channels):
-            ax = fig.add_subplot(channels, 1, i+1)
-            ax.plot(x, data[:,:,i].T, c="red", ls="dashed", alpha=alpha, label="Data")
+            ax = fig.add_subplot(channels, 1, i + 1)
+            ax.plot(x, data[:, :, i].T, c="red", ls="dashed", alpha=alpha, label="Data")
             if target is not None:
-                ax.plot(xt, target[:,:,i].T, c="green", ls="dashdot", alpha=alpha, label="Target")
-            ax.plot(xt, data_t[:,:,i].T, alpha=alpha, label="Transformed")
-            ax.set_title("Ch " + str(i), rotation=-90, loc='right', y=0.5, ha="left", va="center")
-            ax.set_ylabel(r"$x'$", rotation='horizontal')
+                ax.plot(
+                    xt, target[:, :, i].T, c="green", ls="dashdot", alpha=alpha, label="Target",
+                )
+            ax.plot(xt, data_t[:, :, i].T, alpha=alpha, label="Transformed")
+            ax.set_title("Ch " + str(i), rotation=-90, loc="right", y=0.5, ha="left", va="center")
+            ax.set_ylabel(r"$x'$", rotation="horizontal")
             ax.grid(alpha=0.3)
-            if i+1 < channels:
+            if i + 1 < channels:
                 ax.set_xticklabels([])
             else:
-                ax.set_xlabel(r"$x$", rotation='horizontal')
-        
-        return ax
+                ax.set_xlabel(r"$x$", rotation="horizontal")
 
+        return ax
 
     def _check_input(self, tess_size, backend, device, zero_boundary, basis):
         """ Utility function used to check the input to the class.
             Not meant to be called by the user. """
         assert tess_size > 1, """tess size must be > 1"""
-        assert backend in [
-            "numpy",
-            "pytorch",
-        ], """Unknown backend, choose between 'numpy' or 'pytorch' """
-        assert device in [
-            "cpu",
-            "gpu",
-        ], """Unknown device, choose between 'cpu' or 'gpu' """
+        assert backend in ["numpy", "pytorch",], """Unknown backend, choose between 'numpy' or 'pytorch' """
+        assert device in ["cpu", "gpu",], """Unknown device, choose between 'cpu' or 'gpu' """
         if backend == "numpy":
             assert device == "cpu", """Cannot use gpu with numpy backend """
-        assert (
-            type(zero_boundary) == bool
-        ), """Argument zero_boundary must be True or False"""
+        assert type(zero_boundary) == bool, """Argument zero_boundary must be True or False"""
         assert basis in [
             "svd",
             "rref",
             "sparse",
-            "qr"
+            "qr",
         ], """Unknown basis, choose between 'svd', 'rref' 'qr', or 'sparse' """
+
     def _check_type(self, x):
         """ Assert that the type of x is compatible with the class i.e
                 numpy backend expects np.array
                 pytorch backend expects torch.tensor
                 tensorflow backend expects tf.tensor
         """
-        assert isinstance(
-            x, self.backend.backend_type()
-        ), """ Input has type {0} but expected type {1} """.format(
+        assert isinstance(x, self.backend.backend_type()), """ Input has type {0} but expected type {1} """.format(
             type(x), self.backend.backend_type()
         )
 

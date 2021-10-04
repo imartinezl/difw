@@ -28,6 +28,7 @@ def get_dir(file):
 
 # %%
 
+
 class methods:
     closed_form = "closed_form"
     numeric = "numeric"
@@ -35,7 +36,9 @@ class methods:
     @staticmethod
     def check(method):
         if method is not None:
-            assert method in [methods.closed_form, methods.numeric], "Unknown method, choose between " + methods.closed_form + " or " + methods.numeric
+            assert method in [methods.closed_form, methods.numeric], (
+                "Unknown method, choose between " + methods.closed_form + " or " + methods.numeric
+            )
 
     @staticmethod
     def default(method=None):
