@@ -1,6 +1,6 @@
 #%%
 __author__ = "Iñigo Martinez inigomlap[at]gmail.com"
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 import os
 
