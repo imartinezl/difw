@@ -251,8 +251,8 @@ class Cpab:
         self._check_device(grid)
         self._check_type(theta)
         self._check_device(theta)
-        transformed_grid, gradient_grid = self.backend.gradient(grid, theta, self.params, method, time)
-        return transformed_grid, gradient_grid
+        gradient_grid = self.backend.gradient(grid, theta, self.params, method, time)
+        return gradient_grid
 
     def interpolate(self, data, grid, outsize: int):
         """ Linear interpolation method
