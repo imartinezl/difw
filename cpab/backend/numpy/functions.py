@@ -1,6 +1,6 @@
 # %%
 import numpy as np
-from .interpolation import interpolate, interpolate_grid
+from .interpolation import interpolate, interpolate_grid as interpolate_grid_wrapper
 from .transformer import (
     integrate_numeric,
     integrate_closed_form,
@@ -126,3 +126,8 @@ def gradient(grid, theta, params, method=None, time=1.0):
         h = 1e-2
         phi, der = derivative_numeric(grid, theta, params, time, h)
         return der
+
+
+# %%
+def interpolate_grid(transformed_grid, params):
+    return interpolate_grid_wrapper(transformed_grid)
