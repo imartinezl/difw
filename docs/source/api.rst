@@ -10,15 +10,19 @@ most important right here and provide links to the canonical documentation.
 .. toctree::
     :maxdepth: 4
     :hidden:
-    
+
     cpab/cpab
+    cpab/tessellation
+    cpab/backend
+
 
 .. autosummary::
     ~cpab.cpab.Cpab
+    ~cpab.core.tessellation.Tessellation
 
-.. automodule:: cpab.cpab
-    :members:
-    :undoc-members:
+
+
+
 
 
 

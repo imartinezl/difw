@@ -7,3 +7,5 @@ sphinx-jsonschema
 sphinx-copybutton
 sphinxcontrib-programoutput
 sphinx-tabs
+nbsphinx
+nbsphinx_link

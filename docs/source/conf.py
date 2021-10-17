@@ -45,7 +45,9 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx_copybutton",
     'sphinxcontrib.programoutput',
-    'sphinx_tabs.tabs'
+    'sphinx_tabs.tabs',
+    'nbsphinx',
+    'nbsphinx_link'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -57,6 +59,10 @@ source_suffix = '.rst'
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 pygments_style = "sphinx"
+
+add_module_names = False
+autodoc_inherit_docstrings = False
+
 
 # -- Options for HTML output -------------------------------------------------
 

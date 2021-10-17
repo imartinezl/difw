@@ -44,12 +44,12 @@
 User Guide
 ==========
 
-**cpab** is a fast and open source library to.
+**cpab** is a fast and open source library to compute fast and highly-expressive diffeomorphisms derived from parametric, continuously-defined, velocity fields in Numpy and Pytorch.
 
 This documentation contains a `user-guide`_ (including
 `installation`_ procedure and
 `basic usage`_ of the simulator),
-a complete :ref:`API Reference<API>`, as well as a detailed :ref:`example<example>`.
+an :ref:`API Reference<API>`, as well as a detailed :ref:`example<example>`.
 **cpab** is released under the MIT License. 
 
 Finally, if you use **cpab** in a scientific publication, we would appreciate :ref:`citations<citing>`. 
@@ -59,11 +59,75 @@ Finally, if you use **cpab** in a scientific publication, we would appreciate :r
 Getting Started
 ---------------
 
-Use the following template to run a simulation with *cpab*:
+
+The following code transforms a regular grid using a diffeomorphic curve parametrized with :math:`\theta`:
+
+.. image:: https://mybinder.org/badge_logo.svg
+    :target: https://mybinder.org/v2/gh/imartinezl/cpab/HEAD
 
 .. code-block:: python
 
+    # Import cpab library
     import cpab
+
+    # Transformation instance 
+    T = cpab.Cpab(tess_size=5, backend="numpy", device="cpu", zero_boundary=True, basis="qr")
+
+    # Generate grid
+    grid = T.uniform_meshgrid(100)
+
+    # Transformation parameters
+    theta = T.identity(epsilon=1)
+
+    # Transform grid
+    grid_t = T.transform_grid(grid, theta)
+
+.. figure:: _static/figures/visualize_deformgrid.png
+    :align: center
+    :width: 500
+
+In this example, the tesselation is composed of 5 intervals, and the ``zero_boundary`` condition set to ``True`` constraints the velocity at the tesselation boundary (in this case, at ``x=0`` and ``x=1``). The regular grid has 100 equally spaced points. 
+
+.. code-block:: python
+
+    T.visualize_tesselation()
+
+.. figure:: _static/figures/visualize_tesselation.png
+    :align: center
+    :width: 500
+
+The velocity field is formed by a continuous piecewise affine function defined over 5 intervals. The parameters :math:`\theta` represent a basis of the null space for all continuous piecewise affine functions composed of 5 intervals. In this case, we have used the QR decomposition to build the basis. See the :ref:`API documentation<API>` for more details about the transformation options.
+
+Taking into account the zero velocity constraints at the boundary, only 4 dimensions or degree of freedom are left to play with, and that indeed is the dimensionality of :math:`\theta`, a vector of 4 values.
+
+.. code-block:: python
+
+    T.visualize_velocity(theta)
+
+.. figure:: _static/figures/visualize_velocity.png
+    :align: center
+    :width: 500
+
+We can visualize the generated transformation based on the parameters :math:`\theta`:
+
+.. code-block:: python
+
+    T.visualize_deformgrid(theta)
+
+.. figure:: _static/figures/visualize_deformgrid.png
+    :align: center
+    :width: 500
+
+In addition, for optimization tasks, it is useful to obtain the gradient of the transformation with respect to parameters :math:`\theta`. The gradient function can be obtained in closed-form solution. There are 4 different functions, one per dimension in :math:`\theta`:
+
+.. code-block:: python
+
+    T.visualize_gradient(theta)
+
+.. figure:: _static/figures/visualize_gradient.png
+    :align: center
+    :width: 500
+
 
 
 ----

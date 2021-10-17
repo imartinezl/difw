@@ -8,6 +8,7 @@ Documentation for cpab
     :maxdepth: 4
 
     index
+    example.nblink
     api
     authors
     citing
