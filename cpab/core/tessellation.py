@@ -4,6 +4,8 @@ from scipy.linalg import null_space
 
 
 class Tessellation:
+    """Regular grid tessellation"""
+    
     def __init__(self, nc, xmin=0, xmax=1, zero_boundary=True, basis="rref"):
         self.nc = nc
         self.nv = nc + 1

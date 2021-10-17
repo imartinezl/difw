@@ -41,8 +41,8 @@
 
 .. _user-guide:
 
-User Guide
-==========
+Quick Start
+===========
 
 **cpab** is a fast and open source library to compute fast and highly-expressive diffeomorphisms derived from parametric, continuously-defined, velocity fields in Numpy and Pytorch.
 
@@ -54,11 +54,11 @@ an :ref:`API Reference<API>`, as well as a detailed :ref:`example<example>`.
 
 Finally, if you use **cpab** in a scientific publication, we would appreciate :ref:`citations<citing>`. 
 
+
 .. _basic usage:
 
 Getting Started
 ---------------
-
 
 The following code transforms a regular grid using a diffeomorphic curve parametrized with :math:`\theta`:
 
@@ -129,9 +129,7 @@ In addition, for optimization tasks, it is useful to obtain the gradient of the 
     :width: 500
 
 
-
 ----
-
 
 
 Installation

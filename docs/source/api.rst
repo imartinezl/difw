@@ -18,14 +18,4 @@ most important right here and provide links to the canonical documentation.
 
 .. autosummary::
     ~cpab.cpab.Cpab
-    ~cpab.core.tessellation.Tessellation
-
-
-
-
-
-
-
-
-
-   
+    ~cpab.core.tessellation.Tessellation 
