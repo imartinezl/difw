@@ -48,7 +48,7 @@ Quick Start
 
 This documentation contains a `user-guide`_ (including
 `installation`_ procedure and
-`basic usage`_ of the simulator),
+`basic usage`_ of the library),
 an :ref:`API Reference<API>`, as well as a detailed :ref:`example<example>`.
 **cpab** is released under the MIT License. 
 

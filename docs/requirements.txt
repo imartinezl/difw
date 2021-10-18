@@ -9,3 +9,4 @@ sphinxcontrib-programoutput
 sphinx-tabs
 nbsphinx
 nbsphinx_link
+IPython
