@@ -80,7 +80,7 @@ In this example, the tesselation is composed of 5 intervals, and the ``zero_boun
     :align: center
     :width: 500
 
-The velocity field is formed by a continuous piecewise affine function defined over 5 intervals. The parameters :math:`\theta` represent a basis of the null space for all continuous piecewise affine functions composed of 5 intervals. In this case, we have used the QR decomposition to build the basis. See the :ref:`API documentation<API>` for more details about the transformation options.
+The velocity field is formed by a continuous piecewise affine function defined over 5 intervals. The parameters :math:`\theta` represent a basis of the null space for all continuous piecewise affine functions composed of 5 intervals. In this case, we have used the QR decomposition to build the basis. See the API documentation for more details about the transformation options.
 
 Taking into account the zero velocity constraints at the boundary, only 4 dimensions or degree of freedom are left to play with, and that indeed is the dimensionality of :math:`\theta`, a vector of 4 values.
 
