@@ -66,7 +66,7 @@ The following code transforms a regular grid using a diffeomorphic curve paramet
     # Transform grid
     grid_t = T.transform_grid(grid, theta)
 
-.. figure:: docs/source/_static/figures/visualize_deformgrid.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_deformgrid.png
     :align: center
     :width: 500
 
@@ -76,7 +76,7 @@ In this example, the tesselation is composed of 5 intervals, and the ``zero_boun
 
     T.visualize_tesselation()
 
-.. figure:: docs/source/_static/figures/visualize_tesselation.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_tesselation.png
     :align: center
     :width: 500
 
@@ -88,7 +88,7 @@ Taking into account the zero velocity constraints at the boundary, only 4 dimens
 
     T.visualize_velocity(theta)
 
-.. figure:: docs/source/_static/figures/visualize_velocity.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_velocity.png
     :align: center
     :width: 500
 
@@ -98,7 +98,7 @@ We can visualize the generated transformation based on the parameters ``theta``:
 
     T.visualize_deformgrid(theta)
 
-.. figure:: docs/source/_static/figures/visualize_deformgrid.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_deformgrid.png
     :align: center
     :width: 500
 
@@ -108,7 +108,7 @@ In addition, for optimization tasks, it is useful to obtain the gradient of the 
 
     T.visualize_gradient(theta)
 
-.. figure:: docs/source/_static/figures/visualize_gradient.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_gradient.png
     :align: center
     :width: 500
 
