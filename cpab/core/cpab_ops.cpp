@@ -3,9 +3,80 @@
 #include <vector>
 #include <limits>
 
+// EXPONENTIAL FUNCTION
+
+union di {
+	double d;
+	uint64_t i;
+};
+
+inline unsigned int mask(int x){
+	return (1U << x) - 1;
+}
+
+inline uint64_t mask64(int x){
+	return (1ULL << x) - 1;
+}
+
+const int sbit_ = 11;
+struct ExpdVar {
+	enum {
+		sbit = sbit_,
+		s = 1UL << sbit,
+		adj = (1UL << (sbit + 10)) - (1UL << sbit)
+	};
+	// A = 1, B = 1, C = 1/2, D = 1/6
+	double C1 = 1.0; // A
+	double C2 = 0.16666666685227835064; // D
+	double C3 = 3.0000000027955394; // C/D
+	uint64_t tbl[s];
+	double a;
+	double ra;
+	ExpdVar()
+		: a(s / std::log(2.0))
+		, ra(1 / a)
+	{
+		for (int i = 0; i < s; i++) {
+			di di;
+			di.d = std::pow(2.0, i * (1.0 / s));
+			tbl[i] = di.i & mask64(52);
+		}
+	}
+};
+
+static const ExpdVar c;
+
+double fmath_exp(double x){
+    if (x <= -708.39641853226408) return 0;
+	if (x >= 709.78271289338397) return std::numeric_limits<double>::infinity();
+
+    const uint64_t b = 3ULL << 51;
+	di di;
+	di.d = x * c.a + b;
+	uint64_t iax = c.tbl[di.i & mask(c.sbit)];
+
+	#ifdef __FAST_MATH__
+		double tmp1 = di.d * c.ra;
+		double tmp2 = b * c.ra;
+		double t = tmp1 - tmp2 - x;
+	#else
+		double t = (di.d - b) * c.ra - x;
+	#endif
+	uint64_t u = ((di.i + c.adj) >> c.sbit) << 52;
+	double y = (c.C3 - t) * (t * t) * c.C2 - t + c.C1;
+
+	di.i = u | iax;
+	return y * di.d;
+}
+double exp(double x){
+    return fmath_exp(x);
+    // return std::exp(x);
+}
+
 // FUNCTIONS
 float eps = std::numeric_limits<float>::epsilon();
 float inf = std::numeric_limits<float>::infinity();
+
 
 int sign(const int r){
     return (r > 0) - (r < 0);
@@ -54,9 +125,9 @@ float get_psi(const float& x, const float& t, const float& a, const float& b){
         return x + t*b;
     }
     else{
-        const float eta = std::exp(t*a);
+        const float eta = exp(t*a);
         return eta * x + (b/a) * (eta - 1.0);
-        // return std::exp(t*a) * (x + (b/a)) - (b/a);
+        // return exp(t*a) * (x + (b/a)) - (b/a);
     }
 }
 
@@ -150,7 +221,7 @@ float get_psi_numeric(const float& x, const int& c, const float& t, const float*
         return x + t*b;
     }
     else{
-        return std::exp(t*a) * (x + (b/a)) - (b/a);
+        return exp(t*a) * (x + (b/a)) - (b/a);
     }
 }
 
@@ -201,7 +272,7 @@ void derivative_psi_theta(float* dpsi_dtheta, const float& x, const int& c, cons
         }
     }
     else{
-        const double tmp = std::exp(t*a);
+        const double tmp = exp(t*a);
         const double tmp1 = t * tmp * (x + b/a);
         const double tmp2 = (tmp-1)/std::pow(a, 2.0);
         for(int k=0; k < d; k++){
@@ -209,7 +280,7 @@ void derivative_psi_theta(float* dpsi_dtheta, const float& x, const int& c, cons
             const double bk = B[(2*c+1)*d + k];
             dpsi_dtheta[k] = ak * tmp1 + tmp2 * (bk*a - ak*b);
         }
-        // return = ak * t * std::exp(t*a) * (x + b/a) + (std::exp(t*a)-1)*(bk*a - ak*b)/std::pow(a, 2.0);
+        // return = ak * t * exp(t*a) * (x + b/a) + (exp(t*a)-1)*(bk*a - ak*b)/std::pow(a, 2.0);
 
     }
 }
@@ -223,7 +294,7 @@ float derivative_phi_time(const float& x, const int& c, const float& t, const fl
         return b;
     }
     else{
-        return std::exp(t*a)*(a*x + b);
+        return exp(t*a)*(a*x + b);
     }
 }
 
