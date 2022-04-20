@@ -42,4 +42,10 @@ __global__ void kernel_interpolate_grid_forward(
 __global__ void kernel_interpolate_grid_backward(
     const int n_points, const int n_batch, const float* g, const float* x, float* gradient);
 
+
+__global__ void kernel_derivative_space_closed_form(
+    const int n_points, const int n_batch, const int d,
+    const float* x, const float* A, 
+    const float t, const int xmin, const int xmax, const int nc, double* gradpoints);
+    
 #endif

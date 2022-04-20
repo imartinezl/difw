@@ -197,3 +197,22 @@ at::Tensor cuda_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor point
    gpuErrchk( cudaPeekAtLastError() );                           
    return output; 
 }
+
+// GRADIENT SPACE
+
+at::Tensor cuda_derivative_space_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient){
+   // Problem size
+   const int n_points = points.size(1);
+   const int n_batch = theta.size(0);
+
+   // Kernel configuration
+   dim3 bc((int)ceil(n_points/256.0), n_batch);
+   dim3 tpb(256, 1);
+
+   // Launch kernel
+   kernel_derivative_space_closed_form<<<bc, tpb>>>(n_points, n_batch, d,
+      points.data_ptr<float>(), At.data_ptr<float>(), t, xmin, xmax, nc, gradient.data_ptr<double>());
+
+   gpuErrchk( cudaPeekAtLastError() );                           
+   return gradient; 
+}

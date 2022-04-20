@@ -10,6 +10,7 @@ at::Tensor cuda_integrate_closed_form_trace(at::Tensor points, at::Tensor theta,
 at::Tensor cuda_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float xmin, const float xmax, const int nc, at::Tensor gradient);
 at::Tensor cuda_interpolate_grid_forward(at::Tensor points, at::Tensor output);
 at::Tensor cuda_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor points, at::Tensor output);
+at::Tensor cuda_derivative_space_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
 
 // Shortcuts for checking
 #define CHECK_CUDA(x) AT_ASSERTM(x.is_cuda(), #x " must be a CUDA tensor")
@@ -302,6 +303,53 @@ at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor poin
 }
 
 
+// GRADIENT SPACE
+
+at::Tensor torch_derivative_space_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Do input checking
+    CHECK_INPUT(points);
+    CHECK_INPUT(theta);
+    CHECK_INPUT(Bt);
+
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+
+    // Allocate output
+    auto gradient = torch::zeros({n_batch, n_points}, at::kCUDA);
+    
+    at::Tensor phi_1 =  torch_integrate_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    at::Tensor phi_2 =  torch_integrate_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    gradient = (phi_2 - phi_1) / h;
+
+    return gradient;
+}
+
+at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Do input checking
+    CHECK_INPUT(points);
+    CHECK_INPUT(theta);
+    CHECK_INPUT(Bt);
+
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+
+    // Allocate output
+    auto gradient = torch::zeros({n_batch, n_points}, torch::dtype(torch::kDouble).device(torch::kCUDA));
+
+    // Precompute affine velocity field
+    at::Tensor At = torch_get_affine(Bt, theta);
+
+    // Call kernel launcher
+    return cuda_derivative_space_closed_form(points, theta, At, t, xmin, xmax, nc, gradient);
+}
 
 
 // Binding
@@ -318,4 +366,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("derivative_numeric_trace", &torch_derivative_numeric_trace, "Derivative numeric trace");
     m.def("interpolate_grid_forward", &torch_interpolate_grid_forward, "Interpolate grid forward");
     m.def("interpolate_grid_backward", &torch_interpolate_grid_backward, "Interpolate grid backward");
+    m.def("derivative_space_numeric", &torch_derivative_space_numeric, "Derivative space numeric");
+    m.def("derivative_space_closed_form", &torch_derivative_space_closed_form, "Derivative space closed form");
+
 }
