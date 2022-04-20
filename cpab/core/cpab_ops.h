@@ -13,4 +13,7 @@ float integrate_numeric(const float& x, const float& t, const float* A, const fl
 // DERIVATIVE
 void derivative_phi_theta(float* dphi_dtheta, const float& xini, const float& tm, const int& cm, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc);
 
+// GRADIENT SPACE
+float derivative_phi_x(const float& xini, const float& tini, const float& tm, const int& cm, const float* A, const float& xmin, const float& xmax, const int& nc);
+
 #endif

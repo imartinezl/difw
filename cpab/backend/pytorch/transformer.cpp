@@ -395,6 +395,68 @@ at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor poin
     return output;
 }
 
+
+// GRADIENT SPACE
+
+at::Tensor torch_derivative_space_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+
+    at::Tensor phi_1 =  torch_integrate_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    at::Tensor phi_2 =  torch_integrate_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    at::Tensor gradient = (phi_2 - phi_1) / h;
+
+    return gradient;
+}
+
+
+at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    // Allocate output
+    const int e = 3;
+    // auto output = torch::zeros({n_batch, n_points, e}, at::kCPU);
+    // auto newpoints = output.data_ptr<float>();
+    auto gradient = torch::zeros({n_batch, n_points}, at::kCPU);
+    auto gradpoints = gradient.data_ptr<float>();
+
+    // Convert to pointers
+    float* B = Bt.data_ptr<float>();
+    float* x = points.data_ptr<float>();
+
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
+
+        // Precompute affine velocity field
+        at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
+        float* A = At.data_ptr<float>();
+
+        // For all points
+        for(int j = 0; j < n_points; j++) { 
+            float result[e];
+            integrate_closed_form_trace(result, x[i*n_points + j], t, A, xmin, xmax, nc);
+            // float phi = result[0];
+            float tm = result[1];
+            int cm = result[2];
+
+            float dphi_dx = derivative_phi_x(x[i*n_points + j], t, tm, cm, A, xmin, xmax, nc);
+
+            gradpoints[i*n_points + j] = dphi_dx;
+        }
+    }
+    return gradient;
+}
+
 // Binding
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("get_cell", &torch_get_cell, "Get cell");
@@ -409,6 +471,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("derivative_numeric_trace", &torch_derivative_numeric_trace, "Derivative numeric trace");
     m.def("interpolate_grid_forward", &torch_interpolate_grid_forward, "Interpolate grid forward");
     m.def("interpolate_grid_backward", &torch_interpolate_grid_backward, "Interpolate grid backward");
+    m.def("derivative_space_numeric", &torch_derivative_space_numeric, "Derivative space numeric");
+    m.def("derivative_space_closed_form", &torch_derivative_space_closed_form, "Derivative space closed form");
 }
 
 

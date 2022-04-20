@@ -351,3 +351,59 @@ void derivative_phi_theta(float* dphi_dtheta, const float& xini, const float& tm
         dphi_dtheta[k] = dpsi_dtheta[k] + dpsi_dtime*dthit_dtheta_cum[k];    
     }
 }
+
+
+// GRADIENT SPACE
+
+float derivative_thit_x(const float& x, const int& c, const float& t, const float* A){
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+    return 1.0 / (a*x + b);
+}
+
+float derivative_phi_x(const float& x, const int& c, const float& t, const float* A){
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+    return exp(t*a);
+}
+
+float derivative_phi_t(const float& x, const int& c, const float& t, const float* A){
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+    return exp(t*a)*(a*x + b);
+}
+
+float derivative_phi_x(const float& xini, const float& tini, const float& tm, const int& cm, const float* A, const float& xmin, const float& xmax, const int& nc){
+    const int cini = get_cell(xini, xmin, xmax, nc);
+    float xm = xini;
+
+    float dpsi_dx = 0.0;
+    float dthit_dx = 0.0;
+    if (cini == cm){
+        dpsi_dx = derivative_phi_x(xini, cini, tini, A);
+    }else{
+        dthit_dx = derivative_thit_x(xini, cini, tini, A);
+    }
+
+
+    if (cini != cm){
+        float xc;
+        const int step = sign(cm - cini);
+        for (int c = cini; step*c < cm*step; c += step){
+            if (step == 1){
+                xc = right_boundary(c, xmin, xmax, nc);
+            }else if (step == -1){
+                xc = left_boundary(c, xmin, xmax, nc);
+            }
+            xm = xc;
+        } 
+    }
+
+    float dpsi_dtime = derivative_phi_t(xm, cm, tm, A);
+    float dphi_dx = dpsi_dx + dpsi_dtime * dthit_dx;
+    return dphi_dx;
+}
+
