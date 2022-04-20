@@ -505,3 +505,74 @@ class Interpolate_fast_gpu(torch.autograd.Function):
     def backward(ctx, grad_output):  # grad [n_batch, n_points]
         (transformed_grid,) = ctx.saved_tensors
         return cpab_gpu.interpolate_grid_backward(grad_output, transformed_grid)
+
+
+
+# %% GRADIENT SPACE
+
+
+def gradient_space(grid, theta, params, method=None, time=1.0):
+    if grid.is_cuda and theta.is_cuda:
+        if not params.use_slow and _gpu_success:
+            if _verbose:
+                print("using fast gpu implementation")
+            return gradient_space_fast_gpu(grid, theta, params, method, time)
+        else:
+            if _verbose:
+                print("using slow gpu implementation")
+            return gradient_space_slow(grid, theta, params, method, time)
+    else:
+        if not params.use_slow and _cpu_success:
+            if _verbose:
+                print("using fast cpu implementation")
+            return gradient_space_fast_cpu(grid, theta, params, method, time)
+        else:
+            if _verbose:
+                print("using slow cpu implementation")
+            return gradient_space_slow(grid, theta, params, method, time)
+
+
+# %% GRADIENT: SLOW / CPU + GPU
+from .transformer_slow import derivative_space_numeric, derivative_space_closed_form
+
+
+def gradient_space_slow(grid, theta, params, method=None, time=1.0):
+    methods.check(method)
+    method = methods.default(method)
+
+    if method == methods.closed_form:
+        phi, der = derivative_space_closed_form(grid, theta, params, time)
+        return der
+    elif method == methods.numeric:
+        h = 1e-2
+        phi, der = derivative_space_numeric(grid, theta, params, time, h)
+        return der
+
+
+# %% GRADIENT: FAST / CPU
+def gradient_space_fast_cpu(grid, theta, params, method=None, time=1.0):
+    methods.check(method)
+    method = methods.default(method)
+
+    if method == methods.closed_form:
+        return cpab_cpu.derivative_space_closed_form(grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+    elif method == methods.numeric:
+        h = 1e-2
+        return cpab_cpu.derivative_space_numeric(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        )
+
+
+# %% GRADIENT: FAST / GPU
+def gradient_space_fast_gpu(grid, theta, params, method=None, time=1.0):
+    methods.check(method)
+    method = methods.default(method)
+
+    if method == methods.closed_form:
+        return cpab_gpu.derivative_space_closed_form(grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+    elif method == methods.numeric:
+        h = 1e-2
+        return cpab_gpu.derivative_space_numeric(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        )
+
