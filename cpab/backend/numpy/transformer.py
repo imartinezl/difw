@@ -326,3 +326,88 @@ def derivative_thit_theta(x, theta, k, params):
     d3 = (x - xc) * (bk * a - ak * b) / (a * (a * x + b) * (a * xc + b))
     dthit_dtheta = np.where(cond, d1, d2 + d3)
     return dthit_dtheta
+
+
+# %% DERIVATIVE SPACE
+
+def derivative_space_numeric(x, theta, params, time=1.0, h=1e-3):
+    # setup
+    n_points = x.shape[-1]
+    n_batch = theta.shape[0]
+
+    # computation
+    xe = np.concatenate([x, x+h])
+
+    phi = integrate_numeric(xe, theta, params, time)
+    phi_1, phi_2 = np.split(phi, 2, axis=1)
+    der = (phi_2 - phi_1) / h
+
+    return phi_1, der
+
+def derivative_space_closed_form(x, theta, params, time=1.0):
+    # setup
+    n_points = x.shape[-1]
+    n_batch = theta.shape[0]
+    d = theta.shape[1]
+
+    # computation
+    t = np.ones_like(x) * time
+    result = integrate_closed_form_trace(x, theta, params, time)
+    phi = result[:, 0].reshape((n_batch, -1))
+    tm = result[:, 1]
+    cm = result[:, 2]
+
+    # setup
+    x = batch_effect(x, theta)
+    params = precompute_affine(x, theta, params)
+
+    dthit_dx = np.zeros_like(x)
+    dpsi_dx = np.zeros_like(x)
+    
+    c = get_cell(x, params)
+    valid = c == cm
+    # dpsi_dx only on first valid cell
+    dpsi_dx[valid] = derivative_phi_x(x, t, theta, params)[valid]
+    # dthit_dx only on first non valid cell
+    dthit_dx[~valid] = derivative_thit_x(x, t, theta, params)[~valid]
+
+    xm = x.copy()
+    while True:
+        valid = c == cm
+        if np.alltrue(valid):
+            break
+        step = np.sign(cm - c)
+        xm[~valid] = np.where(step == 1, right_boundary(c, params), left_boundary(c, params))[~valid]
+        c = c + step
+    
+    # dpsi_dtime at last cell
+    dpsi_dtime = derivative_phi_t(xm, tm, theta, params)
+    dphi_dx = dpsi_dx + dpsi_dtime * dthit_dx
+
+    dphi_dx = dphi_dx.reshape(n_batch, n_points)
+
+    return phi, dphi_dx
+
+
+def derivative_thit_x(x, t, theta, params):
+    A, r = get_affine(x, theta, params)
+    c = get_cell(x, params)
+    a = A[r, c, 0]
+    b = A[r, c, 1]
+
+    return 1.0 / (a*x + b)
+
+def derivative_phi_x(x, t, theta, params):
+    A, r = get_affine(x, theta, params)
+    c = get_cell(x, params)
+    a = A[r, c, 0]
+    b = A[r, c, 1]
+
+    return np.exp(t * a)
+
+def derivative_phi_t(x, t, theta, params):
+    A, r = get_affine(x, theta, params)
+    c = get_cell(x, params)
+    a = A[r, c, 0]
+    b = A[r, c, 1]
+    return np.exp(t * a) * (a * x + b)

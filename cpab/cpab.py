@@ -254,6 +254,28 @@ class Cpab:
         gradient_grid = self.backend.gradient(grid, theta, self.params, method, time)
         return gradient_grid
 
+    def gradient_space(self, grid, theta, method=None, time=1.0):
+        """ Integrates and returns the gradient of the transformation w.r.t. the parametrization in theta.
+
+        Args:
+            grid (numpy.ndarray or torch.Tensor): [n_points] vector or [n_batch, n_points] tensor i.e.
+                either a single grid for all theta values, or a grid for each theta value
+            theta (numpy.ndarray or torch.Tensor): [n_batch, d] matrix
+        
+        Returns:
+            tuple: tuple containing
+                - **transformed_grid** (numpy.ndarray or torch.Tensor): [n_batch, n_points] tensor, with the transformed grid. The slice transformed_grid[i] corresponds to the grid being transformed by theta[i]
+                
+                - **gradient_grid** (numpy.ndarray or torch.Tensor): [n_batch, n_points, d] tensor, with the gradient grid. The slice gradient_grid[i, j] corresponds to the gradient of grid being transformed by theta[i] and with respect to the parameter theta[j]
+            
+        """
+        self._check_type(grid)
+        self._check_device(grid)
+        self._check_type(theta)
+        self._check_device(theta)
+        gradient_space = self.backend.gradient_space(grid, theta, self.params, method, time)
+        return gradient_space
+
     def interpolate(self, data, grid, outsize: int):
         """ Linear interpolation method
 

@@ -6,6 +6,8 @@ from .transformer import (
     integrate_closed_form,
     derivative_numeric,
     derivative_closed_form,
+    derivative_space_numeric,
+    derivative_space_closed_form
 )
 from .transformer import get_cell, get_velocity, batch_effect
 from ...core.utility import methods
@@ -127,6 +129,18 @@ def gradient(grid, theta, params, method=None, time=1.0):
         phi, der = derivative_numeric(grid, theta, params, time, h)
         return der
 
+# %%
+def gradient_space(grid, theta, params, method=None, time=1.0):
+    methods.check(method)
+    method = methods.default(method)
+
+    if method == methods.closed_form:
+        phi, der = derivative_space_closed_form(grid, theta, params, time)
+        return der
+    elif method == methods.numeric:
+        h = 1e-2
+        phi, der = derivative_space_numeric(grid, theta, params, time, h)
+        return der
 
 # %%
 def interpolate_grid(transformed_grid, params):
