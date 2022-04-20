@@ -362,14 +362,14 @@ float derivative_thit_x(const float& x, const int& c, const float& t, const floa
     return 1.0 / (a*x + b);
 }
 
-float derivative_phi_x(const float& x, const int& c, const float& t, const float* A){
+float derivative_psi_x(const float& x, const int& c, const float& t, const float* A){
     const float a = A[2*c];
     const float b = A[2*c + 1];
 
     return exp(t*a);
 }
 
-float derivative_phi_t(const float& x, const int& c, const float& t, const float* A){
+float derivative_psi_t(const float& x, const int& c, const float& t, const float* A){
     const float a = A[2*c];
     const float b = A[2*c + 1];
 
@@ -383,7 +383,7 @@ float derivative_phi_x(const float& xini, const float& tini, const float& tm, co
     float dpsi_dx = 0.0;
     float dthit_dx = 0.0;
     if (cini == cm){
-        dpsi_dx = derivative_phi_x(xini, cini, tini, A);
+        dpsi_dx = derivative_psi_x(xini, cini, tini, A);
     }else{
         dthit_dx = derivative_thit_x(xini, cini, tini, A);
     }
@@ -402,7 +402,7 @@ float derivative_phi_x(const float& xini, const float& tini, const float& tm, co
         } 
     }
 
-    float dpsi_dtime = derivative_phi_t(xm, cm, tm, A);
+    float dpsi_dtime = derivative_psi_t(xm, cm, tm, A);
     float dphi_dx = dpsi_dx + dpsi_dtime * dthit_dx;
     return dphi_dx;
 }

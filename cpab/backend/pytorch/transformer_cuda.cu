@@ -210,7 +210,7 @@ at::Tensor cuda_derivative_space_closed_form(at::Tensor points, at::Tensor theta
    dim3 tpb(256, 1);
 
    // Launch kernel
-   kernel_derivative_space_closed_form<<<bc, tpb>>>(n_points, n_batch, d,
+   kernel_derivative_space_closed_form<<<bc, tpb>>>(n_points, n_batch, 
       points.data_ptr<float>(), At.data_ptr<float>(), t, xmin, xmax, nc, gradient.data_ptr<double>());
 
    gpuErrchk( cudaPeekAtLastError() );                           

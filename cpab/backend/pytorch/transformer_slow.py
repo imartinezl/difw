@@ -454,7 +454,7 @@ def derivative_space_closed_form(x, theta, params, time=1.0):
     c = get_cell(x, params)
     valid = c == cm
     # dpsi_dx only on first valid cell
-    dpsi_dx[valid] = derivative_phi_x(x, t, theta, params)[valid]
+    dpsi_dx[valid] = derivative_psi_x(x, t, theta, params)[valid]
     # dthit_dx only on first non valid cell
     dthit_dx[~valid] = derivative_thit_x(x, t, theta, params)[~valid]
 
@@ -467,7 +467,7 @@ def derivative_space_closed_form(x, theta, params, time=1.0):
         xm[~valid] = torch.where(step == 1, right_boundary(c, params), left_boundary(c, params))[~valid]
         c = c + step
 
-    dpsi_dtime = derivative_phi_t(xm, tm, theta, params)
+    dpsi_dtime = derivative_psi_t(xm, tm, theta, params)
     dphi_dx = dpsi_dx + dpsi_dtime * dthit_dx
     dphi_dx = dphi_dx.reshape(n_batch, n_points)
 
@@ -482,7 +482,7 @@ def derivative_thit_x(x, t, theta, params):
 
     return 1.0 / (a*x + b)
 
-def derivative_phi_x(x, t, theta, params):
+def derivative_psi_x(x, t, theta, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
     a = A[r, c, 0]
@@ -490,7 +490,7 @@ def derivative_phi_x(x, t, theta, params):
 
     return torch.exp(t * a)
 
-def derivative_phi_t(x, t, theta, params):
+def derivative_psi_t(x, t, theta, params):
     A, r = get_affine(x, theta, params)
     c = get_cell(x, params)
     a = A[r, c, 0]
