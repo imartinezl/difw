@@ -214,9 +214,9 @@ def derivative_numeric(x, theta, params, time=1.0, h=1e-3):
 
     phi_1 = integrate_numeric(x, theta, params, time)
     for k in range(d):
-        theta[:, k] += h
-        phi_2 = integrate_numeric(x, theta, params, time)
-        theta[:, k] -= h
+        theta2 = theta.clone()
+        theta2[:, k] += h
+        phi_2 = integrate_numeric(x, theta2, params, time)
 
         der[:, :, k] = (phi_2 - phi_1) / h
 
@@ -421,6 +421,11 @@ def derivative_space_numeric(x, theta, params, time=1.0, h=1e-3):
     n_points = x.shape[-1]
     n_batch = theta.shape[0]
     d = theta.shape[1]
+
+    # phi_1 = integrate_numeric(x, theta, params, time)
+    # phi_2 = integrate_numeric(x+h, theta, params, time)
+    # der = (phi_2 - phi_1) / h
+    # return phi_1, der
 
     # computation
     xe = torch.cat([x, x+h])
