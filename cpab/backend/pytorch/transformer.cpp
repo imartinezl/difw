@@ -413,6 +413,27 @@ at::Tensor torch_derivative_space_numeric(at::Tensor points, at::Tensor theta, c
     return gradient;
 }
 
+at::Tensor torch_derivative_space_numeric_backward(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    auto gradient = torch::zeros({d, n_batch, n_points}, at::kCPU);
+
+    for(int k = 0; k < d; k++){
+        at::Tensor theta_2 = theta.clone();
+        at::Tensor row = theta_2.index({torch::indexing::Slice(), k});
+        theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
+        at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        gradient.index_put_({k, torch::indexing::Slice(), torch::indexing::Slice()}, (phi_2 - phi_1)/h);
+    }
+    return gradient;
+}
+
 
 at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
@@ -457,6 +478,57 @@ at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor thet
     return gradient;
 }
 
+at::Tensor torch_derivative_space_closed_form_backward(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    // Allocate output
+    const int e = 3;
+    // auto output = torch::zeros({n_batch, n_points, e}, at::kCPU);
+    // auto newpoints = output.data_ptr<float>();
+    auto gradient = torch::zeros({n_batch, n_points, d}, at::kCPU);
+    auto gradpoints = gradient.data_ptr<float>();
+
+    // Convert to pointers
+    float* B = Bt.data_ptr<float>();
+    float* x = points.data_ptr<float>();
+
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
+
+        // Precompute affine velocity field
+        at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
+        float* A = At.data_ptr<float>();
+
+        // For all points
+        for(int j = 0; j < n_points; j++) { 
+            float result[e];
+            integrate_closed_form_trace(result, x[i*n_points + j], t, A, xmin, xmax, nc);
+            // float phi = result[0];
+            float tm = result[1];
+            int cm = result[2];
+
+            float dphi_dx_dtheta[d];
+            derivative_phi_x_theta(dphi_dx_dtheta, x[i*n_points + j], t, tm, cm, d, B, A, xmin, xmax, nc);
+
+            // For all parameters theta
+            for(int k = 0; k < d; k++){
+                gradpoints[i*(n_points * d) + j*d + k] = dphi_dx_dtheta[k];
+            }
+        }
+    }
+    return gradient;
+}
+
+
+
+
+
 // Binding
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("get_cell", &torch_get_cell, "Get cell");
@@ -472,7 +544,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("interpolate_grid_forward", &torch_interpolate_grid_forward, "Interpolate grid forward");
     m.def("interpolate_grid_backward", &torch_interpolate_grid_backward, "Interpolate grid backward");
     m.def("derivative_space_numeric", &torch_derivative_space_numeric, "Derivative space numeric");
+    m.def("derivative_space_numeric_backward", &torch_derivative_space_numeric_backward, "Derivative space numeric backward");
     m.def("derivative_space_closed_form", &torch_derivative_space_closed_form, "Derivative space closed form");
+    m.def("derivative_space_closed_form_backward", &torch_derivative_space_closed_form_backward, "Derivative space closed form backward");
 }
 
 

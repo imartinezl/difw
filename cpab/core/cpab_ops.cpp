@@ -407,3 +407,78 @@ float derivative_phi_x(const float& xini, const float& tini, const float& tm, co
     return dphi_dx;
 }
 
+// GRADIENT SPACE DERIVATIVE
+
+float derivative_psi_x_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
+
+    return t * exp(t*a) * ak;
+}
+
+float derivative_thit_x_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
+
+    return - (ak + bk)/(a*x + b);
+}
+
+float derivative_psi_t_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
+
+    return exp(t*a) * ( ak*(t*(a*x+b) + x) + bk);
+}
+
+void derivative_phi_x_theta(float* dphi_dx_dtheta, const float& xini, const float& tini, const float& tm, const int& cm, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
+    const int cini = get_cell(xini, xmin, xmax, nc);
+    float xm = xini;
+
+    // float dpsi_dx = 0.0;
+    float dthit_dx = 0.0;
+    float dpsi_dx_dtheta[d] = {};
+    float dthit_dx_dtheta[d] = {};
+    if (cini == cm){
+        // dpsi_dx = derivative_psi_x(xini, cini, tini, A);
+        for(int k=0; k < d; k++){
+            dpsi_dx_dtheta[k] = derivative_psi_x_theta(xini, cini, tini, A, k, d, B);
+            dthit_dx_dtheta[k] = 0.0;
+        }
+    }else{
+        dthit_dx = derivative_thit_x(xini, cini, tini, A);
+        for(int k=0; k < d; k++){
+            dthit_dx_dtheta[k] = derivative_thit_x_theta(xini, cini, tini, A, k, d, B);
+            dpsi_dx_dtheta[k] = 0.0;
+        }
+    }
+
+
+    if (cini != cm){
+        float xc;
+        const int step = sign(cm - cini);
+        for (int c = cini; step*c < cm*step; c += step){
+            if (step == 1){
+                xc = right_boundary(c, xmin, xmax, nc);
+            }else if (step == -1){
+                xc = left_boundary(c, xmin, xmax, nc);
+            }
+            xm = xc;
+        } 
+    }
+
+    float dpsi_dtime = derivative_psi_t(xm, cm, tm, A);
+    float dpsi_dtime_dtheta[d] = {};
+    for(int k=0; k < d; k++){
+        dpsi_dtime_dtheta[k] = derivative_psi_t_theta(xm, cm, tm, A, k, d, B);
+        dphi_dx_dtheta[k] = dpsi_dx_dtheta[k] + dpsi_dtime_dtheta[k]*dthit_dx + dpsi_dtime * dthit_dx_dtheta[k];
+    }
+}
