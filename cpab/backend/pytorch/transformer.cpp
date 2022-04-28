@@ -107,7 +107,7 @@ at::Tensor torch_derivative_velocity_dx(at::Tensor points, at::Tensor theta, at:
 
         // For all points
         for(int j = 0; j < n_points; j++) {
-            newpoints[i*n_points + j] = get_velocity_dx(x[i*n_points + j], A, xmin, xmax, nc);
+            newpoints[i*n_points + j] = derivative_velocity_dx(x[i*n_points + j], A, xmin, xmax, nc);
         }
     }
     return output;
@@ -458,7 +458,7 @@ at::Tensor torch_derivative_space_numeric_dtheta(at::Tensor phi_1, at::Tensor po
         at::Tensor theta_2 = theta.clone();
         at::Tensor row = theta_2.index({torch::indexing::Slice(), k});
         theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
-        at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
         gradient.index_put_({k, torch::indexing::Slice(), torch::indexing::Slice()}, (phi_2 - phi_1)/h);
     }
     return gradient;
@@ -472,8 +472,8 @@ at::Tensor torch_derivative_space_numeric_dx(at::Tensor points, at::Tensor theta
     const int n_points = points.size(1);
     const int n_batch = theta.size(0);
 
-    at::Tensor dphi_dx_1 =  torch_derivative_space_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-    at::Tensor dphi_dx_2 =  torch_derivative_space_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    at::Tensor dphi_dx_1 =  torch_derivative_space_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
+    at::Tensor dphi_dx_2 =  torch_derivative_space_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
     at::Tensor gradient = (dphi_dx_2 - dphi_dx_1) / h;
 
     return gradient;

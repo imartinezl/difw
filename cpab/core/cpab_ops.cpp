@@ -118,7 +118,7 @@ float get_velocity(const float& x, const float* A, const float& xmin, const floa
     return a*x + b;
 }
 
-float get_velocity_dx(const float& x, const float* A, const float& xmin, const float& xmax, const int& nc){
+float derivative_velocity_dx(const float& x, const float* A, const float& xmin, const float& xmax, const int& nc){
     const int c = get_cell(x, xmin, xmax, nc);
     const float a = A[2*c];
     return a;

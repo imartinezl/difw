@@ -52,11 +52,10 @@ __global__ void kernel_derivative_space_closed_form(
     const float* x, const float* A, 
     const float t, const int xmin, const int xmax, const int nc, double* gradpoints);
 
-__global__ void kernel_derivative_closed_form_trace_dtheta(
+__global__ void kernel_derivative_space_closed_form_dtheta(
     const int n_points, const int n_batch, const int d,
-    const float* newpoints, const float* x, const float* A, const float* B, 
+    const float* newpoints, const float* x, const float* A, const float* B, const float t,
     const float xmin, const float xmax, const int nc, double* gradpoints);
-    
 
 __global__ void kernel_derivative_space_closed_form_dx(
     const int n_points, const int n_batch, 

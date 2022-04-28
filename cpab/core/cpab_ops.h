@@ -4,7 +4,7 @@
 // FUNCTIONS
 int get_cell(const float& x, const float& xmin, const float& xmax, const int& nc);
 float get_velocity(const float& x, const float* A, const float& xmin, const float& xmax, const int& nc);
-float get_velocity_dx(const float& x, const float* A, const float& xmin, const float& xmax, const int& nc);
+float derivative_velocity_dx(const float& x, const float* A, const float& xmin, const float& xmax, const int& nc);
 
 // INTEGRATION
 float integrate_closed_form(float x, float t, const float* A, const float& xmin, const float& xmax, const int& nc);

@@ -3,6 +3,8 @@
 at::Tensor cuda_get_cell(at::Tensor points, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_derivative_velocity(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output);
+at::Tensor cuda_derivative_velocity_dx(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output);
+at::Tensor cuda_derivative_velocity_dtheta(at::Tensor points, at::Tensor theta, at::Tensor At, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_integrate_numeric(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, const int nSteps1, const int nSteps2, at::Tensor output);
 at::Tensor cuda_integrate_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor output);
 at::Tensor cuda_derivative_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
@@ -11,6 +13,8 @@ at::Tensor cuda_derivative_closed_form_trace(at::Tensor output, at::Tensor point
 at::Tensor cuda_interpolate_grid_forward(at::Tensor points, at::Tensor output);
 at::Tensor cuda_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor points, at::Tensor output);
 at::Tensor cuda_derivative_space_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
+at::Tensor cuda_derivative_space_closed_form_dtheta(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
+at::Tensor cuda_derivative_space_closed_form_dx(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
 
 // Shortcuts for checking
 #define CHECK_CUDA(x) AT_ASSERTM(x.is_cuda(), #x " must be a CUDA tensor")
@@ -60,7 +64,7 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
     return cuda_get_velocity(points, theta, At, xmin, xmax, nc, output);
 }
 
-at::Tensor torch_derivative_velocity_theta(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+at::Tensor torch_derivative_velocity_dtheta(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
     if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(1), points.size(0)}).contiguous();
         
@@ -78,7 +82,30 @@ at::Tensor torch_derivative_velocity_theta(at::Tensor points, at::Tensor theta, 
     auto output = torch::zeros({d, n_points}, at::kCUDA);
 
     // Call kernel launcher
-    return cuda_derivative_velocity_theta(points, theta, Bt, xmin, xmax, nc, output);
+    return cuda_derivative_velocity_dtheta(points, theta, Bt, xmin, xmax, nc, output);
+}
+
+at::Tensor torch_derivative_velocity_dx(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+        
+    // Do input checking
+    CHECK_INPUT(points);
+    CHECK_INPUT(theta);
+    CHECK_INPUT(Bt);
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+
+    // Allocate output
+    auto output = torch::zeros({n_batch, n_points}, at::kCUDA);
+
+    // Precompute affine velocity field
+    at::Tensor At = torch_get_affine(Bt, theta);
+    
+    // Call kernel launcher
+    return cuda_derivative_velocity_dx(points, theta, At, xmin, xmax, nc, output);
 }
 
 
@@ -343,18 +370,15 @@ at::Tensor torch_derivative_space_numeric_dtheta(at::Tensor phi_1, at::Tensor po
     const int n_batch = theta.size(0);
     const int d = theta.size(1);
 
-    auto gradient = torch::zeros({n_batch, n_points, d}, at::kCUDA);
-
-    // at::Tensor phi_1 =  torch_integrate_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-    // at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, t, Bt, xmin, xmax, nc);
-    
+    auto gradient = torch::zeros({d, n_batch, n_points}, at::kCUDA);
+   
     for(int k = 0; k < d; k++){
         at::Tensor theta_2 = theta.clone();
         at::Tensor row = theta_2.index({torch::indexing::Slice(), k});
         theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
-        at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+        at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
         // at::Tensor phi_2 =  torch_integrate_closed_form(points, theta_2, t, Bt, xmin, xmax, nc);
-        gradient.index_put_({torch::indexing::Slice(), torch::indexing::Slice(), k}, (phi_2 - phi_1)/h);
+        gradient.index_put_({k, torch::indexing::Slice(), torch::indexing::Slice()}, (phi_2 - phi_1)/h);
     }
     return gradient;
 }
@@ -375,9 +399,9 @@ at::Tensor torch_derivative_space_numeric_dx(at::Tensor points, at::Tensor theta
     // Allocate output
     auto gradient = torch::zeros({n_batch, n_points}, at::kCUDA);
     
-    at::Tensor phi_1 =  torch_derivative_space_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-    at::Tensor phi_2 =  torch_derivative_space_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-    gradient = (phi_2 - phi_1) / h;
+    at::Tensor dphi_dx_1 =  torch_derivative_space_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
+    at::Tensor dphi_dx_2 =  torch_derivative_space_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
+    gradient = (dphi_dx_2 - dphi_dx_1) / h;
 
     return gradient;
 }
@@ -406,7 +430,7 @@ at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor thet
     return cuda_derivative_space_closed_form(points, theta, At, t, xmin, xmax, nc, gradient);
 }
 
-at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor output, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
     if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
     
@@ -428,7 +452,7 @@ at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor output, at::Tens
     at::Tensor At = torch_get_affine(Bt, theta);
 
     // Call kernel launcher
-    return cuda_derivative_space_closed_form_dtheta(output, points, theta, At, Bt, xmin, xmax, nc, gradient);
+    return cuda_derivative_space_closed_form_dtheta(output, points, theta, At, Bt, t, xmin, xmax, nc, gradient);
 }
 
 at::Tensor torch_derivative_space_closed_form_dx(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
