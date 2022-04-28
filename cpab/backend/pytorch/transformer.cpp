@@ -52,7 +52,7 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 }
 
 
-at::Tensor torch_derivative_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+at::Tensor torch_derivative_velocity_dtheta(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
     if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(1), points.size(0)}).contiguous();
     
@@ -78,6 +78,36 @@ at::Tensor torch_derivative_velocity(at::Tensor points, at::Tensor theta, at::Te
         // For all points
         for(int j = 0; j < n_points; j++) {
             newpoints[k*n_points + j] = get_velocity(x[k*n_points + j], A, xmin, xmax, nc);
+        }
+    }
+    return output;
+}
+
+at::Tensor torch_derivative_velocity_dx(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+
+    // Allocate output
+    auto output = torch::zeros({n_batch, n_points}, at::kCPU);
+    auto newpoints = output.data_ptr<float>();
+
+    // Convert to pointers
+    float* x = points.data_ptr<float>();
+
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
+        
+        // Precompute affine velocity field
+        at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
+        float* A = At.data_ptr<float>();
+
+        // For all points
+        for(int j = 0; j < n_points; j++) {
+            newpoints[i*n_points + j] = get_velocity_dx(x[i*n_points + j], A, xmin, xmax, nc);
         }
     }
     return output;
@@ -413,7 +443,7 @@ at::Tensor torch_derivative_space_numeric(at::Tensor points, at::Tensor theta, c
     return gradient;
 }
 
-at::Tensor torch_derivative_space_numeric_backward(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+at::Tensor torch_derivative_space_numeric_dtheta(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Batch grid
     if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
     
@@ -431,6 +461,21 @@ at::Tensor torch_derivative_space_numeric_backward(at::Tensor phi_1, at::Tensor 
         at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
         gradient.index_put_({k, torch::indexing::Slice(), torch::indexing::Slice()}, (phi_2 - phi_1)/h);
     }
+    return gradient;
+}
+
+at::Tensor torch_derivative_space_numeric_dx(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+
+    at::Tensor dphi_dx_1 =  torch_derivative_space_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    at::Tensor dphi_dx_2 =  torch_derivative_space_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    at::Tensor gradient = (dphi_dx_2 - dphi_dx_1) / h;
+
     return gradient;
 }
 
@@ -478,7 +523,7 @@ at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor thet
     return gradient;
 }
 
-at::Tensor torch_derivative_space_closed_form_backward(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
     if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
     
@@ -525,6 +570,49 @@ at::Tensor torch_derivative_space_closed_form_backward(at::Tensor points, at::Te
     return gradient;
 }
 
+at::Tensor torch_derivative_space_closed_form_dx(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    // Allocate output
+    const int e = 3;
+    // auto output = torch::zeros({n_batch, n_points, e}, at::kCPU);
+    // auto newpoints = output.data_ptr<float>();
+    auto gradient = torch::zeros({n_batch, n_points}, at::kCPU);
+    auto gradpoints = gradient.data_ptr<float>();
+
+    // Convert to pointers
+    float* B = Bt.data_ptr<float>();
+    float* x = points.data_ptr<float>();
+
+    // For all batches
+    for(int i = 0; i < n_batch; i++) {
+
+        // Precompute affine velocity field
+        at::Tensor At = torch_get_affine(Bt, theta.index({i, torch::indexing::Slice()}));
+        float* A = At.data_ptr<float>();
+
+        // For all points
+        for(int j = 0; j < n_points; j++) { 
+            float result[e];
+            integrate_closed_form_trace(result, x[i*n_points + j], t, A, xmin, xmax, nc);
+            // float phi = result[0];
+            float tm = result[1];
+            int cm = result[2];
+
+            float dphi_dx_dx = derivative_phi_x_x(x[i*n_points + j], t, tm, cm, A, xmin, xmax, nc);
+
+            gradpoints[i*n_points + j] = dphi_dx_dx;
+        }
+    }
+    return gradient;
+}
+
 
 
 
@@ -533,7 +621,8 @@ at::Tensor torch_derivative_space_closed_form_backward(at::Tensor points, at::Te
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("get_cell", &torch_get_cell, "Get cell");
     m.def("get_velocity", &torch_get_velocity, "Get Velocity");
-    m.def("derivative_velocity", &torch_derivative_velocity, "Derivative Velocity");
+    m.def("derivative_velocity_dtheta", &torch_derivative_velocity_dtheta, "Derivative Velocity dtheta");
+    m.def("derivative_velocity_dx", &torch_derivative_velocity_dx, "Derivative Velocity dx");
     m.def("integrate_closed_form", &torch_integrate_closed_form, "Integrate closed form");
     m.def("integrate_numeric", &torch_integrate_numeric, "Integrate numeric");
     m.def("derivative_closed_form", &torch_derivative_closed_form, "Derivative closed form");
@@ -544,9 +633,11 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("interpolate_grid_forward", &torch_interpolate_grid_forward, "Interpolate grid forward");
     m.def("interpolate_grid_backward", &torch_interpolate_grid_backward, "Interpolate grid backward");
     m.def("derivative_space_numeric", &torch_derivative_space_numeric, "Derivative space numeric");
-    m.def("derivative_space_numeric_backward", &torch_derivative_space_numeric_backward, "Derivative space numeric backward");
+    m.def("derivative_space_numeric_dtheta", &torch_derivative_space_numeric_dtheta, "Derivative space numeric dtheta");
+    m.def("derivative_space_numeric_dx", &torch_derivative_space_numeric_dx, "Derivative space numeric dx");
     m.def("derivative_space_closed_form", &torch_derivative_space_closed_form, "Derivative space closed form");
-    m.def("derivative_space_closed_form_backward", &torch_derivative_space_closed_form_backward, "Derivative space closed form backward");
+    m.def("derivative_space_closed_form_dtheta", &torch_derivative_space_closed_form_dtheta, "Derivative space closed form dtheta");
+    m.def("derivative_space_closed_form_dx", &torch_derivative_space_closed_form_dx, "Derivative space closed form dx");
 }
 
 

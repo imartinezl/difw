@@ -144,9 +144,14 @@ class Velocity_cpu(torch.autograd.Function):
     def backward(ctx, grad_output):  # grad_output [n_batch, n_points]
         grid, theta = ctx.saved_tensors
         params = ctx.params
-        g = cpab_cpu.derivative_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc).t()
-        grad = grad_output.matmul(g)
-        return None, grad, None  # [n_batch, d]
+        
+        dv_dtheta = cpab_cpu.derivative_velocity_dtheta(grid, theta, params.B, params.xmin, params.xmax, params.nc).t()
+        grad_theta = grad_output.matmul(dv_dtheta)
+
+        dv_dx = cpab_cpu.derivative_velocity_dx(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+        grad_x = grad_output.mul(dv_dx)
+
+        return grad_x, grad_theta, None  # [n_batch, n_points] # [n_batch, d]
 
 
 #%% VELOCITY: GPU
@@ -165,9 +170,14 @@ class Velocity_gpu(torch.autograd.Function):
     def backward(ctx, grad_output):  # grad_output [n_batch, n_points]
         grid, theta = ctx.saved_tensors
         params = ctx.params
-        g = cpab_gpu.derivative_velocity(grid, theta, params.B, params.xmin, params.xmax, params.nc).t()
-        grad = grad_output.matmul(g)
-        return None, grad, None  # [n_batch, d]
+        
+        dv_dtheta = cpab_gpu.derivative_velocity_dtheta(grid, theta, params.B, params.xmin, params.xmax, params.nc).t()
+        grad_theta = grad_output.matmul(dv_dtheta)
+
+        dv_dx = cpab_gpu.derivative_velocity_dx(grid, theta, params.B, params.xmin, params.xmax, params.nc)
+        grad_x = grad_output.mul(dv_dx)
+
+        return grad_x, grad_theta, None  # [n_batch, n_points] # [n_batch, d]
 
 
 # %% GRADIENT
@@ -279,34 +289,42 @@ def transformer_slow(grid, theta, params, method=None, time=1.0):
 
 
 #%% TRANSFORMER: SLOW / CPU + GPU / CLOSED-FORM
-from .transformer_slow import integrate_closed_form_trace, derivative_closed_form_trace
+from .transformer_slow import integrate_closed_form_trace, derivative_closed_form_trace, derivative_space_closed_form
 
 
 class Transformer_slow_closed_form(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params, time=1.0):
         ctx.params = params
+        ctx.time = time
+
         output = integrate_closed_form_trace(grid, theta, params, time)
         n_batch = theta.shape[0]
         grid_t = output[:, 0].reshape((n_batch, -1)).contiguous()
+        
         ctx.save_for_backward(output, grid, theta)
         return grid_t
 
     @staticmethod
     @torch.autograd.function.once_differentiable
-    def backward(ctx, grad_output):  # grad [n_batch, n_points]
+    def backward(ctx, grad_output):  # grad_output [n_batch, n_points]
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
-        grad_theta = derivative_closed_form_trace(output, grid, theta, params)  # [n_batch, n_points, d]
+        time = ctx.time
 
+        dphi_dtheta = derivative_closed_form_trace(output, grid, theta, params)  # [n_batch, n_points, d]
         # NOTE: we have to permute the gradient in order to do the element-wise product
         # Then, the gradient must be summarized for all grid points
-        grad = grad_output.mul(grad_theta.permute(2, 0, 1)).sum(dim=(2)).t()
-        return None, grad, None, None  # [n_batch, d]
+        grad_theta = grad_output.mul(dphi_dtheta.permute(2, 0, 1)).sum(dim=(2)).t()
+
+        _, dphi_dx = derivative_space_closed_form(grid, theta, params, time=1.0)  # [n_batch, n_points]
+        grad_x = grad_output.mul(dphi_dx)
+
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
 
 
 #%% TRANSFORMER: SLOW / CPU + GPU / NUMERIC
-from .transformer_slow import integrate_numeric, derivative_numeric_trace
+from .transformer_slow import integrate_numeric, derivative_numeric_trace, derivative_space_numeric
 
 
 class Transformer_slow_numeric(torch.autograd.Function):
@@ -314,21 +332,27 @@ class Transformer_slow_numeric(torch.autograd.Function):
     def forward(ctx, grid, theta, params, time=1.0):
         ctx.params = params
         ctx.time = time
+        
         grid_t = integrate_numeric(grid, theta, params, time)
+        
         ctx.save_for_backward(grid_t, grid, theta)
         return grid_t
 
     @staticmethod
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad_output):  # grad_output [n_batch, n_points]
+        grid_t, grid, theta = ctx.saved_tensors
         params = ctx.params
         time = ctx.time
-        grid_t, grid, theta = ctx.saved_tensors
 
         h = 1e-2
-        grad_theta = derivative_numeric_trace(grid_t, grid, theta, params, time, h)
-        grad = grad_output.mul(grad_theta.permute(2, 0, 1)).sum(dim=(2)).t()
-        return None, grad, None, None  # [n_batch, d]
+        dphi_dtheta = derivative_numeric_trace(grid_t, grid, theta, params, time, h)
+        grad_theta = grad_output.mul(dphi_dtheta.permute(2, 0, 1)).sum(dim=(2)).t()
+
+        _, dphi_dx = derivative_space_numeric(grid, theta, params, time, h)
+        grad_x = grad_output.mul(dphi_dx)
+
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
 
 
 # %% TRANSFORMER: FAST / CPU
@@ -347,22 +371,31 @@ class Transformer_fast_cpu_closed_form(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params, time=1.0):
         ctx.params = params
+        ctx.time = time
+
         output = cpab_cpu.integrate_closed_form_trace(grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
         grid_t = output[:, :, 0].contiguous()
+        
         ctx.save_for_backward(output, grid, theta)
         return grid_t
 
     @staticmethod
     @torch.autograd.function.once_differentiable
-    def backward(ctx, grad_output):  # grad [n_batch, n_points]
+    def backward(ctx, grad_output):  # grad_output [n_batch, n_points]
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
+        time = ctx.time
 
-        grad_theta = cpab_cpu.derivative_closed_form_trace(
+        dphi_dtheta = cpab_cpu.derivative_closed_form_trace(
             output, grid, theta, params.B, params.xmin, params.xmax, params.nc
         )  # [n_batch, n_points, d]
-        grad = grad_output.mul(grad_theta.permute(2, 0, 1)).sum(dim=(2)).t()
-        return None, grad, None, None  # [n_batch, d]
+        grad_theta = grad_output.mul(dphi_dtheta.permute(2, 0, 1)).sum(dim=(2)).t()
+
+        dphi_dx = cpab_cpu.derivative_space_closed_form(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+        grad_x = grad_output.mul(dphi_dx)
+
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
 
 
 # %% TRANSFORMER: FAST / CPU / NUMERIC
@@ -385,11 +418,17 @@ class Transformer_fast_cpu_numeric(torch.autograd.Function):
         grid_t, grid, theta = ctx.saved_tensors
 
         h = 1e-2
-        grad_theta = cpab_cpu.derivative_numeric_trace(
+        dphi_dtheta = cpab_cpu.derivative_numeric_trace(
             grid_t, grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
         )
-        grad = grad_output.mul(grad_theta.permute(2, 0, 1)).sum(dim=(2)).t()
-        return None, grad, None, None  # [n_batch, d]
+        grad_theta = grad_output.mul(dphi_dtheta.permute(2, 0, 1)).sum(dim=(2)).t()
+
+        dphi_dx = cpab_cpu.derivative_space_numeric(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        )
+        grad_x = grad_output.mul(dphi_dx)
+
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
 
 
 # %% TRANSFORMER: FAST / GPU
@@ -419,11 +458,16 @@ class Transformer_fast_gpu_closed_form(torch.autograd.Function):
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
 
-        grad_theta = cpab_gpu.derivative_closed_form_trace(
+        dphi_dtheta = cpab_gpu.derivative_closed_form_trace(
             output, grid, theta, params.B, params.xmin, params.xmax, params.nc
         )  # [n_batch, n_points, d]
-        grad = grad_output.mul(grad_theta.permute(2, 0, 1)).sum(dim=(2)).t()
-        return None, grad, None, None  # [n_batch, d]
+        grad_theta = grad_output.mul(dphi_dtheta.permute(2, 0, 1)).sum(dim=(2)).t()
+
+        dphi_dx = cpab_gpu.derivative_space_closed_form(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+        grad_x = grad_output.mul(dphi_dx)
+
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
 
 
 # %% TRANSFORMER: FAST / GPU / NUMERIC
@@ -447,11 +491,17 @@ class Transformer_fast_gpu_numeric(torch.autograd.Function):
         grid_t, grid, theta = ctx.saved_tensors
 
         h = 1e-2
-        grad_theta = cpab_gpu.derivative_numeric_trace(
+        dphi_dtheta = cpab_gpu.derivative_numeric_trace(
             grid_t, grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
         )
-        grad = grad_output.mul(grad_theta.permute(2, 0, 1)).sum(dim=(2)).t()
-        return None, grad, None, None  # [n_batch, d]
+        grad_theta = grad_output.mul(dphi_dtheta.permute(2, 0, 1)).sum(dim=(2)).t()
+
+        dphi_dx = cpab_gpu.derivative_space_numeric(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        )
+        grad_x = grad_output.mul(dphi_dx)
+
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
 
 
 # %% INTERPOLATE
@@ -505,8 +555,6 @@ class Interpolate_fast_gpu(torch.autograd.Function):
     def backward(ctx, grad_output):  # grad [n_batch, n_points]
         (transformed_grid,) = ctx.saved_tensors
         return cpab_gpu.interpolate_grid_backward(grad_output, transformed_grid)
-
-
 
 # %% GRADIENT SPACE
 
@@ -582,11 +630,17 @@ class GradientSpace_fast_cpu_numeric(torch.autograd.Function):
         dphi_dx, grid, theta = ctx.saved_tensors
 
         h = 1e-2
-        grad_theta = cpab_cpu.derivative_space_numeric_backward(
+        dphi_dx_dtheta = cpab_cpu.derivative_space_numeric_dtheta(
             dphi_dx, grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
         )
-        grad = grad_output.mul(grad_theta).sum(dim=(2)).t()
-        return None, grad, None, None  # [n_batch, d]
+        grad_theta = grad_output.mul(dphi_dx_dtheta).sum(dim=(2)).t()
+
+        dphi_dx_dx = cpab_cpu.derivative_space_numeric_dx(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        )
+        grad_x = grad_output.mul(dphi_dx_dx)
+        
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
 
 # %% GRADIENT SPACE: FAST / CPU / CLOSED-FORM
 class GradientSpace_fast_cpu_closed_form(torch.autograd.Function):
@@ -607,10 +661,15 @@ class GradientSpace_fast_cpu_closed_form(torch.autograd.Function):
         time = ctx.time
         grid, theta = ctx.saved_tensors
 
-        grad_theta = cpab_cpu.derivative_space_closed_form_backward(
+        dphi_dx_dtheta = cpab_cpu.derivative_space_closed_form_dtheta(
             grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
-        grad = grad_output.mul(grad_theta.permute(2,0,1)).sum(dim=(2)).t()
-        return None, grad, None, None  # [n_batch, d]
+        grad_theta = grad_output.mul(dphi_dx_dtheta.permute(2,0,1)).sum(dim=(2)).t()
+
+        dphi_dx_dx = cpab_cpu.derivative_space_closed_form_dx(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+        grad_x = grad_output.mul(dphi_dx_dx)
+
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
 
 # %% GRADIENT SPACE: FAST / GPU
 def gradient_space_fast_gpu(grid, theta, params, method=None, time=1.0):
@@ -618,10 +677,69 @@ def gradient_space_fast_gpu(grid, theta, params, method=None, time=1.0):
     method = methods.default(method)
 
     if method == methods.closed_form:
-        return cpab_gpu.derivative_space_closed_form(grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+        return GradientSpace_fast_gpu_closed_form.apply(grid, theta, params, time)
     elif method == methods.numeric:
+        return GradientSpace_fast_gpu_numeric.apply(grid, theta, params, time)
+
+# %% GRADIENT SPACE: FAST / GPU / NUMERIC
+class GradientSpace_fast_gpu_numeric(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, grid, theta, params, time=1.0):
+        ctx.params = params
+        ctx.time = time
+        
         h = 1e-2
-        return cpab_gpu.derivative_space_numeric(
+        dphi_dx = cpab_gpu.derivative_space_numeric(
             grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
         )
+        ctx.save_for_backward(dphi_dx, grid, theta)
+        return dphi_dx
 
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, grad_output):  # grad_output [n_batch, n_points]
+        params = ctx.params
+        time = ctx.time
+        dphi_dx, grid, theta = ctx.saved_tensors
+
+        h = 1e-2
+        dphi_dx_dtheta = cpab_gpu.derivative_space_numeric_dtheta(
+            dphi_dx, grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        )
+        grad_theta = grad_output.mul(dphi_dx_dtheta).sum(dim=(2)).t()
+
+        dphi_dx_dx = cpab_gpu.derivative_space_numeric_dx(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        )
+        grad_x = grad_output.mul(dphi_dx_dx)
+        
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]
+
+# %% GRADIENT SPACE: FAST / GPU / CLOSED-FORM
+class GradientSpace_fast_gpu_closed_form(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, grid, theta, params, time=1.0):
+        ctx.params = params
+        ctx.time = time
+        
+        dphi_dx = cpab_gpu.derivative_space_closed_form(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+        ctx.save_for_backward(grid, theta)
+        return dphi_dx
+
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, grad_output):  # grad_output [n_batch, n_points]
+        params = ctx.params
+        time = ctx.time
+        grid, theta = ctx.saved_tensors
+
+        dphi_dx_dtheta = cpab_gpu.derivative_space_closed_form_dtheta(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+        grad_theta = grad_output.mul(dphi_dx_dtheta.permute(2,0,1)).sum(dim=(2)).t()
+
+        dphi_dx_dx = cpab_gpu.derivative_space_closed_form_dx(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
+        grad_x = grad_output.mul(dphi_dx_dx)
+
+        return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]

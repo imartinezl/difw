@@ -118,6 +118,12 @@ float get_velocity(const float& x, const float* A, const float& xmin, const floa
     return a*x + b;
 }
 
+float get_velocity_dx(const float& x, const float* A, const float& xmin, const float& xmax, const int& nc){
+    const int c = get_cell(x, xmin, xmax, nc);
+    const float a = A[2*c];
+    return a;
+}
+
 // INTEGRATION CLOSED FORM
 
 float get_psi(const float& x, const float& t, const float& a, const float& b){
@@ -364,7 +370,7 @@ float derivative_thit_x(const float& x, const int& c, const float& t, const floa
 
 float derivative_psi_x(const float& x, const int& c, const float& t, const float* A){
     const float a = A[2*c];
-    const float b = A[2*c + 1];
+    // const float b = A[2*c + 1];
 
     return exp(t*a);
 }
@@ -407,7 +413,7 @@ float derivative_phi_x(const float& xini, const float& tini, const float& tm, co
     return dphi_dx;
 }
 
-// GRADIENT SPACE DERIVATIVE
+// GRADIENT SPACE DERIVATIVE THETA
 
 float derivative_psi_x_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
     const float a = A[2*c];
@@ -481,4 +487,52 @@ void derivative_phi_x_theta(float* dphi_dx_dtheta, const float& xini, const floa
         dpsi_dtime_dtheta[k] = derivative_psi_t_theta(xm, cm, tm, A, k, d, B);
         dphi_dx_dtheta[k] = dpsi_dx_dtheta[k] + dpsi_dtime_dtheta[k]*dthit_dx + dpsi_dtime * dthit_dx_dtheta[k];
     }
+}
+
+
+// GRADIENT SPACE DERIVATIVE X
+
+float derivative_thit_x_x(const float& x, const int& c, const float& t, const float* A){
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+    return - a / std::pow(a*x + b, 2.0);
+}
+
+float derivative_psi_t_x(const float& x, const int& c, const float& t, const float* A){
+    const float a = A[2*c];
+    const float b = A[2*c + 1];
+
+    return a * exp(t*a);
+}
+
+float derivative_phi_x_x(const float& xini, const float& tini, const float& tm, const int& cm, const float* A, const float& xmin, const float& xmax, const int& nc){
+    const int cini = get_cell(xini, xmin, xmax, nc);
+    float xm = xini;
+
+    float dthit_dx = 0.0;
+    float dthit_dx_dx = 0.0;
+    if (cini != cm){
+        dthit_dx = derivative_thit_x(xini, cini, tini, A);
+        dthit_dx_dx = derivative_thit_x_x(xini, cini, tini, A);
+    }
+
+
+    if (cini != cm){
+        float xc;
+        const int step = sign(cm - cini);
+        for (int c = cini; step*c < cm*step; c += step){
+            if (step == 1){
+                xc = right_boundary(c, xmin, xmax, nc);
+            }else if (step == -1){
+                xc = left_boundary(c, xmin, xmax, nc);
+            }
+            xm = xc;
+        } 
+    }
+
+    float dpsi_dtime = derivative_psi_t(xm, cm, tm, A);
+    float dpsi_dtime_dx = derivative_psi_t_x(xm, cm, tm, A);
+    float dphi_dx = dpsi_dtime_dx * dthit_dx + dpsi_dtime * dthit_dx_dx;
+    return dphi_dx;
 }
