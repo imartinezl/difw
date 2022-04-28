@@ -13,6 +13,10 @@ __global__ void kernel_get_velocity(
     const int n_points, const int n_batch, const float* x, const float* A, 
     const float xmin, const float xmax, const int nc, float* newpoints);
 
+__global__ void kernel_derivative_velocity_dx(
+    const int n_points, const int n_batch, const float* x, const float* A, 
+    const float xmin, const float xmax, const int nc, float* newpoints);
+
 __global__ void kernel_integrate_numeric(
     const int n_points, const int n_batch, const float* x, const float* A, 
     const float t, const float xmin, const float xmax, const int nc, 
@@ -44,6 +48,17 @@ __global__ void kernel_interpolate_grid_backward(
 
 
 __global__ void kernel_derivative_space_closed_form(
+    const int n_points, const int n_batch, 
+    const float* x, const float* A, 
+    const float t, const int xmin, const int xmax, const int nc, double* gradpoints);
+
+__global__ void kernel_derivative_closed_form_trace_dtheta(
+    const int n_points, const int n_batch, const int d,
+    const float* newpoints, const float* x, const float* A, const float* B, 
+    const float xmin, const float xmax, const int nc, double* gradpoints);
+    
+
+__global__ void kernel_derivative_space_closed_form_dx(
     const int n_points, const int n_batch, 
     const float* x, const float* A, 
     const float t, const int xmin, const int xmax, const int nc, double* gradpoints);

@@ -45,6 +45,12 @@ __device__ float get_velocity(const float& x, const float* A, const int& n_batch
     return a*x + b;
 }
 
+__device__ float get_velocity_dx(const float& x, const float* A, const int& n_batch, const int& batch_index, const float& xmin, const float& xmax, const int& nc){
+    const int c = get_cell(x, xmin, xmax, nc);
+    const float a = A[(2*c) * n_batch + batch_index];
+    return a;
+}
+
 // INTEGRATION CLOSED FORM
 
 __device__ float get_psi(const float& x, const float& t,  const float& a, const float& b){
@@ -296,6 +302,18 @@ __global__ void kernel_get_velocity(
     return;
 }
 
+__global__ void kernel_derivative_velocity_dx(
+    const int n_points, const int n_batch, const float* x, const float* A, 
+    const float xmin, const float xmax, const int nc, float* newpoints){
+
+    int point_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
+    if(point_index < n_points && batch_index < n_batch) {
+        newpoints[batch_index * n_points + point_index] = get_velocity_dx(x[batch_index * n_points + point_index], A, n_batch, batch_index, xmin, xmax, nc);
+    }
+    return;
+}
+
 __global__ void kernel_integrate_numeric(
     const int n_points, const int n_batch, const float* x, const float* A, 
     const float t, const float xmin, const float xmax, const int nc, 
@@ -448,6 +466,7 @@ __global__ void kernel_interpolate_grid_backward(
 
 
 // GRADIENT SPACE
+
 __device__ float derivative_thit_x(const float& x, const int& c, const float& t, const float* A, const int& n_batch, const int& batch_index){
     const float a = A[(2*c) * n_batch + batch_index];
     const float b = A[(2*c+1) * n_batch + batch_index];
@@ -519,6 +538,177 @@ __global__ void kernel_derivative_space_closed_form(
         float dphi_dx = derivative_phi_x(x[batch_index * n_points + point_index], t, tm, cm, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
         
         gradpoints[batch_index * n_points + point_index] = dphi_dx;
+    }
+    return;
+}
+
+// GRADIENT SPACE DERIVATIVE THETA
+
+__device__ float derivative_psi_x_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
+    const double a = A[(2*c) * n_batch + batch_index];
+    const double b = A[(2*c+1) * n_batch + batch_index];
+
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
+
+    return t * exp(t*a) * ak;
+}
+
+__device__ float derivative_thit_x_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
+    const double a = A[(2*c) * n_batch + batch_index];
+    const double b = A[(2*c+1) * n_batch + batch_index];
+
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
+
+    return - (ak + bk)/(a*x + b);
+}
+
+__device__ float derivative_psi_t_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
+    const double a = A[(2*c) * n_batch + batch_index];
+    const double b = A[(2*c+1) * n_batch + batch_index];
+
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
+
+    return exp(t*a) * ( ak*(t*(a*x+b) + x) + bk);
+}
+
+__device__ void derivative_phi_x_theta(double* gradpoints, const float& xini, const float& tini, const float& tm, const int& cm, const int& d, const float* B, const float* A, const int& n_batch, const int& batch_index, const int& n_points, const int& point_index, const float& xmin, const float& xmax, const int& nc){
+    const int cini = get_cell(xini, xmin, xmax, nc);
+    float xm = xini;
+
+    // float dpsi_dx = 0.0;
+    float dthit_dx = 0.0;
+    float dpsi_dx_dtheta[d] = {};
+    float dthit_dx_dtheta[d] = {};
+    if (cini == cm){
+        // dpsi_dx = derivative_psi_x(xini, cini, tini, A);
+        for(int k=0; k < d; k++){
+            dpsi_dx_dtheta[k] = derivative_psi_x_theta(xini, cini, tini, A, k, d, B);
+            dthit_dx_dtheta[k] = 0.0;
+        }
+    }else{
+        dthit_dx = derivative_thit_x(xini, cini, tini, A);
+        for(int k=0; k < d; k++){
+            dthit_dx_dtheta[k] = derivative_thit_x_theta(xini, cini, tini, A, k, d, B);
+            dpsi_dx_dtheta[k] = 0.0;
+        }
+    }
+
+
+    if (cini != cm){
+        float xc;
+        const int step = sign(cm - cini);
+        for (int c = cini; step*c < cm*step; c += step){
+            if (step == 1){
+                xc = right_boundary(c, xmin, xmax, nc);
+            }else if (step == -1){
+                xc = left_boundary(c, xmin, xmax, nc);
+            }
+            xm = xc;
+        } 
+    }
+
+    float dpsi_dtime = derivative_psi_t(xm, cm, tm, A);
+    float dpsi_dtime_dtheta[d] = {};
+    for(int k=0; k < d; k++){
+        dpsi_dtime_dtheta[k] = derivative_psi_t_theta(xm, cm, tm, A, k, d, B);
+        dphi_dx_dtheta[k] = dpsi_dx_dtheta[k] + dpsi_dtime_dtheta[k]*dthit_dx + dpsi_dtime * dthit_dx_dtheta[k];
+        gradpoints[batch_index*(n_points * d) + point_index*d + k] = dphi_dx_dtheta[k];
+    }
+}
+
+
+__global__ void kernel_derivative_space_closed_form_dtheta(
+    const int n_points, const int n_batch, const int d,
+    const float* newpoints, const float* x, const float* A, const float* B, 
+    const float xmin, const float xmax, const int nc, double* gradpoints){
+
+    int point_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
+
+    const int e = 3;
+
+    if(point_index < n_points && batch_index < n_batch) {
+        // float phi = newpoints[batch_index*(n_points * e) + point_index*e + 0];
+        float tm = newpoints[batch_index*(n_points * e) + point_index*e + 1];
+        int cm = newpoints[batch_index*(n_points * e) + point_index*e + 2];
+        
+        derivative_phi_x_theta(gradpoints, x[batch_index * n_points + point_index], tm, cm, d, B, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
+    }
+    return;
+}
+
+
+
+// GRADIENT SPACE DERIVATIVE X
+
+__device__ float derivative_thit_x_x(const float& x, const int& c, const float& t, const float* A, const int& n_batch, const int& batch_index){
+    const float a = A[(2*c) * n_batch + batch_index];
+    const float b = A[(2*c+1) * n_batch + batch_index];
+
+    return - a / std::pow(a*x + b, 2.0);
+}
+
+__device__ float derivative_psi_t_x(const float& x, const int& c, const float& t, const float* A, const int& n_batch, const int& batch_index){
+    const float a = A[(2*c) * n_batch + batch_index];
+    // const float b = A[(2*c+1) * n_batch + batch_index];
+
+    return a * exp(t*a);
+}
+
+__device__ float derivative_phi_x_x(const float& xini, const float& tini, const float& tm, const int& cm, const float* A, const int& n_batch, const int& batch_index, const int& n_points, const int& point_index, const float& xmin, const float& xmax, const int& nc){
+    const int cini = get_cell(xini, xmin, xmax, nc);
+    float xm = xini;
+
+    float dthit_dx = 0.0;
+    float dthit_dx_dx = 0.0;
+    if (cini != cm){
+        dthit_dx = derivative_thit_x(xini, cini, tini, A, n_batch, batch_index);
+        dthit_dx_dx = derivative_thit_x_x(xini, cini, tini, A, n_batch, batch_index);
+    }
+
+
+    if (cini != cm){
+        float xc;
+        const int step = sign(cm - cini);
+        for (int c = cini; step*c < cm*step; c += step){
+            if (step == 1){
+                xc = right_boundary(c, xmin, xmax, nc);
+            }else if (step == -1){
+                xc = left_boundary(c, xmin, xmax, nc);
+            }
+            xm = xc;
+        } 
+    }
+
+    float dpsi_dtime = derivative_psi_t(xm, cm, tm, A, n_batch, batch_index);
+    float dpsi_dtime_dx = derivative_psi_t_x(xm, cm, tm, A, n_batch, batch_index);
+    float dphi_dx = dpsi_dtime_dx * dthit_dx + dpsi_dtime * dthit_dx_dx;
+    return dphi_dx;
+}
+
+__global__ void kernel_derivative_space_closed_form_dx(
+    const int n_points, const int n_batch, 
+    const float* x, const float* A, 
+    const float t, const int xmin, const int xmax, const int nc, double* gradpoints){
+
+    int point_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    const int e = 3;
+
+    if(point_index < n_points && batch_index < n_batch){ 
+        float result[e];
+        integrate_closed_form_trace(result, x[batch_index * n_points + point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
+            
+        // float phi = result[0];
+        float tm = result[1];
+        int cm = result[2];
+        float dphi_dx_dx = derivative_phi_x_x(x[batch_index * n_points + point_index], t, tm, cm, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
+        
+        gradpoints[batch_index * n_points + point_index] = dphi_dx_dx;
     }
     return;
 }
