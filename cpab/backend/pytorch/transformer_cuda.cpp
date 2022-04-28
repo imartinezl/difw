@@ -13,7 +13,7 @@ at::Tensor cuda_derivative_closed_form_trace(at::Tensor output, at::Tensor point
 at::Tensor cuda_interpolate_grid_forward(at::Tensor points, at::Tensor output);
 at::Tensor cuda_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor points, at::Tensor output);
 at::Tensor cuda_derivative_space_closed_form(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
-at::Tensor cuda_derivative_space_closed_form_dtheta(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
+at::Tensor cuda_derivative_space_closed_form_dtheta(at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
 at::Tensor cuda_derivative_space_closed_form_dx(at::Tensor points, at::Tensor theta, at::Tensor At, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient);
 
 // Shortcuts for checking
@@ -430,12 +430,11 @@ at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor thet
     return cuda_derivative_space_closed_form(points, theta, At, t, xmin, xmax, nc, gradient);
 }
 
-at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor output, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
+at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
     if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
     
     // Do input checking
-    CHECK_INPUT(output);
     CHECK_INPUT(points);
     CHECK_INPUT(theta);
     CHECK_INPUT(Bt);
@@ -452,7 +451,7 @@ at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor output, at::Tens
     at::Tensor At = torch_get_affine(Bt, theta);
 
     // Call kernel launcher
-    return cuda_derivative_space_closed_form_dtheta(output, points, theta, At, Bt, t, xmin, xmax, nc, gradient);
+    return cuda_derivative_space_closed_form_dtheta(points, theta, At, Bt, t, xmin, xmax, nc, gradient);
 }
 
 at::Tensor torch_derivative_space_closed_form_dx(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){

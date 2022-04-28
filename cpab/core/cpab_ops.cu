@@ -698,7 +698,7 @@ __device__ void derivative_phi_x_theta(double* gradpoints, const float& xini, co
 
 __global__ void kernel_derivative_space_closed_form_dtheta(
     const int n_points, const int n_batch, const int d,
-    const float* newpoints, const float* x, const float* A, const float* B, const float t,
+    const float* x, const float* A, const float* B, const float t,
     const float xmin, const float xmax, const int nc, double* gradpoints){
 
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -707,14 +707,18 @@ __global__ void kernel_derivative_space_closed_form_dtheta(
     const int e = 3;
 
     if(point_index < n_points && batch_index < n_batch) {
-        // float phi = newpoints[batch_index*(n_points * e) + point_index*e + 0];
-        float tm = newpoints[batch_index*(n_points * e) + point_index*e + 1];
-        int cm = newpoints[batch_index*(n_points * e) + point_index*e + 2];
+        float result[e];
+        integrate_closed_form_trace(result, x[batch_index * n_points + point_index], t, A, n_batch, batch_index, xmin, xmax, nc);
+            
+        // float phi = result[0];
+        float tm = result[1];
+        int cm = result[2];
         
         derivative_phi_x_theta(gradpoints, x[batch_index * n_points + point_index], t, tm, cm, d, B, A, n_batch, batch_index, n_points, point_index, xmin, xmax, nc);
     }
     return;
 }
+
 
 
 

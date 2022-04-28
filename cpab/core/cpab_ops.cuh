@@ -54,7 +54,7 @@ __global__ void kernel_derivative_space_closed_form(
 
 __global__ void kernel_derivative_space_closed_form_dtheta(
     const int n_points, const int n_batch, const int d,
-    const float* newpoints, const float* x, const float* A, const float* B, const float t,
+    const float* x, const float* A, const float* B, const float t,
     const float xmin, const float xmax, const int nc, double* gradpoints);
 
 __global__ void kernel_derivative_space_closed_form_dx(

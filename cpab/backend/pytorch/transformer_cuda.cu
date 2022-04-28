@@ -237,7 +237,7 @@ at::Tensor cuda_derivative_space_closed_form(at::Tensor points, at::Tensor theta
    return gradient; 
 }
 
-at::Tensor cuda_derivative_space_closed_form_dtheta(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient){
+at::Tensor cuda_derivative_space_closed_form_dtheta(at::Tensor points, at::Tensor theta, at::Tensor At, at::Tensor Bt, const float t, const float xmin, const float xmax, const int nc, at::Tensor gradient){
    // Problem size
    const int n_points = points.size(1);
    const int n_batch = theta.size(0);
@@ -249,7 +249,7 @@ at::Tensor cuda_derivative_space_closed_form_dtheta(at::Tensor output, at::Tenso
 
    // Launch kernel
    kernel_derivative_space_closed_form_dtheta<<<bc, tpb>>>(n_points, n_batch, d,
-      output.data_ptr<float>(), points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), t, xmin, xmax, nc, gradient.data_ptr<double>());
+      points.data_ptr<float>(), At.data_ptr<float>(), Bt.data_ptr<float>(), t, xmin, xmax, nc, gradient.data_ptr<double>());
 
    gpuErrchk( cudaPeekAtLastError() );                           
    return gradient; 
