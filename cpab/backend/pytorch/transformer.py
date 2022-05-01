@@ -619,6 +619,9 @@ class GradientSpace_fast_cpu_numeric(torch.autograd.Function):
         dphi_dx = cpab_cpu.derivative_space_numeric(
             grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
         )
+        dphi_dx = cpab_cpu.derivative_space_closed_form(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc
+        )
         ctx.save_for_backward(dphi_dx, grid, theta)
         return dphi_dx
 
@@ -629,15 +632,13 @@ class GradientSpace_fast_cpu_numeric(torch.autograd.Function):
         time = ctx.time
         dphi_dx, grid, theta = ctx.saved_tensors
 
-        h = 1e-2
+        h = 1e-3
         dphi_dx_dtheta = cpab_cpu.derivative_space_numeric_dtheta(
-            dphi_dx, grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
-        )
+            dphi_dx, grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad_theta = grad_output.mul(dphi_dx_dtheta).sum(dim=(2)).t()
 
         dphi_dx_dx = cpab_cpu.derivative_space_numeric_dx(
-            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
-        )
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h)
         grad_x = grad_output.mul(dphi_dx_dx)
         
         return grad_x, grad_theta, None, None  # [n_batch, n_points] # [n_batch, d]

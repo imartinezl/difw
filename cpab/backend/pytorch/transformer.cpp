@@ -428,56 +428,6 @@ at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor poin
 
 // GRADIENT SPACE
 
-at::Tensor torch_derivative_space_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
-    // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
-    
-    // Problem size
-    const int n_points = points.size(1);
-    const int n_batch = theta.size(0);
-
-    at::Tensor phi_1 =  torch_integrate_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-    at::Tensor phi_2 =  torch_integrate_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
-    at::Tensor gradient = (phi_2 - phi_1) / h;
-
-    return gradient;
-}
-
-at::Tensor torch_derivative_space_numeric_dtheta(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
-    // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
-    
-    // Problem size
-    const int n_points = points.size(1);
-    const int n_batch = theta.size(0);
-    const int d = theta.size(1);
-
-    auto gradient = torch::zeros({d, n_batch, n_points}, at::kCPU);
-
-    for(int k = 0; k < d; k++){
-        at::Tensor theta_2 = theta.clone();
-        at::Tensor row = theta_2.index({torch::indexing::Slice(), k});
-        theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
-        at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
-        gradient.index_put_({k, torch::indexing::Slice(), torch::indexing::Slice()}, (phi_2 - phi_1)/h);
-    }
-    return gradient;
-}
-
-at::Tensor torch_derivative_space_numeric_dx(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
-    // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
-    
-    // Problem size
-    const int n_points = points.size(1);
-    const int n_batch = theta.size(0);
-
-    at::Tensor dphi_dx_1 =  torch_derivative_space_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
-    at::Tensor dphi_dx_2 =  torch_derivative_space_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
-    at::Tensor gradient = (dphi_dx_2 - dphi_dx_1) / h;
-
-    return gradient;
-}
 
 
 at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
@@ -614,6 +564,61 @@ at::Tensor torch_derivative_space_closed_form_dx(at::Tensor points, at::Tensor t
 }
 
 
+at::Tensor torch_derivative_space_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+
+    // at::Tensor phi_1 =  torch_integrate_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    // at::Tensor phi_2 =  torch_integrate_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2);
+    at::Tensor phi_1 =  torch_integrate_closed_form(points, theta, t, Bt, xmin, xmax, nc);
+    at::Tensor phi_2 =  torch_integrate_closed_form(points+h, theta, t, Bt, xmin, xmax, nc);
+    at::Tensor gradient = (phi_2 - phi_1) / h;
+
+    return gradient;
+}
+
+at::Tensor torch_derivative_space_numeric_dtheta(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+    const int d = theta.size(1);
+
+    auto gradient = torch::zeros({d, n_batch, n_points}, at::kCPU);
+
+    for(int k = 0; k < d; k++){
+        at::Tensor theta_2 = theta.clone();
+        at::Tensor row = theta_2.index({torch::indexing::Slice(), k});
+        theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
+        // at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
+        at::Tensor phi_2 =  torch_derivative_space_closed_form(points, theta_2, t, Bt, xmin, xmax, nc);
+        gradient.index_put_({k, torch::indexing::Slice(), torch::indexing::Slice()}, (phi_2 - phi_1)/h);
+    }
+    return gradient;
+}
+
+at::Tensor torch_derivative_space_numeric_dx(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
+    // Batch grid
+    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    
+    // Problem size
+    const int n_points = points.size(1);
+    const int n_batch = theta.size(0);
+
+    // at::Tensor dphi_dx_1 =  torch_derivative_space_numeric(points, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
+    // at::Tensor dphi_dx_2 =  torch_derivative_space_numeric(points+h, theta, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
+    at::Tensor dphi_dx_1 =  torch_derivative_space_closed_form(points, theta, t, Bt, xmin, xmax, nc);
+    at::Tensor dphi_dx_2 =  torch_derivative_space_closed_form(points+h, theta, t, Bt, xmin, xmax, nc);
+    at::Tensor gradient = (dphi_dx_2 - dphi_dx_1) / h;
+
+    return gradient;
+}
 
 
 
