@@ -432,17 +432,17 @@ float derivative_thit_x_theta(const float& x, const int& c, const float& t, cons
     const double ak = B[(2*c)*d + k];
     const double bk = B[(2*c+1)*d + k];
 
-    return - (ak + bk)/(a*x + b);
+    return - (x*ak + bk)/std::pow(a*x + b, 2.0);
 }
 
-float derivative_psi_t_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
+float derivative_psi_t_theta(const float& dtm, const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B){
     const float a = A[2*c];
     const float b = A[2*c + 1];
 
     const double ak = B[(2*c)*d + k];
-    const double bk = B[(2*c+1)*d + k];
-
-    return exp(t*a) * ( ak*(t*(a*x+b) + x) + bk);
+    const double bk = B[(2*c+1)*d + k];      
+    
+    return exp(t*a) * ( a*(a*x+b)*dtm + ak*(t*(a*x+b) + x) + bk);
 }
 
 void derivative_phi_x_theta(float* dphi_dx_dtheta, const float& xini, const float& tini, const float& tm, const int& cm, const int& d, const float* B, const float* A, const float& xmin, const float& xmax, const int& nc){
@@ -467,7 +467,7 @@ void derivative_phi_x_theta(float* dphi_dx_dtheta, const float& xini, const floa
         }
     }
 
-
+    float dthit_dtheta_cum[d] = { };
     if (cini != cm){
         float xc;
         const int step = sign(cm - cini);
@@ -477,6 +477,7 @@ void derivative_phi_x_theta(float* dphi_dx_dtheta, const float& xini, const floa
             }else if (step == -1){
                 xc = left_boundary(c, xmin, xmax, nc);
             }
+            derivative_thit_theta(dthit_dtheta_cum, xm, c, xc, d, B, A);
             xm = xc;
         } 
     }
@@ -484,7 +485,7 @@ void derivative_phi_x_theta(float* dphi_dx_dtheta, const float& xini, const floa
     float dpsi_dtime = derivative_psi_t(xm, cm, tm, A);
     float dpsi_dtime_dtheta[d] = {};
     for(int k=0; k < d; k++){
-        dpsi_dtime_dtheta[k] = derivative_psi_t_theta(xm, cm, tm, A, k, d, B);
+        dpsi_dtime_dtheta[k] = derivative_psi_t_theta(dthit_dtheta_cum[k], xm, cm, tm, A, k, d, B);
         dphi_dx_dtheta[k] = dpsi_dx_dtheta[k] + dpsi_dtime_dtheta[k]*dthit_dx + dpsi_dtime * dthit_dx_dtheta[k];
     }
 }
