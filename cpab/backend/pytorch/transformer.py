@@ -703,7 +703,7 @@ class GradientSpace_fast_gpu_numeric(torch.autograd.Function):
         time = ctx.time
         dphi_dx, grid, theta = ctx.saved_tensors
 
-        h = 1e-2
+        h = 1e-3
         dphi_dx_dtheta = cpab_gpu.derivative_space_numeric_dtheta(
             dphi_dx, grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
         )

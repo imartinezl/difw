@@ -561,40 +561,62 @@ __device__ float derivative_thit_x_theta(const float& x, const int& c, const flo
     const double ak = B[(2*c)*d + k];
     const double bk = B[(2*c+1)*d + k];
 
-    return - (ak + bk)/(a*x + b);
+    return - (x*ak + bk)/std::pow(a*x + b, 2.0);
 }
 
-__device__ float derivative_psi_t_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B, const int& n_batch, const int& batch_index){
+__device__ float derivative_psi_t_theta(const float& dtm, const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B, const int& n_batch, const int& batch_index){
     const double a = A[(2*c) * n_batch + batch_index];
     const double b = A[(2*c+1) * n_batch + batch_index];
 
     const double ak = B[(2*c)*d + k];
     const double bk = B[(2*c+1)*d + k];
 
-    return exp(t*a) * ( ak*(t*(a*x+b) + x) + bk);
+    return exp(t*a) * ( a*(a*x+b)*dtm + ak*(t*(a*x+b) + x) + bk);
+}
+
+__device__ float derivative_thit_theta_alt(const float& x, const int& c, const float& xc, const int& k, const int& d, const float* B, const float* A, const int& n_batch, const int& batch_index){
+    const double a = A[(2*c) * n_batch + batch_index];
+    const double b = A[(2*c+1) * n_batch + batch_index];
+
+    const double ak = B[(2*c)*d + k];
+    const double bk = B[(2*c+1)*d + k];
+
+    if (cmpf0(a)){
+        const double tmp = (x-xc) / pow(b, 2.0);
+        return -(tmp*bk);
+    }
+    else{
+        const double tmp1 = log( (a*xc + b) / (a*x + b) )/pow(a, 2.0);
+        const double tmp2 = (x - xc) / (a * (a*x + b) * (a*xc + b) );
+
+        const double d1 = - ak * tmp1;
+        const double d2 = ( bk*a - ak*b) * tmp2;
+        return -(d1+d2)
+    }
 }
 
 __device__ void derivative_phi_x_theta(double* gradpoints, const float& xini, const float& tini, const float& tm, const int& cm, const int& d, const float* B, const float* A, const int& n_batch, const int& batch_index, const int& n_points, const int& point_index, const float& xmin, const float& xmax, const int& nc){
     
     const int cini = get_cell(xini, xmin, xmax, nc);
     float xm = xini;
-
-    if (cini != cm){
-        float xc;
-        const int step = sign(cm - cini);
-        for (int c = cini; step*c < cm*step; c += step){
-            if (step == 1){
-                xc = right_boundary(c, xmin, xmax, nc);
-            }else if (step == -1){
-                xc = left_boundary(c, xmin, xmax, nc);
-            }
-            xm = xc;
-        } 
-    }
     
-    float dpsi_dtime = derivative_psi_t(xm, cm, tm, A, n_batch, batch_index);
-
     for(int k=0; k < d; k++){
+        float dthit_dtheta_cum = 0.0;
+        if (cini != cm){
+            float xc;
+            const int step = sign(cm - cini);
+            for (int c = cini; step*c < cm*step; c += step){
+                if (step == 1){
+                    xc = right_boundary(c, xmin, xmax, nc);
+                }else if (step == -1){
+                    xc = left_boundary(c, xmin, xmax, nc);
+                }
+                dthit_dtheta_cum += derivative_thit_theta_alt(xm, c, xc, k, d, B, A, n_batch, batch_index);
+                xm = xc;
+            } 
+        }
+    
+        float dpsi_dtime = derivative_psi_t(xm, cm, tm, A, n_batch, batch_index);
 
         float dthit_dx = 0.0;
         float dpsi_dx_dtheta = 0.0;
@@ -605,7 +627,7 @@ __device__ void derivative_phi_x_theta(double* gradpoints, const float& xini, co
             dthit_dx = derivative_thit_x(xini, cini, tini, A, n_batch, batch_index);
             dthit_dx_dtheta = derivative_thit_x_theta(xini, cini, tini, A, k, d, B, n_batch, batch_index);
         }
-        float dpsi_dtime_dtheta = derivative_psi_t_theta(xm, cm, tm, A, k, d, B, n_batch, batch_index);
+        float dpsi_dtime_dtheta = derivative_psi_t_theta(dthit_dtheta_cum, xm, cm, tm, A, k, d, B, n_batch, batch_index);
         float dphi_dx_dtheta = dpsi_dx_dtheta + dpsi_dtime_dtheta * dthit_dx + dpsi_dtime * dthit_dx_dtheta;
         gradpoints[batch_index*(n_points * d) + point_index*d + k] = dphi_dx_dtheta;
     }
