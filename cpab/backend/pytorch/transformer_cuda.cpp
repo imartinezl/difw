@@ -451,7 +451,7 @@ at::Tensor torch_derivative_space_numeric_dtheta(at::Tensor phi_1, at::Tensor po
         at::Tensor row = theta_2.index({torch::indexing::Slice(), k});
         theta_2.index_put_({torch::indexing::Slice(), k}, row + h);
         // at::Tensor phi_2 =  torch_derivative_space_numeric(points, theta_2, t, Bt, xmin, xmax, nc, nSteps1, nSteps2, h);
-        at::Tensor phi_2 =  torch_integrate_closed_form(points, theta_2, t, Bt, xmin, xmax, nc);
+        at::Tensor phi_2 =  torch_derivative_space_closed_form(points, theta_2, t, Bt, xmin, xmax, nc);
         gradient.index_put_({k, torch::indexing::Slice(), torch::indexing::Slice()}, (phi_2 - phi_1)/h);
     }
     return gradient;

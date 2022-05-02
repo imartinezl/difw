@@ -591,16 +591,16 @@ __device__ float derivative_thit_theta_alt(const float& x, const int& c, const f
 
         const double d1 = - ak * tmp1;
         const double d2 = ( bk*a - ak*b) * tmp2;
-        return -(d1+d2)
+        return -(d1+d2);
     }
 }
 
 __device__ void derivative_phi_x_theta(double* gradpoints, const float& xini, const float& tini, const float& tm, const int& cm, const int& d, const float* B, const float* A, const int& n_batch, const int& batch_index, const int& n_points, const int& point_index, const float& xmin, const float& xmax, const int& nc){
     
     const int cini = get_cell(xini, xmin, xmax, nc);
-    float xm = xini;
     
     for(int k=0; k < d; k++){
+        float xm = xini;
         float dthit_dtheta_cum = 0.0;
         if (cini != cm){
             float xc;

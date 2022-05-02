@@ -616,9 +616,9 @@ class GradientSpace_fast_cpu_numeric(torch.autograd.Function):
         ctx.time = time
         
         h = 1e-2
-        dphi_dx = cpab_cpu.derivative_space_numeric(
-            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
-        )
+        # dphi_dx = cpab_cpu.derivative_space_numeric(
+        #     grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        # )
         dphi_dx = cpab_cpu.derivative_space_closed_form(
             grid, theta, time, params.B, params.xmin, params.xmax, params.nc
         )
@@ -690,8 +690,11 @@ class GradientSpace_fast_gpu_numeric(torch.autograd.Function):
         ctx.time = time
         
         h = 1e-2
-        dphi_dx = cpab_gpu.derivative_space_numeric(
-            grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        # dphi_dx = cpab_gpu.derivative_space_numeric(
+        #     grid, theta, time, params.B, params.xmin, params.xmax, params.nc, params.nSteps1, params.nSteps2, h,
+        # )
+        dphi_dx = cpab_gpu.derivative_space_closed_form(
+            grid, theta, time, params.B, params.xmin, params.xmax, params.nc
         )
         ctx.save_for_backward(dphi_dx, grid, theta)
         return dphi_dx
