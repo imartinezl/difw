@@ -447,6 +447,7 @@ class Transformer_fast_gpu_closed_form(torch.autograd.Function):
     @staticmethod
     def forward(ctx, grid, theta, params, time=1.0):
         ctx.params = params
+        ctx.time = time
         output = cpab_gpu.integrate_closed_form_trace(grid, theta, time, params.B, params.xmin, params.xmax, params.nc)
         grid_t = output[:, :, 0].contiguous()
         ctx.save_for_backward(output, grid, theta)
@@ -457,6 +458,7 @@ class Transformer_fast_gpu_closed_form(torch.autograd.Function):
     def backward(ctx, grad_output):  # grad [n_batch, n_points]
         output, grid, theta = ctx.saved_tensors
         params = ctx.params
+        time = ctx.time
 
         dphi_dtheta = cpab_gpu.derivative_closed_form_trace(
             output, grid, theta, params.B, params.xmin, params.xmax, params.nc
