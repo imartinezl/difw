@@ -23,7 +23,7 @@ at::Tensor torch_get_cell(at::Tensor points, const float xmin, const float xmax,
 
 at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();    
     
     // Problem size
     const int n_points = points.size(1);
@@ -54,7 +54,7 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 
 at::Tensor torch_derivative_velocity_dtheta(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(1), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
@@ -85,8 +85,8 @@ at::Tensor torch_derivative_velocity_dtheta(at::Tensor points, at::Tensor theta,
 
 at::Tensor torch_derivative_velocity_dx(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
-    
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
+
     // Problem size
     const int n_points = points.size(1);
     const int n_batch = theta.size(0);
@@ -205,7 +205,7 @@ at::Tensor torch_derivative_numeric(at::Tensor points, at::Tensor theta, const f
 
 at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
@@ -253,8 +253,8 @@ at::Tensor torch_derivative_closed_form(at::Tensor points, at::Tensor theta, con
 // TRANSFORMATION
 at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
-    
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
+
     // Problem size
     const int n_points = points.size(1);
     const int n_batch = theta.size(0);
@@ -290,7 +290,7 @@ at::Tensor torch_integrate_closed_form_trace(at::Tensor points, at::Tensor theta
 
 at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
@@ -335,7 +335,7 @@ at::Tensor torch_derivative_closed_form_trace(at::Tensor output, at::Tensor poin
 
 at::Tensor torch_derivative_numeric_trace(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
@@ -432,7 +432,7 @@ at::Tensor torch_interpolate_grid_backward(at::Tensor grad_prev, at::Tensor poin
 
 at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
@@ -475,7 +475,7 @@ at::Tensor torch_derivative_space_closed_form(at::Tensor points, at::Tensor thet
 
 at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
@@ -522,7 +522,7 @@ at::Tensor torch_derivative_space_closed_form_dtheta(at::Tensor points, at::Tens
 
 at::Tensor torch_derivative_space_closed_form_dx(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
@@ -566,8 +566,8 @@ at::Tensor torch_derivative_space_closed_form_dx(at::Tensor points, at::Tensor t
 
 at::Tensor torch_derivative_space_numeric(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
-    
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
+
     // Problem size
     const int n_points = points.size(1);
     const int n_batch = theta.size(0);
@@ -583,7 +583,7 @@ at::Tensor torch_derivative_space_numeric(at::Tensor points, at::Tensor theta, c
 
 at::Tensor torch_derivative_space_numeric_dtheta(at::Tensor phi_1, at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
@@ -605,7 +605,7 @@ at::Tensor torch_derivative_space_numeric_dtheta(at::Tensor phi_1, at::Tensor po
 
 at::Tensor torch_derivative_space_numeric_dx(at::Tensor points, at::Tensor theta, const float t, at::Tensor Bt, const float xmin, const float xmax, const int nc, const int nSteps1=10, const int nSteps2=10, const float h=1e-3){
     // Batch grid
-    if(points.dim() == 1) points = torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
