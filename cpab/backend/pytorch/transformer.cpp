@@ -54,7 +54,7 @@ at::Tensor torch_get_velocity(at::Tensor points, at::Tensor theta, at::Tensor Bt
 
 at::Tensor torch_derivative_velocity_dtheta(at::Tensor points, at::Tensor theta, at::Tensor Bt, const float xmin, const float xmax, const int nc){
     // Batch grid
-    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(0), points.size(0)}).contiguous() : points.contiguous();
+    points = (points.dim() == 1) ? torch::broadcast_to(points, {theta.size(1), points.size(0)}).contiguous() : points.contiguous();
     
     // Problem size
     const int n_points = points.size(1);
