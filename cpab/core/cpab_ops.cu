@@ -546,10 +546,10 @@ __global__ void kernel_derivative_space_closed_form(
 
 __device__ float derivative_psi_x_theta(const float& x, const int& c, const float& t, const float* A, const int& k, const int& d, const float* B, const int& n_batch, const int& batch_index){
     const double a = A[(2*c) * n_batch + batch_index];
-    const double b = A[(2*c+1) * n_batch + batch_index];
+    // const double b = A[(2*c+1) * n_batch + batch_index];
 
     const double ak = B[(2*c)*d + k];
-    const double bk = B[(2*c+1)*d + k];
+    // const double bk = B[(2*c+1)*d + k];
 
     return t * exp(t*a) * ak;
 }
