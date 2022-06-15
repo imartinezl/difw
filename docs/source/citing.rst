@@ -1,11 +1,11 @@
 .. _citing:
 
-Citing cpab
+Citing difw
 ===========
 
-**cpab** was published in ...
+**difw** was published in ...
 
-If you used cpab in your scientific publication, we would appreciate citation:
+If you used difw in your scientific publication, we would appreciate citation:
 
   Bibtex entry::
 

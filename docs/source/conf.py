@@ -17,13 +17,13 @@ sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'cpab'
+project = 'difw'
 copyright = '2021, Iñigo Martinez'
 author = 'Iñigo Martinez'
 
 # The full version, including alpha/beta/rc tags
-import cpab
-release = cpab.__version__
+import difw
+release = difw.__version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -82,7 +82,7 @@ html_show_sourcelink = True
 html_context = {
   'display_github': True,
   'github_user': 'imartinezl',
-  'github_repo': 'cpab',
+  'github_repo': 'difw',
   'github_version': 'develop/docs/source/',
 }
 

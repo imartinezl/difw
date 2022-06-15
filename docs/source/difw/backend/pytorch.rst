@@ -1,17 +1,17 @@
-Numpy
------
+Pytorch
+-------
 
 Functions
 ^^^^^^^^^
 
-.. automodule:: cpab.backend.numpy.functions
+.. automodule:: difw.backend.pytorch.functions
     :members:
     :undoc-members:
 
 Transformer
 ^^^^^^^^^^^
 
-.. automodule:: cpab.backend.numpy.transformer
+.. automodule:: difw.backend.pytorch.transformer_slow
     :members:
     :undoc-members:
 
@@ -19,6 +19,6 @@ Transformer
 Interpolation
 ^^^^^^^^^^^^^
 
-.. automodule:: cpab.backend.numpy.interpolation
+.. automodule:: difw.backend.pytorch.interpolation
     :members:
     :undoc-members:

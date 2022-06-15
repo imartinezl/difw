@@ -1,7 +1,7 @@
 .. _contents:
 
 ======================
-Documentation for cpab
+Documentation for difw
 ======================
 
 .. toctree::

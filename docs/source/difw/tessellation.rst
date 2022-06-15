@@ -1,6 +1,6 @@
 Tessellation
 ============
 
-.. automodule:: cpab.core.tessellation
+.. automodule:: difw.core.tessellation
     :members:
     :undoc-members:

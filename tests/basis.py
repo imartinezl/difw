@@ -7,7 +7,7 @@ import timeit
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import cpab
+import difw
 from tqdm import tqdm 
 
 # %%
@@ -61,22 +61,22 @@ outsize = 100
 batch_size = 1
 
 basis = "svd"
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 B_svd = T.params.B
 plot_basis_velocity(T)
 
 basis = "rref"
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 B_rref = T.params.B
 plot_basis_velocity(T)
 
 basis = "sparse"
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 B_sparse = T.params.B
 plot_basis_velocity(T)
 
 basis = "qr"
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 B_qr = T.params.B
 plot_basis_velocity(T)
 

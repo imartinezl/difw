@@ -9,7 +9,7 @@ import timeit
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import cpab
+import difw
 import pandas as pd
 import seaborn as sns
 
@@ -115,7 +115,7 @@ def Ramsay(x, p):
 
 
 def CPA(grid, T):
-    # T = cpab.Cpab(tess_size=3)
+    # T = difw.Cpab(tess_size=3)
     theta = T.sample_transformation(1)
     # d = T.params.d
     # theta = np.random.laplace(loc=0, scale=1, size=d)[np.newaxis, :]
@@ -213,7 +213,7 @@ def count_paths(p, n, function="PiecewiseLinear", samples=2000, plot=False):
 
     T = None
     if function == "CPA":
-        T = cpab.Cpab(tess_size=p, basis="svd")
+        T = difw.Cpab(tess_size=p, basis="svd")
 
     xp = None
     method = "exponential"
@@ -359,7 +359,7 @@ def paths_metrics(p, n, function="PiecewiseLinear", samples=2000, plot=False):
 
     T = None
     if function == "CPA":
-        T = cpab.Cpab(tess_size=p, basis="svd")
+        T = difw.Cpab(tess_size=p, basis="svd")
 
     xp = None
     method = "exponential"

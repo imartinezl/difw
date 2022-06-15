@@ -1,6 +1,6 @@
 # %%
 
-import cpab
+import difw
 
 # %%
 
@@ -16,7 +16,7 @@ basis = "sparse"
 basis = "qr"
 basis = "rref"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 # T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)

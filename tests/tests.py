@@ -7,7 +7,7 @@ import timeit
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import cpab
+import difw
 from tqdm import tqdm 
 
 # %% TEST 
@@ -24,7 +24,7 @@ basis = "svd"
 basis = "sparse"
 basis = "rref"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
@@ -109,7 +109,7 @@ basis = "svd"
 basis = "sparse"
 basis = "rref"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
@@ -212,7 +212,7 @@ results= {}
 for basis in ["sparse", "svd", "rref", "qr"]:
     start_time = time.time()
 
-    T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+    T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
     T.params.use_slow = use_slow
     # T.params.B = torch.tensor(B2, dtype=torch.float)
 
@@ -326,7 +326,7 @@ use_slow = False
 outsize = 100
 batch_size = 1
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary)
+T = difw.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
@@ -388,7 +388,7 @@ use_slow = False
 outsize = 100
 batch_size = 2
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary)
+T = difw.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
 
 theta = T.sample_transformation(batch_size)
@@ -643,7 +643,7 @@ plt.figure()
 plt.plot(newdata2[0,:,0])
 
 # %%
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 # custom deformation

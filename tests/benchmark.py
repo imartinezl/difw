@@ -9,7 +9,7 @@ import timeit
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import cpab
+import difw
 
 import torch.autograd.profiler as profiler
 import torch.utils.benchmark as benchmark
@@ -24,7 +24,7 @@ outsize = 100
 batch_size = 20
 method = "closed_form"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary)
+T = difw.Cpab(tess_size, backend, device, zero_boundary)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
@@ -137,7 +137,7 @@ for (
     batch_size_arr,
 ):
     # SETUP
-    T = cpab.Cpab(tess_size, backend, device, zero_boundary)
+    T = difw.Cpab(tess_size, backend, device, zero_boundary)
     T.params.use_slow = use_slow
 
     grid = T.uniform_meshgrid(outsize)

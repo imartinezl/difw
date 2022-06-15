@@ -1,11 +1,11 @@
-.. cpab documentation master file, created by
+.. difw documentation master file, created by
   sphinx-quickstart on Mon Jun 28 18:23:50 2021.
   You can adapt this file completely to your liking, but it should at least
   contain the root `toctree` directive.
 
 |
 
-.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/logo.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/logo.png
   :width: 300
   :align: center
 
@@ -13,31 +13,31 @@
 
 Finite-dimensional spaces of simple, fast, and highly-expressive diffeomorphisms derived from parametric, continuously-defined, velocity fields in Numpy and Pytorch
 
-.. image:: https://img.shields.io/pypi/status/cpab?style=flat-square
-    :target: https://pypi.python.org/pypi/cpab
+.. image:: https://img.shields.io/pypi/status/difw?style=flat-square
+    :target: https://pypi.python.org/pypi/difw
     :alt: PyPI Status
 
-.. image:: https://img.shields.io/pypi/v/cpab?style=flat-square
-    :target: https://pypi.python.org/pypi/cpab
+.. image:: https://img.shields.io/pypi/v/difw?style=flat-square
+    :target: https://pypi.python.org/pypi/difw
     :alt: PyPI Version
 
-.. image:: https://img.shields.io/github/license/imartinezl/cpab?style=flat-square
-    :target: https://github.com/imartinezl/cpab/blob/master/LICENSE
+.. image:: https://img.shields.io/github/license/imartinezl/difw?style=flat-square
+    :target: https://github.com/imartinezl/difw/blob/master/LICENSE
     :alt: License
 
-.. image:: https://img.shields.io/github/workflow/status/imartinezl/cpab/Workflow?style=flat-square
-    :target: https://github.com/imartinezl/cpab/actions
+.. image:: https://img.shields.io/github/workflow/status/imartinezl/difw/Workflow?style=flat-square
+    :target: https://github.com/imartinezl/difw/actions
     :alt: Actions
 
-.. image:: https://img.shields.io/pypi/dm/cpab?style=flat-square
-    :target: https://pepy.tech/project/cpab
+.. image:: https://img.shields.io/pypi/dm/difw?style=flat-square
+    :target: https://pepy.tech/project/difw
 
-.. image:: https://img.shields.io/github/languages/top/imartinezl/cpab?style=flat-square
-    :target: https://github.com/imartinezl/cpab
+.. image:: https://img.shields.io/github/languages/top/imartinezl/difw?style=flat-square
+    :target: https://github.com/imartinezl/difw
     :alt: Top Language
 
-.. image:: https://img.shields.io/github/issues/imartinezl/cpab?style=flat-square
-    :target: https://github.com/imartinezl/cpab
+.. image:: https://img.shields.io/github/issues/imartinezl/difw?style=flat-square
+    :target: https://github.com/imartinezl/difw
     :alt: Github Issues
 
 
@@ -47,15 +47,15 @@ Getting Started
 The following code transforms a regular grid using a diffeomorphic curve parametrized ``theta``:
 
 .. image:: https://mybinder.org/badge_logo.svg
-    :target: https://mybinder.org/v2/gh/imartinezl/cpab/HEAD
+    :target: https://mybinder.org/v2/gh/imartinezl/difw/HEAD
 
 .. code-block:: python
 
-    # Import cpab library
-    import cpab
+    # Import difw library
+    import difw
 
     # Transformation instance 
-    T = cpab.Cpab(tess_size=5, backend="numpy", device="cpu", zero_boundary=True, basis="qr")
+    T = difw.Cpab(tess_size=5, backend="numpy", device="cpu", zero_boundary=True, basis="qr")
 
     # Generate grid
     grid = T.uniform_meshgrid(100)
@@ -66,7 +66,7 @@ The following code transforms a regular grid using a diffeomorphic curve paramet
     # Transform grid
     grid_t = T.transform_grid(grid, theta)
 
-.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_deformgrid.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/figures/visualize_deformgrid.png
     :align: center
     :width: 500
 
@@ -76,7 +76,7 @@ In this example, the tesselation is composed of 5 intervals, and the ``zero_boun
 
     T.visualize_tesselation()
 
-.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_tesselation.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/figures/visualize_tesselation.png
     :align: center
     :width: 500
 
@@ -88,7 +88,7 @@ Taking into account the zero velocity constraints at the boundary, only 4 dimens
 
     T.visualize_velocity(theta)
 
-.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_velocity.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/figures/visualize_velocity.png
     :align: center
     :width: 500
 
@@ -98,7 +98,7 @@ We can visualize the generated transformation based on the parameters ``theta``:
 
     T.visualize_deformgrid(theta)
 
-.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_deformgrid.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/figures/visualize_deformgrid.png
     :align: center
     :width: 500
 
@@ -108,7 +108,7 @@ In addition, for optimization tasks, it is useful to obtain the gradient of the 
 
     T.visualize_gradient(theta)
 
-.. figure:: https://raw.githubusercontent.com/imartinezl/cpab/master/docs/source/_static/figures/visualize_gradient.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/figures/visualize_gradient.png
     :align: center
     :width: 500
 
@@ -117,25 +117,25 @@ In addition, for optimization tasks, it is useful to obtain the gradient of the 
 Installation
 ------------
 
-As the compiled **cpab** package is hosted on the Python Package Index (PyPI) you can easily install it with ``pip``.
-To install **cpab**, run this command in your terminal of choice:
+As the compiled **difw** package is hosted on the Python Package Index (PyPI) you can easily install it with ``pip``.
+To install **difw**, run this command in your terminal of choice:
 
 .. code-block:: shell-session
 
-    $ pip install cpab
+    $ pip install difw
 
 or, alternatively:
 
 .. code-block:: shell-session
 
-    $ python -m pip install cpab
+    $ python -m pip install difw
 
-If you want to get **cpab**'s latest version, you can refer to the
+If you want to get **difw**'s latest version, you can refer to the
 repository hosted at github:
 
 .. code-block:: shell-session
 
-    python -m pip install https://github.com/imartinezl/cpab/archive/master.zip
+    python -m pip install https://github.com/imartinezl/difw/archive/master.zip
 
 Environment Setup
 -----------------
@@ -143,7 +143,7 @@ Environment Setup
 Requirements
 ^^^^^^^^^^^^
 
-**cpab** builds on ``numpy``, ``torch``, ``scipy``, ``ninja``,  and ``matplotlib`` libraries.
+**difw** builds on ``numpy``, ``torch``, ``scipy``, ``ninja``,  and ``matplotlib`` libraries.
 
 Python 3
 ^^^^^^^^
@@ -182,20 +182,20 @@ Before you can start installing or using packages in your virtual environment yo
 Source Code
 -----------
 
-cpab is developed on GitHub, where the code is
-`always available <https://github.com/imartinezl/cpab>`_.
+difw is developed on GitHub, where the code is
+`always available <https://github.com/imartinezl/difw>`_.
 
 You can either clone the public repository:
 
 .. code-block:: shell-session
 
-    $ git clone git://github.com/imartinezl/cpab.git
+    $ git clone git://github.com/imartinezl/difw.git
 
-Or, download the `tarball <https://github.com/imartinezl/cpab/tarball/main>`_:
+Or, download the `tarball <https://github.com/imartinezl/difw/tarball/main>`_:
 
 .. code-block:: shell-session
 
-    $ curl -OL https://github.com/imartinezl/cpab/tarball/main
+    $ curl -OL https://github.com/imartinezl/difw/tarball/main
     # optionally, zipball is also available (for Windows users).
 
 Once you have a copy of the source, you can embed it in your own Python
@@ -204,6 +204,6 @@ package, or install it into your site-packages easily:
 
 .. code-block:: shell-session
 
-    $ cd cpab
+    $ cd difw
     $ python -m pip install .
 

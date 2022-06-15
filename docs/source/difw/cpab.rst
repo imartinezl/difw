@@ -1,6 +1,6 @@
 Core
 ====
 
-.. automodule:: cpab.cpab
+.. automodule:: difw.cpab
     :members:
     :undoc-members:

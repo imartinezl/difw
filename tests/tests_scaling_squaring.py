@@ -7,7 +7,7 @@ import timeit
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import cpab
+import difw
 from tqdm import tqdm 
 
 # %%
@@ -21,7 +21,7 @@ outsize = 100
 batch_size = 1
 basis = "svd"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
@@ -103,7 +103,7 @@ outsize = 1000
 batch_size = 1
 basis = "rref"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 grid = T.uniform_meshgrid(outsize)
@@ -163,7 +163,7 @@ outsize = 1000
 batch_size = 2
 basis = "rref"
 
-T = cpab.Cpab(tess_size, backend, device, zero_boundary, basis)
+T = difw.Cpab(tess_size, backend, device, zero_boundary, basis)
 T.params.use_slow = use_slow
 
 theta_1 = T.sample_transformation(batch_size)
