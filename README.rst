@@ -5,7 +5,7 @@
 
 |
 
-.. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/logo.png
+.. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/logo_readme.png
   :width: 300
   :align: center
 
