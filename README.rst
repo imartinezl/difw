@@ -6,7 +6,7 @@
 |
 
 .. figure:: https://raw.githubusercontent.com/imartinezl/difw/master/docs/source/_static/logo_readme.png
-  :width: 300
+  :width: 400
   :align: center
 
 |
