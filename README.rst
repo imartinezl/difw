@@ -11,7 +11,10 @@
 
 |
 
-Finite-dimensional spaces of simple, fast, and highly-expressive diffeomorphisms derived from parametric, continuously-defined, velocity fields in Numpy and Pytorch
+Finite-dimensional spaces of simple, fast, and highly-expressive diffeomorphisms derived from parametric, continuously-defined, velocity fields in Numpy and Pytorch. DIFW supports one-dimensional diffeomorphic transformations. 
+
+This repo is based on the `libcpab <https://github.com/SkafteNicki/libcpab>`_ library that supports diffeomorphic transformations in 1D (time series), 2D (images) and 3D (volumetric images).
+Thanks to Nicki Skafte Detlefsen, Oren Freifeld and Ron Shapira Weber for their help and guidance. 
 
 .. image:: https://img.shields.io/pypi/status/difw?style=flat-square
     :target: https://pypi.python.org/pypi/difw
