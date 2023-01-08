@@ -62,19 +62,26 @@ __device__ float get_psi(const float& x, const float& t,  const float& a, const 
     }
 }
 
-__device__ float get_hit_time(float x, int c, const float& a, const float& b, const float& xmin, const float& xmax, const int& nc, float& xc, int& cc){
+__device__ float get_hit_time(float x, float t, int c, const float& a, const float& b, const float& xmin, const float& xmax, const int& nc, float& xc, int& cc){
+    int s = signf(t);
+    float infinite = inf*s;
 
     const float v = a * x + b;
-    if(cmpf0(v)) return inf;
+    if(cmpf0(v)) return infinite;
 
-    cc = c + signf(v);
-    if(cc < 0 || cc >= nc) return inf;
-    xc = (v > 0) ? right_boundary(c, xmin, xmax, nc) : left_boundary(c, xmin, xmax, nc);
+    cc = c + signf(v)*signf(t);
+    if(cc < 0 || cc >= nc) return infinite;
+    // xc = (v > 0) ? right_boundary(c, xmin, xmax, nc) : left_boundary(c, xmin, xmax, nc);
+    if (t > 0){
+        xc = (v > 0) ? right_boundary(c, xmin, xmax, nc) : left_boundary(c, xmin, xmax, nc);
+    }else{
+        xc = (v > 0) ? left_boundary(c, xmin, xmax, nc) : right_boundary(c, xmin, xmax, nc);
+    }
 
     const float vc = a * xc + b;
-    if(cmpf0(vc)) return inf;
-    if(signf(v) != signf(vc)) return inf;
-    if(xc == xmin || xc == xmax) return inf;
+    if(cmpf0(vc)) return infinite;
+    if(signf(v) != signf(vc)) return infinite;
+    if(xc == xmin || xc == xmax) return infinite;
 
     if(cmpf0(a)){
         return (xc - x)/b;
@@ -87,6 +94,7 @@ __device__ float integrate_closed_form(float x, float t, const float* A, const i
     int c = get_cell(x, xmin, xmax, nc);
     int cont = 0;
     const int contmax = std::max(c, nc-1-c);
+    int s = signf(t);
 
     float a, b, xc, thit;
     int cc;
@@ -94,8 +102,8 @@ __device__ float integrate_closed_form(float x, float t, const float* A, const i
         a = A[(2*c) * n_batch + batch_index];
         b = A[(2*c+1) * n_batch + batch_index];
 
-        thit = get_hit_time(x, c, a, b, xmin, xmax, nc, xc, cc);
-        if (thit > t){
+        thit = get_hit_time(x, t, c, a, b, xmin, xmax, nc, xc, cc);
+        if (s*thit > s*t){
             return get_psi(x, t, a, b);
         }
 
@@ -115,6 +123,7 @@ __device__ void integrate_closed_form_trace(float* result, float x, float t, con
     int c = get_cell(x, xmin, xmax, nc);
     int cont = 0;
     const int contmax = std::max(c, nc-1-c);
+    int s = signf(t);
 
     float a, b, xc, thit;
     int cc;
@@ -122,8 +131,8 @@ __device__ void integrate_closed_form_trace(float* result, float x, float t, con
         a = A[(2*c) * n_batch + batch_index];
         b = A[(2*c+1) * n_batch + batch_index];
 
-        thit = get_hit_time(x, c, a, b, xmin, xmax, nc, xc, cc);
-        if (thit > t){
+        thit = get_hit_time(x, t, c, a, b, xmin, xmax, nc, xc, cc);
+        if (s*thit > s*t){
             result[0] = get_psi(x, t, a, b);
             result[1] = t;
             result[2] = c;
